@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  frontend:
+    environment:
+      - NODE_ENV=production
+
+  question_service:
+    environment:
+      - DATABASE_URL=${QUESTION_DATABASE_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    restart: unless-stopped
+
+  matching_service:
+    environment:
+      - DATABASE_URL=${MATCHING_DATABASE_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    restart: unless-stopped
+
+  collaboration_service:
+    environment:
+      - DATABASE_URL=${COLLABORATION_DATABASE_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    restart: unless-stopped
+
+  # Disable container databases in production
+  question_db:
+    deploy:
+      replicas: 0
+
+  matching_db:
+    deploy:
+      replicas: 0
+
+  collaboration_db:
+    deploy:
+      replicas: 0

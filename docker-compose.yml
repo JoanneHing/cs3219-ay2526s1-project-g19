@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT}:5173"
+    environment:
+      - VITE_QUESTION_API=${VITE_QUESTION_API}
+      - VITE_MATCHING_API=${VITE_MATCHING_API}
+      - VITE_COLLABORATION_API=${VITE_COLLABORATION_API}
+
+  question_service:
+    build: ./question_service
+    ports:
+      - "${QUESTION_PORT}:8001"
+    environment:
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@question_db:5432/question_db
+    depends_on:
+      - question_db
+
+  matching_service:
+    build: ./matching_service
+    ports:
+      - "${MATCHING_PORT}:8002"
+    environment:
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@matching_db:5432/matching_db
+    depends_on:
+      - matching_db
+
+  collaboration_service:
+    build: ./collaboration_service
+    ports:
+      - "${COLLABORATION_PORT}:8003"
+    environment:
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@collaboration_db:5432/collaboration_db
+    depends_on:
+      - collaboration_db
+
+  question_db:
+    image: postgres:15
+    ports:
+      - "5432:5432"  # External access port
+    environment:
+      POSTGRES_DB: question_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - question_data:/var/lib/postgresql/data
+
+  matching_db:
+    image: postgres:15
+    ports:
+      - "5433:5432"  # External access port
+    environment:
+      POSTGRES_DB: matching_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - matching_data:/var/lib/postgresql/data
+
+  collaboration_db:
+    image: postgres:15
+    ports:
+      - "5434:5432"  # External access port
+    environment:
+      POSTGRES_DB: collaboration_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - collaboration_data:/var/lib/postgresql/data
+
+volumes:
+  question_data:
+  matching_data:
+  collaboration_data:
