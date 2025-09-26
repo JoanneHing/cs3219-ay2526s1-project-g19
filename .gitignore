@@ -1,3 +1,7 @@
 /venv/
 .env
 .env.production
+user_service/staticfiles/*
+user_service/user/__pycache__/*
+user_service/user/migrations/__pycache__/*
+user_service/user_service/__pycache__/*
