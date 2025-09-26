@@ -88,10 +88,10 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('DB_NAME', default='matching_db'),
+            'NAME': config('DB_NAME', default='collaboration_db'),
             'USER': config('DB_USER', default='postgres'),
             'PASSWORD': config('DB_PASSWORD', default='postgres'),
-            'HOST': config('DB_HOST', default='matching_db'),
+            'HOST': config('DB_HOST', default='collaboration_db'),
             'PORT': config('DB_PORT', default='5432'),
         }
     }
