@@ -53,3 +53,12 @@ docker-compose down -v
 docker-compose up --build
 
 That's it. Start with the Quick Start section, then use Daily Development commands.Retry
+
+# 26 Seept
+Kim updated a few more things
+1. entrypoints.sh for docker to initialise db up before local run.
+2. updated Dockerfile with entrypoints, create static files, variable based on env #forseee future got permission error need settle oso.
+3. update requirements.txt for rest framework, and also db_url reading, cors.
+4. update settings.py for more statics file/logging/restframework also installed app, importantly for database... previously forgot setup haha. #haven't check if actually using psqlite or db in docker... should be ah should be...
+
+created new file for how+kim_initialise user services.
