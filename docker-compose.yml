@@ -9,6 +9,7 @@ services:
       - VITE_QUESTION_API=${VITE_QUESTION_API}
       - VITE_MATCHING_API=${VITE_MATCHING_API}
       - VITE_COLLABORATION_API=${VITE_COLLABORATION_API}
+      - VITE_USER_API=${VITE_USER_API}
 
   question_service:
     build: ./question_service
@@ -41,7 +42,17 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@collaboration_db:5432/collaboration_db
     depends_on:
-      - collaboration_db
+      - collaboration_d
+  user_service:
+    build: ./user_service
+    ports:
+      - "${USER_PORT}:8003"
+    environment:
+      - DEBUG=${DEBUG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@user_db:5432/user_db
+    depends_on:
+      - user_db
 
   question_db:
     image: postgres:15
@@ -75,8 +86,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - collaboration_data:/var/lib/postgresql/data
+  user_db:
+    image: postgres:15
+    ports:
+      - "5435:5432"  # External access port
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - user_data:/var/lib/postgresql/data
 
 volumes:
   question_data:
   matching_data:
   collaboration_data:
+  user_data:

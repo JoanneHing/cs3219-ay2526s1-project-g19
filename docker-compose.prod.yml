@@ -23,6 +23,12 @@ services:
       - ALLOWED_HOSTS=${ALLOWED_HOSTS}
     restart: unless-stopped
 
+  user_service:
+    environment:
+      - DATABASE_URL=${USER_DATABASE_URL}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+    restart: unless-stopped
+
   # Disable container databases in production
   question_db:
     deploy:
@@ -33,5 +39,9 @@ services:
       replicas: 0
 
   collaboration_db:
+    deploy:
+      replicas: 0
+
+  user_db:
     deploy:
       replicas: 0
