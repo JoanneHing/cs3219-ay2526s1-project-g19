@@ -20,6 +20,54 @@ The matching service is responsible for matching users based on the below define
 
 ## Database Tables
 
+### DDL
+
+```sql
+-- Users in the matching queue
+CREATE TABLE match_queue (
+    queue_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    proficiency INT NOT NULL,
+    primary_lang VARCHAR(50),
+    secondary_lang VARCHAR(50)[],  -- array of languages
+    topics VARCHAR(50)[],           -- array of topics
+    difficulty VARCHAR(20)[],       -- array of difficulties (easy/medium/hard)
+    joined_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    timeout_at TIMESTAMP NOT NULL   -- calculated as joined_at + 60 seconds
+);
+
+-- Store session history
+CREATE TABLE session_history (
+    session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_a_id UUID NOT NULL,
+    user_a_proficiency INT NOT NULL,
+    user_b_id UUID NOT NULL,
+    user_b_proficiency INT NOT NULL,
+    topic VARCHAR(50) NOT NULL,
+    difficulty VARCHAR(20) NOT NULL,
+    primary_lang VARCHAR(50),
+    secondary_lang VARCHAR(50),
+    proficiency_criteria INT,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    time_taken INT,    -- seconds
+    attempts INT
+);
+
+-- Lobbies for users waiting
+CREATE TABLE lobby (
+    lobby_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topics VARCHAR(50)[],            -- array of topics
+    difficulty VARCHAR(20)[],        -- array of difficulties
+    primary_lang VARCHAR(50),
+    secondary_lang VARCHAR(50)[],    -- array of languages
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP              -- optional timeout for lobby
+);
+```
+
+### Entity Relationship Diagram
+![ERD for Matching Service](assets/ERD.png)
 
 ## Matching Service API Endpoints
 
