@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.sessions.models import Session
 from django.db import models
 from django.core.validators import EmailValidator
+from django.utils import timezone
 import uuid
 
 class CustomUserManager(UserManager):
@@ -104,4 +106,87 @@ class User(AbstractUser):
         """String representation of the user."""
         full_name = self.get_full_name()
         return f"{self.email} ({full_name})" if full_name else self.email
+
+
+class UserSessionProfile(models.Model):
+    """
+    Extended session profile that works with Django's built-in Session model.
+
+    This model stores additional metadata for user sessions while leveraging
+    Django's existing session framework for the core session management.
+    """
+    profile_id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique identifier for the session profile"
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='session_profiles',
+        help_text="User associated with this session"
+    )
+    session = models.OneToOneField(
+        Session,
+        on_delete=models.CASCADE,
+        related_name='user_profile',
+        help_text="Django session associated with this profile"
+    )
+    refresh_token_hash = models.CharField(
+        max_length=255,
+        help_text="Hashed refresh token for JWT"
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="IP address of the session"
+    )
+    user_agent = models.TextField(
+        null=True,
+        blank=True,
+        help_text="User agent string"
+    )
+    login_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the user logged in"
+    )
+    last_activity_at = models.DateTimeField(
+        default=timezone.now,
+        help_text="Last activity timestamp"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether the session is active"
+    )
+
+    class Meta:
+        db_table = 'user_session_profiles'
+        verbose_name = 'User Session Profile'
+        verbose_name_plural = 'User Session Profiles'
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['login_at']),
+            models.Index(fields=['last_activity_at']),
+        ]
+
+    def __str__(self) -> str:
+        """String representation of the session profile."""
+        return f"Session Profile {self.profile_id} for {self.user.email}"
+
+    def is_expired(self) -> bool:
+        """Check if the underlying Django session is expired."""
+        return self.session.expire_date < timezone.now()
+
+    def invalidate(self) -> None:
+        """Invalidate both the session profile and Django session."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])
+        # Also delete the Django session
+        self.session.delete()
+
+    def update_activity(self) -> None:
+        """Update last activity timestamp."""
+        self.last_activity_at = timezone.now()
+        self.save(update_fields=['last_activity_at'])
     

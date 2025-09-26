@@ -162,6 +162,19 @@ class APIResponse:
         return APIResponse.error(message, status_code=status.HTTP_404_NOT_FOUND)
 
     @staticmethod
+    def too_many_requests(message: str = "Too many requests") -> Response:
+        """
+        Create a standardized 429 Too Many Requests response.
+
+        Args:
+            message: Error message
+
+        Returns:
+            Response: Formatted too many requests response
+        """
+        return APIResponse.error(message, status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    @staticmethod
     def internal_error(message: str = "Internal server error") -> Response:
         """
         Create a standardized 500 Internal Server Error response.

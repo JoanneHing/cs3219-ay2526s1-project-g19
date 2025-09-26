@@ -9,8 +9,13 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 
 from user_service.utils import APIResponse
-from .serializers import UserRegistrationInputSerializer, UserRegistrationOutputSerializer
-from .services import UserRegistrationService, ValidationError
+from .serializers import (
+    UserRegistrationInputSerializer,
+    UserRegistrationOutputSerializer,
+    UserLoginInputSerializer,
+    UserLoginOutputSerializer
+)
+from .services import UserRegistrationService, UserLoginService, ValidationError
 
 class UserRegistrationView(APIView):
     """
@@ -57,3 +62,87 @@ class UserRegistrationView(APIView):
 
         except ValidationError as e:
             return APIResponse.bad_request(str(e))
+
+
+class UserLoginView(APIView):
+    """
+    API view for user login.
+
+    Handles POST requests to authenticate users and generate tokens.
+    Delegates business logic to UserLoginService.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        """
+        Authenticate user and generate login tokens.
+
+        Args:
+            request: HTTP request containing login credentials
+
+        Returns:
+            Response: Standardized API response
+        """
+        # Validate input
+        input_serializer = UserLoginInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return APIResponse.validation_error(
+                "Invalid input data",
+                details=input_serializer.errors
+            )
+
+        try:
+            # Get client metadata
+            ip_address = self._get_client_ip(request)
+            user_agent = request.META.get('HTTP_USER_AGENT', '')
+
+            # Process login through service layer
+            validated_data = input_serializer.validated_data
+            user, tokens, session_profile = UserLoginService.login_user(
+                request=request,
+                email=validated_data['email'],
+                password=validated_data['password'],
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+
+            # Format successful response - pass objects directly
+            output_serializer = UserLoginOutputSerializer(
+                user=user,
+                tokens=tokens,
+                session_profile=session_profile
+            )
+            return APIResponse.success(
+                data=output_serializer.data,
+                message="Login successful"
+            )
+
+        except ValidationError as e:
+            error_message = str(e)
+
+            # Return specific status codes based on error type
+            if "too many failed" in error_message.lower():
+                return APIResponse.too_many_requests(error_message)
+            elif "invalid email or password" in error_message.lower():
+                return APIResponse.unauthorized(error_message)
+            elif "account is disabled" in error_message.lower():
+                return APIResponse.forbidden(error_message)
+            else:
+                return APIResponse.bad_request(error_message)
+
+    def _get_client_ip(self, request: Request) -> str:
+        """
+        Get client IP address from request.
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            str: Client IP address
+        """
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR', '')
+        return ip
