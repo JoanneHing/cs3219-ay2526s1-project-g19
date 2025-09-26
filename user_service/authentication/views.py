@@ -1,16 +1,59 @@
-from rest_framework import generics, status
+"""
+Authentication views.
+
+Handles HTTP requests and delegates business logic to services.
+"""
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from .serializers import UserRegistrationSerializer
+from rest_framework.request import Request
 
-class UserRegistrationView(generics.CreateAPIView):
-    """DRF generic view for user registration"""
-    serializer_class = UserRegistrationSerializer
+from user_service.utils import APIResponse
+from .serializers import UserRegistrationInputSerializer, UserRegistrationOutputSerializer
+from .services import UserRegistrationService, ValidationError
+
+class UserRegistrationView(APIView):
+    """
+    API view for user registration.
+
+    Handles POST requests to create new user accounts.
+    Delegates business logic to UserRegistrationService.
+    """
     permission_classes = [AllowAny]
 
-    def create(self, request, *args, **kwargs):
-        """Handle user registration with DRF patterns"""
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(serializer.to_representation(user), status=status.HTTP_201_CREATED)
+    def post(self, request: Request) -> Response:
+        """
+        Create a new user account.
+
+        Args:
+            request: HTTP request containing user registration data
+
+        Returns:
+            Response: Standardized API response
+        """
+        # Validate input
+        input_serializer = UserRegistrationInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return APIResponse.validation_error(
+                "Invalid input data",
+                details=input_serializer.errors
+            )
+
+        try:
+            # Process registration through service layer
+            validated_data = input_serializer.validated_data
+            user = UserRegistrationService.register_user(
+                email=validated_data['email'],
+                password=validated_data['password'],
+                display_name=validated_data['display_name']
+            )
+
+            # Format successful response
+            output_serializer = UserRegistrationOutputSerializer({'user': user})
+            return APIResponse.created(
+                data=output_serializer.data,
+                message="User registered successfully"
+            )
+
+        except ValidationError as e:
+            return APIResponse.bad_request(str(e))
