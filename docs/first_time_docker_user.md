@@ -7,7 +7,7 @@ cd cs3219-project
 open -a Docker
 
 # 3. Copy environment file
-cp .env.local.sample .env.local
+cp .env.sample .env
 
 # 4. Run everything
 
