@@ -93,6 +93,23 @@ async def disconnect(sid):
     logger.info(f"WebSocket: disconnect called for SID {sid}")
     print(f"WebSocket: disconnect called for SID {sid}")
 
+@sio.event
+async def cursor(sid, data):
+    """Handle cursor position updates with line/character coordinates."""
+    room = data.get("room")
+    if not room:
+        await sio.emit("error", {"message": "room is required"}, to=sid)
+        return
+    
+    # Broadcast cursor position to all other users in the room
+    await sio.emit("cursor", {
+        "userId": sid,
+        "line": data.get("line", 1),
+        "ch": data.get("ch", 0)
+    }, room=room, skip_sid=sid)
+    
+    logger.info(f"Cursor update from {sid} in room {room} at line {data.get('line')}, ch {data.get('ch')}")
+
 # Run the server
 if __name__ == "__main__":
     app.on_startup.append(lambda app: init_redis())  # Initialize Redis on startup
