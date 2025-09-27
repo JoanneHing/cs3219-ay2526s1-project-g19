@@ -17,7 +17,9 @@ from .serializers import (
     UserRegistrationOutputSerializer,
     UserLoginInputSerializer,
     UserLoginOutputSerializer,
-    TokenVerifyOutputSerializer
+    TokenVerifyOutputSerializer,
+    RefreshTokenInputSerializer,
+    RefreshTokenOutputSerializer
 )
 from .services import UserRegistrationService, UserLoginService, UserLogoutService, TokenService, ValidationError
 
@@ -277,3 +279,59 @@ class TokenVerifyView(APIView):
                 return APIResponse.unauthorized(error_message)
             else:
                 return APIResponse.forbidden(error_message)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RefreshTokenView(APIView):
+    """
+    API view for token refresh.
+
+    Handles POST requests to refresh JWT tokens.
+    Delegates business logic to TokenRefreshService.
+    """
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        summary="Refresh access token",
+        description="Generate new access token using refresh token",
+        request=RefreshTokenInputSerializer,
+        responses={
+            200: OpenApiResponse(response=RefreshTokenOutputSerializer, description="Token refreshed"),
+            400: OpenApiResponse(description="Invalid refresh token"),
+        },
+        tags=["Authentication"]
+    )
+    def post(self, request: Request) -> Response:
+        """
+        Refresh access token using refresh token.
+
+        Args:
+            request: HTTP request containing refresh token
+
+        Returns:
+            Response: Standardized API response with new tokens
+        """
+        # Validate input
+        input_serializer = RefreshTokenInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return APIResponse.validation_error("Invalid input", details=input_serializer.errors)
+
+        try:
+            # Process through service
+            validated_data = input_serializer.validated_data
+            new_tokens = TokenService.refresh_access_token(
+                validated_data['refresh_token']
+            )
+
+            # Pass TokenPair object directly to serializer
+            output_serializer = RefreshTokenOutputSerializer(
+                tokens=new_tokens
+            )
+
+            return APIResponse.success(
+                data=output_serializer.data,
+                message="Token refreshed successfully"
+            )
+
+        except ValidationError as e:
+            return APIResponse.bad_request(str(e))

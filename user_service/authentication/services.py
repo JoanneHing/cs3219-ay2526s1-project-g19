@@ -11,7 +11,6 @@ from django.contrib.auth import get_user_model, authenticate, login
 from django.contrib.auth.models import AbstractUser
 from django.contrib.sessions.models import Session
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from django.core.cache import cache
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -236,6 +235,69 @@ class TokenService:
 
         return user, session_profile
 
+    @staticmethod
+    def refresh_access_token(refresh_token: str) -> TokenPair:
+        """
+        Refresh access token and return new tokens.
+
+        Only generates a new access token, keeps the refresh token unchanged.
+
+        Args:
+            refresh_token: Refresh token string
+
+        Returns:
+            TokenPair: TokenPair with new access token and same refresh token
+
+        Raises:
+            ValidationError: If refresh token is invalid/expired
+        """
+        try:
+            # Validate refresh token
+            refresh = RefreshToken(refresh_token)
+
+            # Extract user and session from token
+            user_id = refresh.get('user_id')
+            profile_session_id = refresh.get('profile_session_id')
+
+            if not profile_session_id:
+                raise ValidationError("Token missing session tracking - please login again")
+
+            # Verify session is still active
+            UserSessionProfile.objects.get(
+                profile_id=profile_session_id,
+                user_id=user_id,
+                is_active=True
+            )
+
+            # Generate only new access token, keep same refresh token
+            new_access_token = refresh.access_token
+            new_access_token['profile_session_id'] = profile_session_id  # Ensure session ID is in access token
+
+            # Extract expiration times
+            from datetime import datetime
+            access_token_expires_at = datetime.fromtimestamp(new_access_token['exp'])
+            refresh_token_expires_at = datetime.fromtimestamp(refresh['exp'])
+
+            # Create TokenPair with new access token and existing refresh token
+            from .tokens import TokenPair, AccessToken, RefreshTokenData
+            new_tokens = TokenPair(
+                access_token=AccessToken(
+                    token=str(new_access_token),
+                    expires_at=access_token_expires_at
+                ),
+                refresh_token=RefreshTokenData(
+                    token=refresh_token,  # Keep the same refresh token
+                    expires_at=refresh_token_expires_at
+                )
+            )
+
+            # No need to update session refresh_token_hash since refresh token stays the same
+
+            return new_tokens
+
+        except (InvalidToken, TokenError, UserSessionProfile.DoesNotExist):
+            raise ValidationError("Invalid or expired refresh token")
+
 
 class UserRegistrationService:
     """Business logic for user registration."""
@@ -372,7 +434,7 @@ class SessionService:
         tokens = TokenService.generate_token_pair(user, str(session_profile.profile_id))
 
         # Update session profile with actual refresh token hash
-        session_profile.refresh_token_hash = TokenService.hash_token(tokens.refresh_token)
+        session_profile.refresh_token_hash = TokenService.hash_token(tokens.refresh_token.token)
         session_profile.save(update_fields=['refresh_token_hash'])
 
         return session_profile, tokens

@@ -64,31 +64,30 @@ class UserLoginInputSerializer(serializers.Serializer):
         return value.lower().strip()
 
 
+class AccessTokenSerializer(serializers.Serializer):
+    """
+    Serializer for AccessToken dataclass.
+    """
+    token = serializers.CharField(read_only=True)
+    expires_at = serializers.DateTimeField(read_only=True)
+
+
+class RefreshTokenSerializer(serializers.Serializer):
+    """
+    Serializer for RefreshTokenData dataclass.
+    """
+    token = serializers.CharField(read_only=True)
+    expires_at = serializers.DateTimeField(read_only=True)
+
+
 class TokensSerializer(serializers.Serializer):
     """
-    Serializer for JWT tokens.
+    Serializer for TokenPair using individual token serializers.
 
-    Can serialize both TokenPair dataclass and dictionary formats.
+    Clean, modular approach with DRY principle.
     """
-    access_token = serializers.CharField(read_only=True)
-    refresh_token = serializers.CharField(read_only=True)
-
-    def to_representation(self, instance):
-        """
-        Convert TokenPair dataclass or dict to serialized representation.
-
-        Args:
-            instance: TokenPair dataclass or dictionary
-
-        Returns:
-            dict: Serialized token data
-        """
-        if hasattr(instance, 'to_dict'):
-            # TokenPair dataclass
-            return instance.to_dict()
-        else:
-            # Regular dictionary
-            return super().to_representation(instance)
+    access_token = AccessTokenSerializer(read_only=True)
+    refresh_token = RefreshTokenSerializer(read_only=True)
 
 
 class SessionProfileSerializer(serializers.Serializer):
@@ -143,5 +142,38 @@ class TokenVerifyOutputSerializer(serializers.Serializer):
     """
     user = UserMeSerializer(read_only=True)
     session_profile = SessionProfileSerializer(read_only=True, required=False)
+
+
+class RefreshTokenInputSerializer(serializers.Serializer):
+    """
+    Input serializer for token refresh.
+
+    Performs basic field validation only.
+    """
+    refresh_token = serializers.CharField(required=True, write_only=True)
+
+
+class RefreshTokenOutputSerializer(serializers.Serializer):
+    """
+    Output serializer for token refresh response.
+
+    Reuses existing TokensSerializer and takes objects directly.
+    TokensSerializer can handle both TokenPair dataclass and dict formats
+    through its to_representation() method.
+    """
+    tokens = TokensSerializer(read_only=True)
+
+    def __init__(self, tokens=None, **kwargs):
+        """
+        Initialize with TokenPair object directly.
+
+        Args:
+            tokens: TokenPair object (not dict) - TokensSerializer handles conversion
+        """
+        if tokens is not None:
+            instance = {'tokens': tokens}
+            super().__init__(instance, **kwargs)
+        else:
+            super().__init__(**kwargs)
 
 
