@@ -26,6 +26,25 @@ async def init_redis():
     redis_client = await redis.from_url(REDIS_URL, decode_responses=True)
     logger.info(f"Connected to Redis at {REDIS_URL}")
 
+async def cleanup_on_startup():
+    """Clean up all chat-related data on server startup."""
+    try:
+        # Get all chat history keys
+        chat_keys = await redis_client.keys("chat_history_*")
+        if chat_keys:
+            await redis_client.delete(*chat_keys)
+            logger.info(f"Cleaned up {len(chat_keys)} chat history entries on startup")
+        
+        # Get all room users keys
+        user_keys = await redis_client.keys("room_users_*")
+        if user_keys:
+            await redis_client.delete(*user_keys)
+            logger.info(f"Cleaned up {len(user_keys)} room user entries on startup")
+            
+        logger.info("Startup cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during startup cleanup: {e}")
+
 @sio.event
 async def connect(sid, environ):
     """Handle new WebSocket connection."""
@@ -83,8 +102,8 @@ async def send(sid, data):
     # Keep only last 100 messages
     await redis_client.ltrim(cache_key, -100, -1)
 
-    # Broadcast message to room
-    await sio.emit("receive", data, room=room)
+    # Broadcast message to room - fix: use message_data instead of data
+    await sio.emit("receive", message_data, room=room)
     logger.info(f"Message from {username} in room {room}: {message}")
 
 @sio.event
@@ -115,7 +134,12 @@ async def disconnect(sid):
     logger.info(f"User disconnected: {sid}")
     print(f"User disconnected: {sid}")
 
+async def startup_sequence(app):
+    """Run startup sequence."""
+    await init_redis()
+    await cleanup_on_startup()
+
 # Run the server
 if __name__ == "__main__":
-    app.on_startup.append(lambda app: init_redis())  # Initialize Redis on startup
+    app.on_startup.append(startup_sequence)
     web.run_app(app, port=8006)
