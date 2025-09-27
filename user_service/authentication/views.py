@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.request import Request
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 from user_service.utils import APIResponse
 from .serializers import (
@@ -17,6 +19,7 @@ from .serializers import (
 )
 from .services import UserRegistrationService, UserLoginService, ValidationError
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(APIView):
     """
     API view for user registration.
@@ -64,6 +67,7 @@ class UserRegistrationView(APIView):
             return APIResponse.bad_request(str(e))
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(APIView):
     """
     API view for user login.
