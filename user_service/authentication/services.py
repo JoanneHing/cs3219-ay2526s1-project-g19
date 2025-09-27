@@ -522,8 +522,7 @@ class UserLoginService:
         )
 
         # Update last login
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
+        user.update_last_login()
 
         return user, tokens, session_profile
 

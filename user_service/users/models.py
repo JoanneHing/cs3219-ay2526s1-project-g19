@@ -107,6 +107,15 @@ class User(AbstractUser):
         full_name = self.get_full_name()
         return f"{self.email} ({full_name})" if full_name else self.email
 
+    def update_last_login(self) -> None:
+        """
+        Update the user's last login timestamp.
+
+        This method updates only the last_login field for efficiency.
+        """
+        self.last_login = timezone.now()
+        self.save(update_fields=['last_login'])
+
 
 class UserSessionProfile(models.Model):
     """
