@@ -435,3 +435,34 @@ class UserLoginService:
         user.save(update_fields=['last_login'])
 
         return user, tokens, session_profile
+
+
+class UserLogoutService:
+    """Business logic for user logout."""
+
+    @staticmethod
+    def logout_user(request, user: AbstractUser) -> None:
+        """
+        Process user logout with session invalidation.
+
+        Args:
+            request: Django request object
+            user: User instance (from authentication)
+
+        Raises:
+            ValidationError: If logout fails for any reason
+        """
+        from django.contrib.auth import logout
+        from django.db import DatabaseError
+
+        try:
+            # Invalidate all user sessions
+            SessionService.invalidate_user_sessions(user)
+
+            # Log out from Django session
+            logout(request)
+
+        except DatabaseError as e:
+            raise ValidationError(f"Database error during logout: {str(e)}")
+        except Exception as e:
+            raise ValidationError(f"Logout failed: {str(e)}")

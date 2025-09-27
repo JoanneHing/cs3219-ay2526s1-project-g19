@@ -16,9 +16,9 @@ from .serializers import (
     UserRegistrationInputSerializer,
     UserRegistrationOutputSerializer,
     UserLoginInputSerializer,
-    UserLoginOutputSerializer
+    UserLoginOutputSerializer,
 )
-from .services import UserRegistrationService, UserLoginService, ValidationError
+from .services import UserRegistrationService, UserLoginService, UserLogoutService, ValidationError
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(APIView):
@@ -174,3 +174,50 @@ class UserLoginView(APIView):
         else:
             ip = request.META.get('REMOTE_ADDR', '')
         return ip
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UserLogoutView(APIView):
+    """
+    API view for user logout.
+
+    Handles POST requests to logout users and invalidate sessions.
+    Delegates business logic to UserLogoutService.
+    """
+    permission_classes = []  # Requires authentication but handled manually
+
+    @extend_schema(
+        summary="User logout",
+        description="Logout user and invalidate all sessions",
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Logout successful"),
+            400: OpenApiResponse(description="Logout failed"),
+            401: OpenApiResponse(description="Authentication required"),
+        },
+        tags=["Authentication"]
+    )
+    def post(self, request: Request) -> Response:
+        """
+        Logout user and invalidate sessions.
+
+        Args:
+            request: HTTP request (empty body)
+
+        Returns:
+            Response: Standardized API response
+        """
+        # Check if user is authenticated
+        if not request.user or not request.user.is_authenticated:
+            return APIResponse.unauthorized("Authentication required")
+
+        try:
+            # Process logout through service layer
+            UserLogoutService.logout_user(request, request.user)
+
+            return APIResponse.success(
+                message="Logout successful"
+            )
+
+        except ValidationError as e:
+            return APIResponse.bad_request(str(e))
