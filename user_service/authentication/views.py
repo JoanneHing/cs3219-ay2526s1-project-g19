@@ -17,8 +17,9 @@ from .serializers import (
     UserRegistrationOutputSerializer,
     UserLoginInputSerializer,
     UserLoginOutputSerializer,
+    TokenVerifyOutputSerializer
 )
-from .services import UserRegistrationService, UserLoginService, UserLogoutService, ValidationError
+from .services import UserRegistrationService, UserLoginService, UserLogoutService, TokenService, ValidationError
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UserRegistrationView(APIView):
@@ -221,3 +222,58 @@ class UserLogoutView(APIView):
 
         except ValidationError as e:
             return APIResponse.bad_request(str(e))
+
+
+class TokenVerifyView(APIView):
+    """
+    API view for token verification.
+
+    Handles GET requests to verify JWT tokens and return user data.
+    Delegates business logic to TokenVerifyService.
+    """
+    permission_classes = []  # Requires authentication but handled manually
+
+    @extend_schema(
+        summary="Verify JWT token",
+        description="Verify JWT access token and return user data",
+        request=None,
+        responses={
+            200: OpenApiResponse(response=TokenVerifyOutputSerializer, description="Token verified successfully"),
+            401: OpenApiResponse(description="Missing/invalid/expired JWT"),
+            403: OpenApiResponse(description="User account is disabled"),
+        },
+        tags=["Authentication"]
+    )
+    def get(self, request: Request) -> Response:
+        """
+        Verify JWT token and return user data.
+
+        Args:
+            request: HTTP request with Authorization header
+
+        Returns:
+            Response: Standardized API response with user data
+        """
+        try:
+            # Get user data through service layer (handles authentication check internally)
+            user, session_profile = TokenService.verify_token_and_get_user_data(request)
+
+            # Format successful response
+            user_data = {
+                'user': user,
+                'session_profile': session_profile
+            }
+            output_serializer = TokenVerifyOutputSerializer(user_data)
+            return APIResponse.success(
+                data=output_serializer.data,
+                message="Token verified successfully"
+            )
+
+        except ValidationError as e:
+            error_message = str(e)
+
+            # Return appropriate status codes based on error type
+            if "authentication required" in error_message.lower():
+                return APIResponse.unauthorized(error_message)
+            else:
+                return APIResponse.forbidden(error_message)

@@ -135,3 +135,13 @@ class UserLoginOutputSerializer(serializers.Serializer):
         super().__init__(instance, **kwargs)
 
 
+class TokenVerifyOutputSerializer(serializers.Serializer):
+    """
+    Output serializer for token verification response.
+
+    Returns user profile data and session info, similar to login.
+    """
+    user = UserMeSerializer(read_only=True)
+    session_profile = SessionProfileSerializer(read_only=True, required=False)
+
+

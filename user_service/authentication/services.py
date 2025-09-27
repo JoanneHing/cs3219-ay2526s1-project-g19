@@ -13,7 +13,8 @@ from django.contrib.sessions.models import Session
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from django.core.cache import cache
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from users.models import UserSessionProfile
 from .tokens import TokenPair
 
@@ -134,6 +135,108 @@ class ValidationService:
         ValidationService.validate_password_strength(password, raise_error=True)
         ValidationService.validate_display_name_format(display_name, raise_error=True)
 
+
+class TokenService:
+    """Dedicated service for JWT token operations."""
+
+    @staticmethod
+    def generate_token_pair(user: AbstractUser, session_profile_id: str) -> TokenPair:
+        """
+        Generate JWT token pair for user with session tracking.
+
+        Args:
+            user: User instance
+            session_profile_id: Session profile ID to embed in tokens
+
+        Returns:
+            TokenPair: Access and refresh tokens with profile_session_id
+        """
+        return TokenPair.generate_for_user(user, session_profile_id)
+
+    @staticmethod
+    def extract_profile_session_id_from_request(request) -> Optional[str]:
+        """
+        Extract profile session ID from JWT token in request headers.
+
+        Args:
+            request: Django request object
+
+        Returns:
+            Optional[str]: Profile session ID if found and valid, None otherwise
+        """
+        try:
+            # Get Authorization header
+            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+            if not auth_header.startswith('Bearer '):
+                return None
+
+            # Extract token
+            token_string = auth_header.split(' ')[1]
+
+            # Use SimpleJWT's token validation
+            token = UntypedToken(token_string)
+
+            # Extract profile_session_id claim
+            return token.get('profile_session_id')
+
+        except (InvalidToken, TokenError, IndexError, KeyError):
+            # Token is invalid or doesn't contain profile_session_id
+            return None
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        """
+        Hash a token for secure storage.
+
+        Args:
+            token: Token string to hash
+
+        Returns:
+            str: SHA256 hash of token
+        """
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    @staticmethod
+    def verify_token_and_get_user_data(request) -> Tuple[AbstractUser, UserSessionProfile]:
+        """
+        Verify token and return user data with mandatory session tracking.
+
+        Args:
+            request: Django request object (contains authenticated user and JWT token)
+
+        Returns:
+            Tuple[AbstractUser, UserSessionProfile]: User and session profile
+
+        Raises:
+            ValidationError: If user is inactive, token has no session, or session is invalid
+        """
+        # Get user from request (already authenticated by JWT middleware)
+        user = request.user
+        if not user or not user.is_authenticated:
+            raise ValidationError("Authentication required")
+
+        # Check if user is active
+        if not user.is_active:
+            raise ValidationError("User account is disabled")
+
+        # Extract profile session ID from JWT token - this is now mandatory
+        profile_session_id = TokenService.extract_profile_session_id_from_request(request)
+        if not profile_session_id:
+            raise ValidationError("Token missing session tracking - please login again")
+
+        # Get session profile - this must exist
+        try:
+            session_profile = UserSessionProfile.objects.get(
+                profile_id=profile_session_id,
+                user=user,
+                is_active=True
+            )
+        except UserSessionProfile.DoesNotExist:
+            raise ValidationError("Session expired or invalid - please login again")
+
+        return user, session_profile
+
+
 class UserRegistrationService:
     """Business logic for user registration."""
 
@@ -225,52 +328,24 @@ class SessionService:
     """Service for managing user sessions using Django sessions + UserSessionProfile."""
 
     @staticmethod
-    def generate_tokens(user: AbstractUser) -> TokenPair:
-        """
-        Generate JWT access and refresh tokens for user.
-
-        Args:
-            user: User instance
-
-        Returns:
-            TokenPair: Token pair dataclass with access and refresh tokens
-        """
-        return TokenPair.generate_for_user(user)
-
-    @staticmethod
-    def hash_token(token: str) -> str:
-        """
-        Hash a token for secure storage.
-
-        Args:
-            token: Token to hash
-
-        Returns:
-            str: Hashed token
-        """
-        return hashlib.sha256(token.encode()).hexdigest()
-
-    @staticmethod
     @transaction.atomic
     def create_session_with_profile(
         request,
         user: AbstractUser,
-        tokens: TokenPair,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
-    ) -> UserSessionProfile:
+    ) -> Tuple[UserSessionProfile, TokenPair]:
         """
-        Create a new user session using Django sessions + UserSessionProfile.
+        Create a new user session using Django sessions + UserSessionProfile with linked JWT tokens.
 
         Args:
             request: Django request object
             user: User instance
-            tokens: TokenPair with access and refresh tokens
             ip_address: Client IP address
             user_agent: Client user agent
 
         Returns:
-            UserSessionProfile: Created session profile
+            Tuple[UserSessionProfile, TokenPair]: Created session profile and linked tokens
         """
         # Invalidate existing active sessions for single concurrent session
         SessionService.invalidate_user_sessions(user)
@@ -284,16 +359,23 @@ class SessionService:
         # Get the created Django session
         django_session = Session.objects.get(session_key=request.session.session_key)
 
-        # Create UserSessionProfile linked to Django session
+        # Create UserSessionProfile linked to Django session (without tokens first)
         session_profile = UserSessionProfile.objects.create(
             user=user,
             session=django_session,
-            refresh_token_hash=SessionService.hash_token(tokens.refresh_token),
+            refresh_token_hash="",  # Will be updated after token generation
             ip_address=ip_address,
             user_agent=user_agent
         )
 
-        return session_profile
+        # Generate tokens with session profile ID included
+        tokens = TokenService.generate_token_pair(user, str(session_profile.profile_id))
+
+        # Update session profile with actual refresh token hash
+        session_profile.refresh_token_hash = TokenService.hash_token(tokens.refresh_token)
+        session_profile.save(update_fields=['refresh_token_hash'])
+
+        return session_profile, tokens
 
     @staticmethod
     def get_active_user_sessions(user: AbstractUser) -> list:
@@ -431,14 +513,10 @@ class UserLoginService:
         if ip_address:
             RateLimitService.reset_login_attempts(ip_address)
 
-        # Generate tokens
-        tokens = SessionService.generate_tokens(user)
-
-        # Create session with Django sessions + profile
-        session_profile = SessionService.create_session_with_profile(
+        # Create session with Django sessions + profile (this now generates tokens too)
+        session_profile, tokens = SessionService.create_session_with_profile(
             request=request,
             user=user,
-            tokens=tokens,
             ip_address=ip_address,
             user_agent=user_agent
         )

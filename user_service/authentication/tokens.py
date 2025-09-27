@@ -33,17 +33,22 @@ class TokenPair:
         }
 
     @classmethod
-    def generate_for_user(cls, user: AbstractUser) -> 'TokenPair':
+    def generate_for_user(cls, user: AbstractUser, session_profile_id: str) -> 'TokenPair':
         """
-        Generate a new token pair for a user.
+        Generate a new token pair for a user with session tracking.
 
         Args:
             user: User instance to generate tokens for
+            session_profile_id: Session profile ID to include in both tokens
 
         Returns:
-            TokenPair: New token pair instance
+            TokenPair: New token pair instance with profile_session_id embedded
         """
         refresh = RefreshToken.for_user(user)
+
+        # Add session profile ID to token payload (appears in both access and refresh tokens)
+        refresh['profile_session_id'] = session_profile_id
+
         return cls(
             access_token=str(refresh.access_token),
             refresh_token=str(refresh)
