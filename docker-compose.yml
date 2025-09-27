@@ -11,13 +11,15 @@ services:
       - VITE_MATCHING_API=${VITE_MATCHING_API:-http://localhost:8002}
       - VITE_HISTORY_API=${VITE_HISTORY_API:-http://localhost:8003}
       - VITE_USER_API=${VITE_USER_API:-http://localhost:8004}
-      - VITE_USER_API=${VITE_COLLABORATION_API:-http://localhost:8005}
+      - VITE_COLLABORATION_API=${VITE_COLLABORATION_API:-http://localhost:8005}
+      - VITE_CHAT_API=${VITE_CHAT_API:-http://localhost:8006}
     depends_on:
       - user_service
       - question_service
       - matching_service
       - history_service
       - collaboration_service
+      - chat_service
 
   # Microservices (All using internal port 8000)
   question_service:
@@ -117,7 +119,20 @@ services:
       - ./collaboration_service:/app
     restart: unless-stopped
 
-  # Redis Service for Collaboration Service
+  # Chat Service
+  chat_service:
+    build: ./chat_service
+    ports:
+      - "${CHAT_PORT:-8006}:8006"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+    volumes:
+      - ./chat_service:/app
+    restart: unless-stopped
+
+  # Redis Service for Collaboration and Chat Services
   redis:
     image: redis:7-alpine
     ports:
