@@ -296,6 +296,19 @@ class SessionService:
         return session_profile
 
     @staticmethod
+    def get_active_user_sessions(user: AbstractUser) -> list:
+        """
+        Get all active sessions for a user.
+
+        Args:
+            user: User instance
+
+        Returns:
+            list: List of active UserSessionProfile objects
+        """
+        return list(UserSessionProfile.objects.filter(user=user, is_active=True))
+
+    @staticmethod
     def invalidate_user_sessions(user: AbstractUser) -> None:
         """
         Invalidate all sessions for a user.
@@ -450,18 +463,26 @@ class UserLogoutService:
             user: User instance (from authentication)
 
         Raises:
-            ValidationError: If logout fails for any reason
+            ValidationError: If logout fails or user is already logged out
         """
         from django.contrib.auth import logout
         from django.db import DatabaseError
 
         try:
+            # Check if user has any active sessions
+            active_sessions = SessionService.get_active_user_sessions(user)
+            if not active_sessions:
+                raise ValidationError("User is already logged out")
+
             # Invalidate all user sessions
             SessionService.invalidate_user_sessions(user)
 
             # Log out from Django session
             logout(request)
 
+        except ValidationError:
+            # Re-raise ValidationError as is
+            raise
         except DatabaseError as e:
             raise ValidationError(f"Database error during logout: {str(e)}")
         except Exception as e:
