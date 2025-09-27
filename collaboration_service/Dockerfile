@@ -1,39 +1,30 @@
+# Use an official Python runtime as a parent image
 FROM python:3.10-slim
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Set work directory
+# Set the working directory in the container
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        postgresql-client \
-        build-essential \
-        libpq-dev \
-        netcat-openbsd \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy the requirements file into the container
+COPY requirements.txt /app/
+
 # Install Python dependencies
-COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
-COPY . .
+# Copy the current directory contents into the container
+COPY . /app/
 
-# Create staticfiles directory
-RUN mkdir -p /app/staticfiles
+# Expose the port the app runs on
+EXPOSE 8005
 
-# Use environment variable for port (default to 8000)
-ENV PORT=8000
-EXPOSE $PORT
-
-# Add entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# Run entrypoint (shell form to allow variable expansion)
-ENTRYPOINT ["docker-entrypoint.sh"]
-CMD sh -c "python manage.py runserver 0.0.0.0:${PORT}"
+# Command to run the application
+CMD ["python", "server.py"]
