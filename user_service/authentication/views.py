@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from user_service.utils import APIResponse
 from .serializers import (
@@ -29,6 +30,16 @@ class UserRegistrationView(APIView):
     """
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="Register new user",
+        description="Create a new user account with email, password, and display name",
+        request=UserRegistrationInputSerializer,
+        responses={
+            201: OpenApiResponse(response=UserRegistrationOutputSerializer, description="User registered successfully"),
+            400: OpenApiResponse(description="Invalid input data or validation error"),
+        },
+        tags=["Authentication"]
+    )
     def post(self, request: Request) -> Response:
         """
         Create a new user account.
@@ -77,6 +88,19 @@ class UserLoginView(APIView):
     """
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        summary="User login",
+        description="Authenticate user with email and password, returns JWT tokens and session profile",
+        request=UserLoginInputSerializer,
+        responses={
+            200: OpenApiResponse(response=UserLoginOutputSerializer, description="Login successful"),
+            400: OpenApiResponse(description="Invalid input data"),
+            401: OpenApiResponse(description="Invalid email or password"),
+            403: OpenApiResponse(description="Account is disabled"),
+            429: OpenApiResponse(description="Too many failed login attempts"),
+        },
+        tags=["Authentication"]
+    )
     def post(self, request: Request) -> Response:
         """
         Authenticate user and generate login tokens.
