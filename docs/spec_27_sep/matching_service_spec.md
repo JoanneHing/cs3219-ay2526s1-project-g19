@@ -53,17 +53,6 @@ CREATE TABLE session_history (
     time_taken INT,    -- seconds
     attempts INT
 );
-
--- Lobbies for users waiting
-CREATE TABLE lobby (
-    lobby_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    topics VARCHAR(50)[],            -- array of topics
-    difficulty VARCHAR(20)[],        -- array of difficulties
-    primary_lang VARCHAR(50),
-    secondary_lang VARCHAR(50)[],    -- array of languages
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMP              -- optional timeout for lobby
-);
 ```
 
 ### Entity Relationship Diagram
