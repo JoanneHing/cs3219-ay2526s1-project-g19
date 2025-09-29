@@ -52,7 +52,7 @@ FastAPI will be chosen over Django. Django is boasted to be a "batteries-include
             user_id: UUID,
             topics: list[Topic] = [], # empty list implies all topics
             difficulty: list[Difficulty] = [], # empty list implies all difficulty
-            primary_lang: list[Language] = [], # empty list implies no language preference
+            primary_lang: Language | None = None, # None implies no language preference
             secondary_lang: list[Language] = [], # empty list implies no language preference
             proficiency: int
         }
@@ -99,67 +99,6 @@ FastAPI will be chosen over Django. Django is boasted to be a "batteries-include
         - `200 OK`: User successfully removed from queue
         - `400 Bad Request`: Invalid/Malformed input
         - `404 Not Found`: User not in queue
-### Session history
-- `POST /api/session` - Stores session history
-    - Used by: Collaboration service - End of session
-    - Input:
-        ```python
-        {
-            session_id: UUID,
-            user_a: {
-                "id": UUID,
-                "proficiency": int
-            },
-            user_b: {
-                "id": UUID,
-                "proficiency": int
-            },
-            "topic": Topic,
-            "difficulty": Difficulty,
-            "primary_lang": Language,
-            "secondary_lang": Language,
-            "proficiency_criteria": int,
-            "start_time": str, # ISO datetime string
-            "end_time": str, # ISO datetime string
-            "time_taken": int, # in seconds
-            "attempts": int # number of attempts before successfully passing the question
-        }
-        ```
-    - Response:
-        - `201 Created`: Session successfully stored
-        - `400 Bad Request`: Invalid or missing data
-- `GET /api/session` - Retrieves user's session history
-    - Used by: User service/Frontend service
-    - Input:
-            - `user_id: UUID`
-            - `limit: int = 20, # optional, number of recent sessions per page`
-            - `offset: int = 0 # optional, pagination`
-    - Response:
-        - `200 OK`: Returns session history
-        - `400 Bad Request`: Invalid/Malformed input
-        - `404 Not Found`: No sessions found for user
-    - Output/Response body:
-        ```python
-        {
-            user_id: UUID,
-            sessions: [
-                {
-                    session_id: UUID,
-                    user_a: {"id": UUID, "proficiency": int},
-                    user_b: {"id": UUID, "proficiency": int},
-                    topic: Topic,
-                    difficulty: Difficulty,
-                    primary_lang: Language,
-                    secondary_lang: Language,
-                    start_time: str, # ISO datetime string
-                    end_time: str, # ISO datetime string
-                    time_taken: int,
-                    attempts: int
-                },
-                ...
-            ]
-        }
-        ```
 ### Lobby feature
 - `GET /api/lobbies` - Retrieves available matching lobbies
     - Used by: Frontend - Finding match page

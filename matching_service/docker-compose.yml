@@ -8,3 +8,9 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - ENV=prd
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+  redis:
+    image: redis:8
+    ports:
+      - 6379:6379

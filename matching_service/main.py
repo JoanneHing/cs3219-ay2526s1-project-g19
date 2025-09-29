@@ -1,23 +1,39 @@
 import json
 import logging.config
 import os
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 import uvicorn
 import logging
+from schemas.matching import MatchUserRequestSchema
+from service.matching import matching_service
+from uuid import UUID
 
 with open("log_config.json", "r") as f:
     config = json.load(f)
 logging.config.dictConfig(config)
-
 logger = logging.getLogger(__name__)
 
+router = APIRouter(
+    prefix="/api"
+)
 app = FastAPI()
 
 
-@app.get("/")
-def root():
-    return "Matching Service"
+@router.post("/match")
+def match_users(data: MatchUserRequestSchema):
+    res = matching_service.match_user(
+        user_id=data.user_id,
+        topics=data.topics
+    )
+    return res
 
+
+@router.get("/debug/show")
+def debug_show():
+    return matching_service.debug_show()
+
+
+app.include_router(router)
 
 if __name__=="__main__":
     logger.info("Starting matching service...")
