@@ -25,9 +25,3 @@ CREATE TABLE history (
 - `GET /api/history/{history_id}` - Get specific history entry details
 - `POST /api/history` - Create a new history entry when a session starts
 - `DELETE /api/history/{history_id}` - Delete a history entry (optional)
-
-### Query Parameters
-- `GET /api/history?collaborator={collaborator_id}` - Filter history by collaborator
-- `GET /api/history?question={question_id}` - Filter history by question
-- `GET /api/history?from={date}&to={date}` - Filter history by date range
-
