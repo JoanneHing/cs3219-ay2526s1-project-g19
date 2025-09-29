@@ -5,6 +5,7 @@ import logging
 import json
 from aiohttp import web
 import redis.asyncio as redis
+from schemas import MessageData
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,13 @@ async def cleanup_on_startup():
         if chat_keys:
             await redis_client.delete(*chat_keys)
             logger.info(f"Cleaned up {len(chat_keys)} chat history entries on startup")
-        
+
         # Get all room users keys
         user_keys = await redis_client.keys("room_users_*")
         if user_keys:
             await redis_client.delete(*user_keys)
             logger.info(f"Cleaned up {len(user_keys)} room user entries on startup")
-            
+
         logger.info("Startup cleanup completed")
     except Exception as e:
         logger.error(f"Error during startup cleanup: {e}")
@@ -69,16 +70,16 @@ async def join(sid, data):
     history = await redis_client.lrange(cache_key, 0, -1)
     if history:
         for msg_str in history:
-            msg_data = json.loads(msg_str)
-            await sio.emit("receive", msg_data, to=sid)
-    
-    # Send notification of new user joining
-    created_time = int(time.time() * 1000)
-    await sio.emit("receive", {
-        "message": f"{username} has joined the interview",
-        "username": "ChatBot",
-        "__createdtime__": created_time
-    }, room=room)
+            msg_dict = json.loads(msg_str)
+            msg_data = MessageData.from_dict(msg_dict)
+            await sio.emit("receive", msg_data.to_dict(), to=sid)
+
+    # Send notification of new user joining using MessageData
+    join_notification = MessageData(
+        message=f"{username} has joined the interview",
+        username="ChatBot"
+    )
+    await sio.emit("receive", join_notification.to_dict(), room=room)
 
 @sio.event
 async def send(sid, data):
@@ -86,24 +87,25 @@ async def send(sid, data):
     room = data.get("room")
     username = data.get("username")
     message = data.get("message")
-    
+
     if not all([room, username, message]):
         await sio.emit("error", {"message": "room, username and message are required"}, to=sid)
         return
 
+    # Create MessageData instance
+    message_data = MessageData(
+        message=message,
+        username=username
+    )
+
     # Store message in Redis as JSON string
-    message_data = {
-        "message": message,
-        "username": username,
-        "__createdtime__": int(time.time() * 1000)
-    }
     cache_key = f"chat_history_{room}"
-    await redis_client.rpush(cache_key, json.dumps(message_data))
+    await redis_client.rpush(cache_key, json.dumps(message_data.to_dict()))
     # Keep only last 100 messages
     await redis_client.ltrim(cache_key, -100, -1)
 
-    # Broadcast message to room - fix: use message_data instead of data
-    await sio.emit("receive", message_data, room=room)
+    # Broadcast message to room using MessageData
+    await sio.emit("receive", message_data.to_dict(), room=room)
     logger.info(f"Message from {username} in room {room}: {message}")
 
 @sio.event
@@ -117,14 +119,13 @@ async def leave(sid, data):
         return
 
     await sio.leave_room(sid, room)
-    created_time = int(time.time() * 1000)
 
-    # Notify others in the room
-    await sio.emit("receive", {
-        "message": f"{username} has left the interview",
-        "username": "ChatBot",
-        "__createdtime__": created_time
-    }, room=room)
+    # Send leave notification using MessageData
+    leave_notification = MessageData(
+        message=f"{username} has left the interview",
+        username="ChatBot"
+    )
+    await sio.emit("receive", leave_notification.to_dict(), room=room)
 
     logger.info(f"User {username} left room: {room}")
 
