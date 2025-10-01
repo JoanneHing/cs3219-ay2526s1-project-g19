@@ -33,7 +33,7 @@ const CodeEditor = ({ room, currentUsername }) => {
 
     useEffect(() => {
         // Initialize collaboration socket
-        collabSocketRef.current = io("http://localhost:8005")
+        collabSocketRef.current = io(import.meta.env.VITE_COLLABORATION_API)
 
         collabSocketRef.current.on("connect", () => {
             console.log(`Connected to collab server with SID ${collabSocketRef.current.id}`)
@@ -298,7 +298,7 @@ const CodeEditor = ({ room, currentUsername }) => {
         setOutput("Running...")
         
         try {
-            const response = await fetch("http://localhost:8007/run", {
+            const response = await fetch(`${import.meta.env.VITE_EXECUTION_API}/run`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
