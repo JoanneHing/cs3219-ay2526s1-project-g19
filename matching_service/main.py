@@ -1,7 +1,9 @@
 import json
 import logging.config
 import os
-from fastapi import APIRouter, FastAPI
+from pathlib import Path
+from fastapi import APIRouter, FastAPI, WebSocket, status
+from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
 from schemas.matching import MatchUserRequestSchema
@@ -19,11 +21,23 @@ router = APIRouter(
 app = FastAPI()
 
 
-@router.post("/match")
-def match_users(data: MatchUserRequestSchema):
-    res = matching_service.match_user(
-        user_id=data.user_id,
-        topics=data.topics
+@app.get("/test_ws")
+async def get():
+    html_file = Path("ws_test/ws_test_screen.html")
+    html_content = html_file.read_text(encoding="utf-8")
+    return HTMLResponse(content=html_content)
+
+
+@router.post("/match", status_code=status.HTTP_201_CREATED, responses={
+    201: {},
+    409: {"description": "User already in queue"}
+})
+async def match_users(data: MatchUserRequestSchema):
+    # # check if ws connection is set up
+    # if not matching_service.check_ws_connection(user_id=data.user_id):
+    #     return "Error: connect to websocket first"
+    res = await matching_service.match_user(
+        **data.model_dump()
     )
     return res
 
@@ -32,6 +46,18 @@ def match_users(data: MatchUserRequestSchema):
 def debug_show():
     return matching_service.debug_show()
 
+
+@router.websocket("/ws")
+async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
+    matching_service.record_ws_connection(user_id=user_id, websocket=websocket)
+    await websocket.accept()
+    while True:
+        data = await websocket.receive_text()
+        await websocket.send_text(f"Echo from server: {data}")
+
+@router.post("/flush")
+def flush():
+    return matching_service.redis.flushdb()
 
 app.include_router(router)
 
