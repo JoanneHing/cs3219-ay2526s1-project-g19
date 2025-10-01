@@ -37,7 +37,8 @@ async def match_users(data: MatchUserRequestSchema):
     # if not matching_service.check_ws_connection(user_id=data.user_id):
     #     return "Error: connect to websocket first"
     res = await matching_service.match_user(
-        **data.model_dump()
+        user_id=data.user_id,
+        criteria=data.criteria
     )
     return res
 
@@ -57,7 +58,7 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
 
 @router.post("/flush")
 def flush():
-    return matching_service.redis.flushdb()
+    return matching_service.clear_redis()
 
 app.include_router(router)
 
