@@ -2,6 +2,7 @@ import json
 import logging
 from uuid import UUID
 from fastapi import WebSocket
+from fastapi.websockets import WebSocketState
 
 from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema, MatchingEventMessage, MatchingStatus
 
@@ -34,11 +35,11 @@ class WebSocketService:
         user_id: UUID
     ) -> None:
         logger.info(f"Closing websocket of {user_id}")
-        if user_id not in self.ws_connections:
-            raise Exception()
-        await self.ws_connections[user_id].close()
-        self.ws_connections.pop(user_id)
-        logger.info(f"{self.ws_connections=}")
+        if user_id in self.ws_connections:
+            ws = self.ws_connections[user_id]
+            if ws.client_state == WebSocketState.CONNECTED:
+                await ws.close()
+            self.ws_connections.pop(user_id)
         return
 
     async def send_match_success(
