@@ -1,35 +1,61 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
-function App() {
-  const [count, setCount] = useState(0)
+import LandingPage from './pages/LandingPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import HomePage from './pages/HomePage';
+import QuestionListPage from './pages/QuestionListPage';
+import QuestionDetailPage from './pages/QuestionDetailPage';
+import ProfilePage from './pages/ProfilePage';
+import ProfileUpdatePage from './pages/ProfileUpdatePage';
+import MatchingPage from './pages/MatchingPage';
+import MatchingProgressPage from './pages/MatchingProgressPage';
+import CollaborationPage from './pages/CollaborationPage';
 
+import AppLayout from './components/AppLayout';
+
+const isAuthenticated = () => {
+  // dummy authentication check
+  return false;
+};
+
+const ProtectedRoute = () => {
+  return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
+};
+
+const AuthRoute = () => {
+    return isAuthenticated() ? <Navigate to="/home" replace /> : <Outlet />;
+};
+
+const App = () => {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AuthRoute />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+        </Route>
 
-export default App
+        <Route element={<ProtectedRoute />}>
+          <Route path="/home" element={<AppLayout> <HomePage/> </AppLayout>} />
+
+          <Route path="/profile" element={<AppLayout> <ProfilePage /> </AppLayout>} />
+          <Route path="/profile/edit" element={<AppLayout> <ProfileUpdatePage /> </AppLayout>} />
+
+          <Route path="/questions" element={<AppLayout> <QuestionListPage /> </AppLayout>} />
+          <Route path="/questions/:id" element={<AppLayout> <QuestionDetailPage /> </AppLayout>} />
+
+          <Route path="/matching" element={<AppLayout> <MatchingPage /> </AppLayout>} />
+          <Route path="/matching/finding" element={<AppLayout> <MatchingProgressPage /> </AppLayout>} />
+
+          <Route path="/collaboration" element={<AppLayout> <CollaborationPage /> </AppLayout>} />
+        </Route>
+
+        <Route path="*" element={<h1>404 Not Found</h1>} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default App;
