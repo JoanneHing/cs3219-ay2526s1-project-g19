@@ -7,55 +7,44 @@ The matching service is responsible for matching users based on the below define
 1. Language preference (One primary language, *up to* two secondary language)
 1. Proficiency level (within +-10%)
 
-## Implementation Options for Matching
-### Queue Architecture
-1. Simple database-based queue
-    - Pros: Simple implementation, minimal techstack, fault tolerant, vertical/horizontal scaling
-    - Cons: Low performance compared to in-memory database
-1. In-memory database such as Redis
-    - Pros: Significant improvement in performance, vertical/horizontal scaling
-    - Cons: Lack durability
-### Communication Architecture
-1. Intervaled polling
-    - Pros: Simple to implement
-    - Cons: Not real-time, performance is dependent on polling interval, expensive
-1. Event-driven
-    - Pros: Fit for microservice, scalable, reliable, real-time, loose coupling
-    - Cons: Complex implementation, slightly higher latency compared to WebSockets
-1. WebSockets
-    - Pros: Lowest latency, no need for broker/middleware
-    - Cons: Increased coupling between services
-
-## Quality Attributes Trade Off
-### Prioritized Quality Attributes
-1. Performance (Responsiveness): Users should get real-time update when they are matched
-1. Scalability: Matching service should support increasing numbers of maximum/average expected user's using the matching service
-
-### Trade-offs
-Durability is less prioritized as users are only maintained in the matching queue for 1 minute before matching time out and being removed from the queue. This means that the expected number of users in the queue at any point in time should be low, so a drop of this set of users on server crash can be tolerated. Moreover, recovery is simple: users can just rejoin the queue.
-
-## Implementation Choice Based on Selected Quality Attributes
-### Queue Architecture
-The matching service will be implemented using Redis, an in-memory key-value database used as a distributed cache. This optimizes performance compared to a database-backed implementation. Since queue state is ephemeral, some minor loss on server fault can be tolerated. Durability can be stregthened using RDB (snapshotting) or AOF (Append-Only File), further limiting loss on server fault.
-### Communication Architecture
-HTTP/REST APIs will be used for stateless calls, while WebSockets will be used for event messages. WebSockets is chosen over message broker as the main use case of the matching service is communication with frontend, which provides better support for WebSockets compared to pub/sub message broker architecture. WebSockets over provides better performance.
-### Web Framework
-FastAPI will be chosen over Django. Django is boasted to be a "batteries-included" framework, including templating, admin dashboards, ORM, and so on. This is not required by matching service as it is not database-backed. Including of these "batteries" will increase unnecessary dependencies. FastAPi is better fitted for this use case and proves to be more performant with its asynchronous capabilities.
-
 ## Matching Service API Endpoints
+### WebSockets for Informing User Matched
+- `ws /api/ws` - Connects to matching service websocket. To be used **before** calling `POST /api/match`.
+    - Input: `user_id: str`
+    - `ws://localhost:8001/api/ws?user_id=${userId}`
+    - Message:
+    ```json
+        {
+            "status": "success" | "timeout",
+            "matched_user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa5" | None,
+            "criteria": {
+                "topic": "string",
+                "difficulty": "string",
+                "langugage": "string"
+            } | None
+        }
+    ```
+
 ### Basic matching
 - `POST /api/match` - Adds the user to the matching queue with the given criteria
     - Used by: Frontend - Matching page
+    - Pre-condition: A websocket with the same user id has to be connected and ready before calling this method
     - Input: (as request body)
-        ```python
+        ```json
         {
-            user_id: UUID,
-            topics: list[Topic] = [], # empty list implies all topics
-            difficulty: list[Difficulty] = [], # empty list implies all difficulty
-            primary_lang: Language | None = None, # None implies no language preference
-            secondary_lang: list[Language] = [], # empty list implies no language preference
-            proficiency: int
-        }
+            "user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa5",
+            "criteria": {
+                "topics": [
+                "string"
+                ],
+                "difficulty": [
+                "string"
+                ],
+                "primary_lang": "string",
+                "secondary_lang": [],
+                "proficiency": 0
+            }
+            }
         ```
     - Response:
         - `201 Created`: User successfully added into queue - returns queue id
