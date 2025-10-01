@@ -1,13 +1,15 @@
+import asyncio
 import json
 import logging.config
 import os
 from pathlib import Path
-from fastapi import APIRouter, FastAPI, WebSocket, status
+from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
 from schemas.matching import MatchUserRequestSchema
 from service.matching import matching_service
+from service.websocket import websocket_service
 from uuid import UUID
 
 with open("log_config.json", "r") as f:
@@ -20,6 +22,10 @@ router = APIRouter(
 )
 app = FastAPI()
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    for ws in websocket_service.ws_connections.values():
+        await ws.close()
 
 @app.get("/test_ws")
 async def get():
@@ -33,9 +39,9 @@ async def get():
     409: {"description": "User already in queue"}
 })
 async def match_users(data: MatchUserRequestSchema):
-    # # check if ws connection is set up
-    # if not matching_service.check_ws_connection(user_id=data.user_id):
-    #     return "Error: connect to websocket first"
+    # check if ws connection is set up
+    if not websocket_service.check_ws_connection(user_id=data.user_id):
+        return "Error: connect to websocket first"
     res = await matching_service.match_user(
         user_id=data.user_id,
         criteria=data.criteria
@@ -50,17 +56,25 @@ def debug_show():
 
 @router.websocket("/ws")
 async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
-    matching_service.record_ws_connection(user_id=user_id, websocket=websocket)
+    websocket_service.record_ws_connection(user_id=user_id, websocket=websocket)
     await websocket.accept()
-    while True:
-        data = await websocket.receive_text()
-        await websocket.send_text(f"Echo from server: {data}")
+    try:
+        while True:
+            try:
+                await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+    finally:
+        await websocket_service.close_ws_connection(user_id=user_id)
+
 
 @router.post("/flush")
 def flush():
     return matching_service.clear_redis()
 
+
 app.include_router(router)
+
 
 if __name__=="__main__":
     logger.info("Starting matching service...")

@@ -1,6 +1,9 @@
+import json
 import logging
 from uuid import UUID
 from fastapi import WebSocket
+
+from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema, MatchingEventMessage, MatchingStatus
 
 
 logger = logging.getLogger(__name__)
@@ -34,4 +37,33 @@ class WebSocketService:
         if user_id not in self.ws_connections:
             raise Exception()
         await self.ws_connections[user_id].close()
+        self.ws_connections.pop(user_id)
+        logger.info(f"{self.ws_connections=}")
         return
+
+    async def send_match_success(
+        self,
+        user_a: UUID,
+        user_b: UUID,
+        criteria: MatchedCriteriaSchema
+    ) -> None:
+        # send to user a
+        message = MatchingEventMessage(
+            status=MatchingStatus.SUCCESS,
+            matched_user_id=user_b,
+            criteria=criteria
+        )
+        if user_a in self.ws_connections:
+            await self.ws_connections[user_a].send_json(json.loads(message.model_dump_json()))
+        # send to user b
+        message = MatchingEventMessage(
+            status=MatchingStatus.SUCCESS,
+            matched_user_id=user_a,
+            criteria=criteria
+        )
+        if user_b in self.ws_connections:
+            await self.ws_connections[user_b].send_json(json.loads(message.model_dump_json()))
+        return
+
+
+websocket_service = WebSocketService()

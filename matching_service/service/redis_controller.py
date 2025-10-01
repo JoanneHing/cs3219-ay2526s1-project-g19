@@ -9,7 +9,7 @@ from fastapi import HTTPException, status
 import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum
-from schemas.matching import MatchingCriteriaSchema
+from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema
 
 
 load_dotenv()
@@ -51,7 +51,7 @@ class RedisController:
             user_id=user_id
         )
 
-    def find_match(self, user_id: UUID):
+    def find_match(self, user_id: UUID) -> UUID | None:
         # store all criteria internal unions
         self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
         self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
@@ -73,6 +73,20 @@ class RedisController:
         # remove user criteria map
         self.redis.delete(self._get_user_meta_key(user_id=user_id))
         return
+
+    def get_matched_criteria(
+        self,
+        user_id: UUID,
+        matched_user_id: UUID
+    ) -> MatchedCriteriaSchema:
+        topic_set = set(self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)) & \
+            set(self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=matched_user_id))
+        difficulty_set = set(self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)) & \
+            set(self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=matched_user_id))
+        return MatchedCriteriaSchema(
+            topic=topic_set.pop(),
+            difficulty=difficulty_set.pop()
+        )
 
     ## Add operations
 
@@ -163,7 +177,7 @@ class RedisController:
         if inter_set_length == 0:
             return None
         if inter_set_length == 1:
-            return self.redis.spop(intersection_key)
+            return UUID(self.redis.spop(intersection_key))
         temp_set_key = f"sortedset:match:user:{str(user_id)}"
         self.redis.zinterstore(
             temp_set_key,
@@ -173,7 +187,7 @@ class RedisController:
         assert self.redis.zcard(temp_set_key) > 0
         earliest_user = self.redis.zpopmin(temp_set_key, 1)[0][0]
         self.redis.delete(intersection_key, temp_set_key)
-        return earliest_user
+        return UUID(earliest_user)
 
     ## Remove operations
 
