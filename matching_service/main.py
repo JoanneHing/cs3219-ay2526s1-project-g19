@@ -22,10 +22,6 @@ router = APIRouter(
 )
 app = FastAPI()
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    for ws in websocket_service.ws_connections.values():
-        await ws.close()
 
 @app.get("/test_ws")
 async def get():
