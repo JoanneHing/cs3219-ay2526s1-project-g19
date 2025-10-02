@@ -14,3 +14,9 @@
 **/staticfiles/
 # Django migrations cache
 **/migrations/__pycache__/
+
+# Log files
+**/*.log
+
+# Docker override files
+**/docker-compose.override.yml
