@@ -32,24 +32,22 @@ const App = () => {
     <BrowserRouter>
       <Routes>
         <Route element={<AuthRoute />}>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/home" element={<AppLayout> <HomePage/> </AppLayout>} />
-
-          <Route path="/profile" element={<AppLayout> <ProfilePage /> </AppLayout>} />
-          <Route path="/profile/edit" element={<AppLayout> <ProfileUpdatePage /> </AppLayout>} />
-
-          <Route path="/questions" element={<AppLayout> <QuestionListPage /> </AppLayout>} />
-          <Route path="/questions/:id" element={<AppLayout> <QuestionDetailPage /> </AppLayout>} />
-
-          <Route path="/matching" element={<AppLayout> <MatchingPage /> </AppLayout>} />
-          <Route path="/matching/finding" element={<AppLayout> <MatchingProgressPage /> </AppLayout>} />
-
-          <Route path="/collaboration" element={<AppLayout> <CollaborationPage /> </AppLayout>} />
+          <Route element={<AppLayout />}>
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile/edit" element={<ProfileUpdatePage />} />
+            <Route path="/questions" element={<QuestionListPage />} />
+            <Route path="/questions/:id" element={<QuestionDetailPage />} />
+            <Route path="/matching" element={<MatchingPage />} />
+            <Route path="/matching/finding" element={<MatchingProgressPage />} />
+            <Route path="/collaboration" element={<CollaborationPage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<h1>404 Not Found</h1>} />
