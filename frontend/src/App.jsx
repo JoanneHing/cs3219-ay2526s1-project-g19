@@ -11,6 +11,7 @@ import ProfileUpdatePage from './pages/ProfileUpdatePage';
 import MatchingPage from './pages/MatchingPage';
 import MatchingProgressPage from './pages/MatchingProgressPage';
 import CollaborationPage from './pages/CollaborationPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import AppLayout from './components/AppLayout';
 
@@ -35,6 +36,7 @@ const App = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
