@@ -24,12 +24,19 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',  # Required by allauth
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
     'drf_spectacular',
+    # Allauth apps
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',  # For future OAuth support
+    # Project apps
     'authentication',
     'users',
+    'email_verification',
 ]
 
 MIDDLEWARE = [
@@ -41,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',  # Required by allauth
 ]
 
 # CORS settings
@@ -208,3 +216,40 @@ LOGGING = {
         },
     },
 }
+
+# Django Sites Framework (required by allauth)
+SITE_ID = 1
+
+# Django Allauth Configuration
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # Default Django auth
+    'allauth.account.auth_backends.AuthenticationBackend',  # Allauth backend
+]
+
+# Allauth settings for optional email verification
+ACCOUNT_EMAIL_VERIFICATION = 'optional'  # Users can login without verifying
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # Use email instead of username
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_UNIQUE_EMAIL = True
+
+# Email configuration (development - console backend)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@peerprep.com')
+EMAIL_SUBJECT_PREFIX = '[PeerPrep] '
+
+# For production, use SMTP:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+# EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+
+# After login or email confirmation, send user here:
+LOGIN_REDIRECT_URL = 'http://localhost:3000/dashboard'
+LOGOUT_REDIRECT_URL = 'http://localhost:3000/'
+
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'

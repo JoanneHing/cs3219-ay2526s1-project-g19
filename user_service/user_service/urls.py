@@ -22,6 +22,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('authentication.urls')),
     path('api/users/', include('users.urls')),
+    path('api/email-verification/', include('email_verification.urls')),
+
+    # Django Allauth URLs (for email verification)
+    path('accounts/', include('allauth.urls')),
 
     # OpenAPI 3.0 schema and documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
