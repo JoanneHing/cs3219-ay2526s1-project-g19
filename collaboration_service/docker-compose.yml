@@ -8,9 +8,10 @@ services:
       dockerfile: Dockerfile
     container_name: peerprep_collaboration_service
     ports:
-      - "${COLLABORATION_SERVICE_PORT:-8005}:8000"
+      - "${COLLABORATION_SERVICE_PORT:-8005}:8005"
     environment:
       - DEBUG=${DEBUG:-true}
+      - PORT=8005
       - REDIS_URL=${COLLABORATION_REDIS_URL}
       - REDIS_HOST=${COLLABORATION_REDIS_HOST:-collaboration_redis}
       - REDIS_PORT=${COLLABORATION_REDIS_PORT:-6379}
@@ -24,7 +25,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 30s
       timeout: 10s
       retries: 3
