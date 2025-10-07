@@ -414,6 +414,7 @@ class SessionService:
 
         # Create Django session by logging in the user
         login(request, user)
+        request.session.save()  # 👈 ensures session object is written
 
         # Set session expiry to 30 days
         request.session.set_expiry(timedelta(days=30))
