@@ -51,7 +51,7 @@ services:
       - matching_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MATCHING_DB_USER:-peerprep}"]
+      test: ["CMD-SHELL", "pg_isready -U ${MATCHING_DB_USER:-peerprep} -d ${MATCHING_DB_NAME:-matching_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
