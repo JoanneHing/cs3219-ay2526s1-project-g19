@@ -1,23 +1,44 @@
 # Frontend Service - Standalone Configuration
-# Run independently: cd frontend && docker-compose up
+# =============================================================================
+# DEFAULT: Nginx proxy (production-like, recommended for Docker)
+#   docker-compose up
+#   Access: http://localhost/user-service-api/...
+#
+# OVERRIDE: Vite dev server (only if you need hot reload in Docker)
+#   FRONTEND_BUILD_STAGE=development FRONTEND_INTERNAL_PORT=5173 docker-compose up
+#   Access: http://localhost:5173
+# =============================================================================
 
 services:
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
+      target: ${FRONTEND_BUILD_STAGE:-production}
     container_name: peerprep_frontend
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - "${FRONTEND_PORT:-80}:${FRONTEND_INTERNAL_PORT:-80}"
     environment:
+      # Frontend build-time variables (Vite - for development and build stage)
       - NODE_ENV=${ENVIRONMENT:-development}
-      - VITE_QUESTION_SERVICE_URL=${VITE_QUESTION_SERVICE_URL:-http://localhost:8001}
-      - VITE_MATCHING_SERVICE_URL=${VITE_MATCHING_SERVICE_URL:-http://localhost:8002}
-      - VITE_HISTORY_SERVICE_URL=${VITE_HISTORY_SERVICE_URL:-http://localhost:8003}
-      - VITE_USER_SERVICE_URL=${VITE_USER_SERVICE_URL:-http://localhost:8004}
-      - VITE_COLLABORATION_SERVICE_URL=${VITE_COLLABORATION_SERVICE_URL:-http://localhost:8005}
-      - VITE_CHAT_SERVICE_URL=${VITE_CHAT_SERVICE_URL:-http://localhost:8006}
+      # All APIs accessed through nginx proxy paths (no localhost:PORT)
+      - VITE_QUESTION_SERVICE_URL=${VITE_QUESTION_SERVICE_URL:-/question-service-api}
+      - VITE_MATCHING_SERVICE_URL=${VITE_MATCHING_SERVICE_URL:-/matching-service-api}
+      - VITE_HISTORY_SERVICE_URL=${VITE_HISTORY_SERVICE_URL:-/history-service-api}
+      - VITE_USER_SERVICE_URL=${VITE_USER_SERVICE_URL:-/user-service-api}
+      - VITE_COLLABORATION_SERVICE_URL=${VITE_COLLABORATION_SERVICE_URL:-/collaboration-service-api}
+      - VITE_CHAT_SERVICE_URL=${VITE_CHAT_SERVICE_URL:-/chat-service-api}
+
+      # Nginx runtime variables (production stage only - used for envsubst)
+      - NGINX_USER_SERVICE_HOST=${NGINX_USER_SERVICE_HOST:-user-service}
+      - NGINX_QUESTION_SERVICE_HOST=${NGINX_QUESTION_SERVICE_HOST:-question-service}
+      - NGINX_MATCHING_SERVICE_HOST=${NGINX_MATCHING_SERVICE_HOST:-matching-service}
+      - NGINX_HISTORY_SERVICE_HOST=${NGINX_HISTORY_SERVICE_HOST:-history-service}
+      - NGINX_COLLABORATION_SERVICE_HOST=${NGINX_COLLABORATION_SERVICE_HOST:-collaboration-service}
+      - NGINX_CHAT_SERVICE_HOST=${NGINX_CHAT_SERVICE_HOST:-chat-service}
     volumes:
+      # Development mode volumes (hot reload)
+      # Comment out or remove in production
       - ./src:/app/src:ro
       - ./public:/app/public:ro
       - /app/node_modules
@@ -25,7 +46,7 @@ services:
       - shared_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      test: ["CMD", "curl", "-f", "http://localhost:${FRONTEND_INTERNAL_PORT:-5173}"]
       interval: 30s
       timeout: 10s
       retries: 3

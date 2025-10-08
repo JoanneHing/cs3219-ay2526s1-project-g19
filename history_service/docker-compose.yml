@@ -2,7 +2,7 @@
 # Run independently: cd history_service && docker-compose up
 
 services:
-  history_service:
+  history-service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,13 +12,17 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,history-service}
       - DATABASE_URL=${HISTORY_DATABASE_URL}
       - DB_HOST=${HISTORY_DB_HOST:-history_db}
       - DB_PORT=${HISTORY_DB_PORT:-5432}
       - DB_NAME=${HISTORY_DB_NAME:-history_db}
       - DB_USER=${HISTORY_DB_USER:-peerprep}
       - DB_PASSWORD=${HISTORY_DB_PASSWORD:-peerprep_dev_password}
+      # Service-to-service communication URLs
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
+      - QUESTION_SERVICE_URL=${QUESTION_SERVICE_URL:-http://question-service:8000}
+      - COLLABORATION_SERVICE_URL=${COLLABORATION_SERVICE_URL:-http://collaboration-service:8000}
     volumes:
       - ./:/app:rw
     networks:

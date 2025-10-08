@@ -2,19 +2,22 @@
 # Run independently: cd chat_service && docker-compose up
 
 services:
-  chat_service:
+  chat-service:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: peerprep_chat_service
     ports:
-      - "${CHAT_SERVICE_PORT:-8006}:8006"
+      - "${CHAT_SERVICE_PORT:-8006}:8000"
     environment:
       - DEBUG=${DEBUG:-true}
-      - PORT=8006
+      - PORT=8000
       - REDIS_URL=${CHAT_REDIS_URL}
       - REDIS_HOST=${CHAT_REDIS_HOST:-chat_redis}
       - REDIS_PORT=${CHAT_REDIS_PORT:-6379}
+      # Service-to-service communication URLs
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
+      - COLLABORATION_SERVICE_URL=${COLLABORATION_SERVICE_URL:-http://collaboration-service:8000}
     volumes:
       - ./:/app:rw
     networks:
@@ -25,7 +28,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8006/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

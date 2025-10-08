@@ -2,7 +2,7 @@
 # Run independently: cd matching_service && docker-compose up
 
 services:
-  matching_service:
+  matching-service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +11,7 @@ services:
       - "${MATCHING_SERVICE_PORT:-8002}:8000"
     environment:
       - DEBUG=${DEBUG:-true}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,matching-service}
       - DATABASE_URL=${MATCHING_DATABASE_URL}
       - DB_HOST=${MATCHING_DB_HOST:-matching_db}
       - DB_PORT=${MATCHING_DB_PORT:-5432}
@@ -20,6 +21,9 @@ services:
       - REDIS_URL=${MATCHING_REDIS_URL}
       - REDIS_HOST=${MATCHING_REDIS_HOST:-matching_redis}
       - REDIS_PORT=${MATCHING_REDIS_PORT:-6379}
+      # Service-to-service communication URLs
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
+      - QUESTION_SERVICE_URL=${QUESTION_SERVICE_URL:-http://question-service:8000}
     volumes:
       - ./:/app:rw
     networks:
