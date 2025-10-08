@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, MessageSquareWarning} from "lucide-react";
 import { userService } from "../../api/services/userService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const validateEmail = (value, errors) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,6 +46,9 @@ const ErrorMessage = ({ errorsArray }) => {
 }
 
 const LoginForm = () => {
+    const navigate = useNavigate();
+    const { login } = useAuth();
+
     const [formData, setFormData] = useState({
         email: "",
         password: ""
@@ -110,15 +115,13 @@ const LoginForm = () => {
                 // Data is already unwrapped by the interceptor
                 const { user, tokens, session_profile } = response.data;
 
-                // Store tokens in localStorage
-                localStorage.setItem('authToken', tokens.access_token.token);
-                localStorage.setItem('refreshToken', tokens.refresh_token.token);
-                localStorage.setItem('user', JSON.stringify(user));
+                // Update auth context (this will also store in localStorage)
+                login(user, tokens);
 
                 console.log("Login successful:", { user, tokens, session_profile });
 
-                // Redirect to dashboard or home page
-                window.location.href = '/home';
+                // Navigate to home page
+                navigate('/home');
 
             } catch (err) {
                 console.error("Login failed:", err);

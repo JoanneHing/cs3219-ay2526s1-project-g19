@@ -41,3 +41,9 @@ export interface RefreshTokenRequest {
 export interface RefreshTokenResponse {
   tokens: Tokens;
 }
+
+// Verify Token
+export interface VerifyTokenResponse {
+  user: User;
+  session_profile: SessionProfile;
+}

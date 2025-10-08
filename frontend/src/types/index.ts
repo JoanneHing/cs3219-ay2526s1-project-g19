@@ -12,6 +12,7 @@ export type {
   SessionProfile,
   RefreshTokenRequest,
   RefreshTokenResponse,
+  VerifyTokenResponse,
 } from './auth';
 
 // Common types
