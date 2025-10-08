@@ -38,7 +38,7 @@ const CodeEditor = ({ room, currentUsername }) => {
         collabSocketRef.current = io({
             path: `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io`
         })
-        collabSocketRef.current = io(import.meta.env.VITE_COLLABORATION_SERVICE_URL)
+        console.log('Connecting to Socket.IO with path:', `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io`)
 
         collabSocketRef.current.on("connect", () => {
             console.log(`Connected to collab server with SID ${collabSocketRef.current.id}`)
