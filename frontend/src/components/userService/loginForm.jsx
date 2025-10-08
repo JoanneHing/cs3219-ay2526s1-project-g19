@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, MessageSquareWarning} from "lucide-react";
+import { userService } from "../../api/services/userService";
+import { useAuth } from "../../contexts/AuthContext";
 
 const validateEmail = (value, errors) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,6 +46,9 @@ const ErrorMessage = ({ errorsArray }) => {
 }
 
 const LoginForm = () => {
+    const navigate = useNavigate();
+    const { login } = useAuth();
+
     const [formData, setFormData] = useState({
         email: "",
         password: ""
@@ -54,6 +60,8 @@ const LoginForm = () => {
     });
 
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [loginError, setLoginError] = useState("");
     
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -75,7 +83,7 @@ const LoginForm = () => {
         setError(prev => ({ ...prev, [name]: fieldErrors }));
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const finalErrors = {};
@@ -90,11 +98,48 @@ const LoginForm = () => {
                 isValid = false;
             }
         });
-        
+
         setError(finalErrors);
 
         if (isValid) {
-            console.log("Login successful with data:", formData);
+            setIsLoading(true);
+            setLoginError("");
+
+            try {
+                const response = await userService.login({
+                    email: formData.email,
+                    password: formData.password
+                });
+                console.log(response)
+
+                // Data is already unwrapped by the interceptor
+                const { user, tokens, session_profile } = response.data;
+
+                // Update auth context (this will also store in localStorage)
+                login(user, tokens);
+
+                console.log("Login successful:", { user, tokens, session_profile });
+
+                // Navigate to home page
+                navigate('/home');
+
+            } catch (err) {
+                console.error("Login failed:", err);
+
+                if (err.response?.status === 401) {
+                    setLoginError("Invalid email or password");
+                } else if (err.response?.status === 403) {
+                    setLoginError("Account is disabled");
+                } else if (err.response?.status === 429) {
+                    setLoginError("Too many failed login attempts. Please try again later");
+                } else if (err.response?.status === 400) {
+                    setLoginError("Invalid input data");
+                } else {
+                    setLoginError("An error occurred. Please try again");
+                }
+            } finally {
+                setIsLoading(false);
+            }
         } else {
             console.log("Validation errors.");
         }
@@ -170,7 +215,18 @@ const LoginForm = () => {
                         </div>
                         <ErrorMessage errorsArray={error.password} />
                     </div>
-                    <button type="submit">Sign In</button>
+
+                    {/* Login Error Message */}
+                    {loginError && (
+                        <div className="text-red-500 text-sm text-center p-2 bg-red-50 rounded">
+                            <MessageSquareWarning className="inline w-4 h-4 mr-1"/>
+                            {loginError}
+                        </div>
+                    )}
+
+                    <button type="submit" disabled={isLoading}>
+                        {isLoading ? "Signing In..." : "Sign In"}
+                    </button>
                 </form>
             </div>
             <div className="flex flex-col items-center gap-2 text-sm ">
