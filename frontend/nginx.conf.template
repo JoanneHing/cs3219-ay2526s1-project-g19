@@ -76,6 +76,8 @@ server {
     # ==========================================================================
     # API Proxy Rules - Pattern: /service-name-api/* → http://service:8000/*
     # ==========================================================================
+    # Note: WebSocket/Socket.IO connections are handled by the collaboration-service-api
+    # and chat-service-api proxy rules below (they have ws: true enabled)
 
     # ---------------------------------------------------------------------------
     # User Service API

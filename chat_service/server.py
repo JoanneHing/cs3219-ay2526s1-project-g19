@@ -143,4 +143,5 @@ async def startup_sequence(app):
 # Run the server
 if __name__ == "__main__":
     app.on_startup.append(startup_sequence)
-    web.run_app(app, port=8006)
+    port = int(os.environ.get("PORT", 8006))  # Read from env or default to 8006
+    web.run_app(app, port=port)

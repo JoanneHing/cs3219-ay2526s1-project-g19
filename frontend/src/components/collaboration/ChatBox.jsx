@@ -19,7 +19,10 @@ const ChatBox = ({ room, currentUsername }) => {
 
   useEffect(() => {
     // Initialize chat socket
-    chatSocketRef.current = io(import.meta.env.VITE_CHAT_SERVICE_URL);
+    // When using proxy paths, Socket.IO needs the path option set correctly
+    chatSocketRef.current = io({
+      path: `${import.meta.env.VITE_CHAT_SERVICE_URL}/socket.io`
+    });
 
     chatSocketRef.current.on("connect", () => {
       console.log(`Connected to chat server with SID ${chatSocketRef.current.id}`);
