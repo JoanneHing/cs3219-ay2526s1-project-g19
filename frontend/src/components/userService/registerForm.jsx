@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, MessageSquareWarning} from "lucide-react";
+import { Eye, EyeOff, MessageSquareWarning } from "lucide-react";
 import { userService } from "../../api/services/userService";
+import SuccessMessage from "../common/SuccessMessage";
 
 // Validation functions for each field
 const validateUsername = (value, errors) => {
@@ -228,6 +229,18 @@ const RegisterForm = () => {
                     <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1"/> {err}</p>
                 ))}
             </div>
+        );
+    }
+
+    // Show success screen if registration was successful
+    if (registrationSuccess) {
+        return (
+            <SuccessMessage
+                title="Registration Successful!"
+                message="Your account has been created successfully. You can now log in with your credentials."
+                buttonText="Go to Login"
+                onButtonClick={() => navigate('/login')}
+            />
         );
     }
 
