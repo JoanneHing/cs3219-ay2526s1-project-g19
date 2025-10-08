@@ -1,20 +1,6 @@
-// Login Request & Response Types
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
+import type { User } from './user';
 
-export interface User {
-  id: string;
-  email: string;
-  display_name: string;
-  phone_number: string;
-  date_of_birth: string;
-  is_verified: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
+// Token Types
 export interface TokenInfo {
   token: string;
   expires_at: string;
@@ -23,6 +9,12 @@ export interface TokenInfo {
 export interface Tokens {
   access_token: TokenInfo;
   refresh_token: TokenInfo;
+}
+
+// Login
+export interface LoginRequest {
+  email: string;
+  password: string;
 }
 
 export interface SessionProfile {
@@ -41,7 +33,7 @@ export interface LoginResponse {
   session_profile: SessionProfile;
 }
 
-// Refresh Token Types
+// Refresh Token
 export interface RefreshTokenRequest {
   refresh_token: string;
 }

@@ -1,5 +1,5 @@
 import { userClient } from '../client';
-import type { LoginRequest, LoginResponse, RefreshTokenRequest, RefreshTokenResponse } from '../type';
+import type { LoginRequest, LoginResponse, RefreshTokenRequest, RefreshTokenResponse } from '@/types';
 
 export const userService = {
   login: (data: LoginRequest) =>
