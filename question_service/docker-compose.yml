@@ -13,6 +13,7 @@ services:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,question-service}
+      - DJANGO_USE_SQLITE=0
       - DATABASE_URL=${QUESTION_DATABASE_URL}
       - DB_HOST=${QUESTION_DB_HOST:-question_db}
       - DB_PORT=${QUESTION_DB_PORT:-5432}
