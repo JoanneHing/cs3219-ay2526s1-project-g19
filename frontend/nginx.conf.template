@@ -17,6 +17,11 @@
 #   Browser → /question-service-api/api/questions → question-service:8000/api/questions
 # =============================================================================
 
+# Use Docker's internal DNS resolver for service discovery
+# This allows nginx to start even if backend services aren't ready yet
+resolver 127.0.0.11 valid=10s ipv6=off;
+resolver_timeout 5s;
+
 server {
     listen 80;
     server_name localhost;
@@ -78,8 +83,10 @@ server {
     # Browser: /user-service-api/login → Backend: /login
     # Browser: /user-service-api/api/users/123 → Backend: /api/users/123
     location /user-service-api/ {
+        # Use variable to force runtime DNS resolution
+        set $user_service ${NGINX_USER_SERVICE_HOST};
         rewrite ^/user-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_USER_SERVICE_HOST}:8000;
+        proxy_pass http://$user_service:8000;
 
         # Proxy headers
         proxy_set_header Host $host;
@@ -120,8 +127,9 @@ server {
     # Question Service API
     # ---------------------------------------------------------------------------
     location /question-service-api/ {
+        set $question_service ${NGINX_QUESTION_SERVICE_HOST};
         rewrite ^/question-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_QUESTION_SERVICE_HOST}:8000;
+        proxy_pass http://$question_service:8000;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -147,8 +155,9 @@ server {
     # Matching Service API
     # ---------------------------------------------------------------------------
     location /matching-service-api/ {
+        set $matching_service ${NGINX_MATCHING_SERVICE_HOST};
         rewrite ^/matching-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_MATCHING_SERVICE_HOST}:8000;
+        proxy_pass http://$matching_service:8000;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -174,8 +183,9 @@ server {
     # History Service API
     # ---------------------------------------------------------------------------
     location /history-service-api/ {
+        set $history_service ${NGINX_HISTORY_SERVICE_HOST};
         rewrite ^/history-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_HISTORY_SERVICE_HOST}:8000;
+        proxy_pass http://$history_service:8000;
 
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -201,8 +211,9 @@ server {
     # Collaboration Service API (WebSocket Support)
     # ---------------------------------------------------------------------------
     location /collaboration-service-api/ {
+        set $collaboration_service ${NGINX_COLLABORATION_SERVICE_HOST};
         rewrite ^/collaboration-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_COLLABORATION_SERVICE_HOST}:8000;
+        proxy_pass http://$collaboration_service:8000;
 
         # Standard proxy headers
         proxy_set_header Host $host;
@@ -238,8 +249,9 @@ server {
     # Chat Service API (WebSocket Support)
     # ---------------------------------------------------------------------------
     location /chat-service-api/ {
+        set $chat_service ${NGINX_CHAT_SERVICE_HOST};
         rewrite ^/chat-service-api/(.*)$ /$1 break;
-        proxy_pass http://${NGINX_CHAT_SERVICE_HOST}:8000;
+        proxy_pass http://$chat_service:8000;
 
         # Standard proxy headers
         proxy_set_header Host $host;
