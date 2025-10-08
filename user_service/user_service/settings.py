@@ -54,8 +54,10 @@ MIDDLEWARE = [
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost",  # Nginx frontend (port 80)
     "http://localhost:3000",
     "http://localhost:5173",
+    "http://127.0.0.1",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "http://localhost:8001",
@@ -187,6 +189,14 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/',
+    'SERVERS': [
+        # Direct access (development)
+        {'url': 'http://localhost:8004', 'description': 'User Service Direct'},
+        # Proxy access (via nginx)
+        {'url': 'http://localhost:5173/user-service-api', 'description': 'User Service via Nginx Proxy'},
+    ],
+    # Use relative schema URL so it works through proxy
+    'SCHEMA_COERCE_PATH_PK': True,
     'SECURITY_DEFINITIONS': {
         'Bearer': {
             'type': 'http',
