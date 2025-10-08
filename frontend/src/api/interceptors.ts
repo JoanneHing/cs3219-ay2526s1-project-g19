@@ -34,7 +34,13 @@ export const setupInterceptors = (client: AxiosInstance) => {
 
   // Response interceptor with auto-refresh
   client.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      // Unwrap nested data from backend response format: {success, message, data}
+      if (response.data && response.data.data !== undefined) {
+        response.data = response.data.data;
+      }
+      return response;
+    },
     async (error) => {
       const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 

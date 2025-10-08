@@ -105,16 +105,20 @@ const LoginForm = () => {
                     email: formData.email,
                     password: formData.password
                 });
+                console.log(response)
+
+                // Data is already unwrapped by the interceptor
+                const { user, tokens, session_profile } = response.data;
 
                 // Store tokens in localStorage
-                localStorage.setItem('authToken', response.data.tokens.access_token.token);
-                localStorage.setItem('refreshToken', response.data.tokens.refresh_token.token);
-                localStorage.setItem('user', JSON.stringify(response.data.user));
+                localStorage.setItem('authToken', tokens.access_token.token);
+                localStorage.setItem('refreshToken', tokens.refresh_token.token);
+                localStorage.setItem('user', JSON.stringify(user));
 
-                console.log("Login successful:", response.data);
+                console.log("Login successful:", { user, tokens, session_profile });
 
                 // Redirect to dashboard or home page
-                window.location.href = '/dashboard';
+                window.location.href = '/home';
 
             } catch (err) {
                 console.error("Login failed:", err);
