@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -15,23 +16,31 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 
 import AppLayout from './components/AppLayout';
 
-const isAuthenticated = () => {
-  // dummy authentication check
-  return false;
-};
-
 const ProtectedRoute = () => {
-  return isAuthenticated() ? <Outlet /> : <Navigate to="/login" replace />;
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>; // Or a proper loading component
+  }
+
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 const AuthRoute = () => {
-    return isAuthenticated() ? <Navigate to="/home" replace /> : <Outlet />;
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>; // Or a proper loading component
+  }
+
+  return isAuthenticated ? <Navigate to="/home" replace /> : <Outlet />;
 };
 
 const App = () => {
   return (
     <BrowserRouter>
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route element={<AuthRoute />}>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -54,6 +63,7 @@ const App = () => {
 
         <Route path="*" element={<h1>404 Not Found</h1>} />
       </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 };
