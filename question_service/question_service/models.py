@@ -26,7 +26,7 @@ class Question(models.Model):
     search_tsv = SearchVectorField(null=True, blank=True)
 
     class Meta:
-        db_table = "question_stats"
+        db_table = "questions"
         indexes = [GinIndex(fields=["search_tsv"])]
 
     def __str__(self):
@@ -40,7 +40,7 @@ class QuestionStats(models.Model):
     last_activity_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = "questions"
+        db_table = "question_stats"
 
     @property
     def percentage_solved(self) -> float:

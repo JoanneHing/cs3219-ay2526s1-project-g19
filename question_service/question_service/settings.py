@@ -145,6 +145,9 @@ if DEBUG:
         'rest_framework.permissions.AllowAny'
     ]
 
+# Make trailing slashes optional by auto-appending
+APPEND_SLASH = True
+
 # Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'

@@ -1,6 +1,6 @@
 # question_service/question_service/view.py
-from django.db.models import F, Q, Value
-from django.db.models.functions import Coalesce
+from django.db.models import F, Q, Value, FloatField, Case, When
+from django.db.models.functions import Coalesce, Cast
 from rest_framework import viewsets, mixins
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter, ChoiceFilter, NumberFilter
@@ -48,14 +48,18 @@ class QuestionViewSet(mixins.ListModelMixin,
         return QuestionDetailSerializer if self.action == "retrieve" else QuestionListSerializer
 
     def get_queryset(self):
-        # annotate sortable fields
+        # annotate sortable fields with explicit Float casting and zero-guard
+        solved_float = Cast(F("stats__solved"), FloatField())
+        attempts_float = Cast(F("stats__attempts"), FloatField())
+        percentage_expr = Case(
+            When(stats__attempts__gt=0, then=(solved_float * Value(100.0)) / attempts_float),
+            default=Value(0.0),
+            output_field=FloatField(),
+        )
         return (super().get_queryset()
                 .annotate(
                     popularity=Coalesce(F("stats__attempts"), Value(0)),
-                    percentage_solved_annot=Coalesce(
-                        (F("stats__solved") * 100.0) / Coalesce(F("stats__attempts"), Value(0.0)),
-                        Value(0.0),
-                    )
+                    percentage_solved_annot=percentage_expr,
                 ))
 
     def list(self, request, *args, **kwargs):
