@@ -13,6 +13,8 @@ export type {
   RefreshTokenRequest,
   RefreshTokenResponse,
   VerifyTokenResponse,
+  RegisterRequest,
+  RegisterResponse,
 } from './auth';
 
 // Common types

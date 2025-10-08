@@ -47,3 +47,14 @@ export interface VerifyTokenResponse {
   user: User;
   session_profile: SessionProfile;
 }
+
+// Register
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  display_name: string;
+}
+
+export interface RegisterResponse {
+  user: User;
+}

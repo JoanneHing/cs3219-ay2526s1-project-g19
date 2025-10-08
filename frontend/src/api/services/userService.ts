@@ -4,10 +4,15 @@ import type {
   LoginResponse,
   RefreshTokenRequest,
   RefreshTokenResponse,
-  VerifyTokenResponse
+  VerifyTokenResponse,
+  RegisterRequest,
+  RegisterResponse
 } from '@/types';
 
 export const userService = {
+  register: (data: RegisterRequest) =>
+    userClient.post<RegisterResponse>('api/auth/register/', data),
+
   login: (data: LoginRequest) =>
     userClient.post<LoginResponse>('api/auth/login/', data),
 

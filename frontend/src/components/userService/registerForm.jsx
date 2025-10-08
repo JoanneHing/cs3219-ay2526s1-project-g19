@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, MessageSquareWarning} from "lucide-react";
+import { userService } from "../../api/services/userService";
 
 // Validation functions for each field
 const validateUsername = (value, errors) => {
@@ -102,6 +104,8 @@ const getValidationErrors = (name, value, passwordValue = null) => {
 }
 
 const RegisterForm = () => {
+    const navigate = useNavigate();
+
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -110,8 +114,11 @@ const RegisterForm = () => {
     });
 
     const [error, setError] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [registerError, setRegisterError] = useState("");
+    const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
-    // Password visibility states 
+    // Password visibility states
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -146,7 +153,7 @@ const RegisterForm = () => {
         }
     }
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const finalErrors = {};
@@ -156,8 +163,8 @@ const RegisterForm = () => {
             const isConfirm = name === "confirmPassword";
 
             const fieldErrors = getValidationErrors(
-                name, 
-                formData[name], 
+                name,
+                formData[name],
                 isConfirm ? formData.password : null
             );
 
@@ -167,12 +174,37 @@ const RegisterForm = () => {
                 isValid = false;
             }
         });
-        
+
         setError(finalErrors);
 
         if (isValid) {
-            console.log("Registration successful", formData);
-            alert("Registration successful!"); 
+            setIsLoading(true);
+            setRegisterError("");
+
+            try {
+                const response = await userService.register({
+                    email: formData.email,
+                    password: formData.password,
+                    display_name: formData.username
+                });
+
+                console.log("Registration successful:", response.data);
+
+                // Show success message instead of immediate redirect
+                setRegistrationSuccess(true);
+
+            } catch (err) {
+                console.error("Registration failed:", err);
+
+                if (err.response?.status === 400) {
+                    const errorMessage = err.response?.data?.error?.message || "Invalid input data";
+                    setRegisterError(errorMessage);
+                } else {
+                    setRegisterError("An error occurred during registration. Please try again");
+                }
+            } finally {
+                setIsLoading(false);
+            }
         } else {
             console.log("Validation errors.");
         }
@@ -288,11 +320,20 @@ const RegisterForm = () => {
                         
                         <ErrorMessage errorsArray={error.confirmPassword} />
                     </div>
-                    
-                    <button 
-                        type="submit" 
+
+                    {/* Registration Error Message */}
+                    {registerError && (
+                        <div className="text-red-500 text-sm text-center p-2 bg-red-50 rounded">
+                            <MessageSquareWarning className="inline w-4 h-4 mr-1"/>
+                            {registerError}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
                         className="mt-4 w-full text-white font-semibold py-2 rounded-lg transition duration-200 shadow-md">
-                        Sign Up
+                        {isLoading ? "Creating Account..." : "Sign Up"}
                     </button>
                 </form>
             </div>
