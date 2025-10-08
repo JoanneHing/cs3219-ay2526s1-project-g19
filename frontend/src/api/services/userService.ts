@@ -1,15 +1,10 @@
-import { userClient } from '../clients';
-import type { User, UpdateUserDto } from '@/types/user';
+import { userClient } from '../client';
+import type { LoginRequest, LoginResponse, RefreshTokenRequest, RefreshTokenResponse } from '../type';
 
 export const userService = {
-  getProfile: () => 
-    userClient.get<User>('/profile'),
+  login: (data: LoginRequest) =>
+    userClient.post<LoginResponse>('api/auth/login/', data),
 
-  updateProfile: (data: UpdateUserDto) => 
-    userClient.put<User>('/profile', data),
-
-  getUsers: (page: number = 1, limit: number = 10) => 
-    userClient.get<{ users: User[]; total: number }>('/users', {
-      params: { page, limit },
-    }),
+  refreshToken: (data: RefreshTokenRequest) =>
+    userClient.post<RefreshTokenResponse>('api/auth/refresh/', data),
 };
