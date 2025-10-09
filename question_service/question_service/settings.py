@@ -179,7 +179,7 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': '/api/',
     'SERVERS': [
         # Direct access (development)
-        {'url': 'http://localhost:8003', 'description': 'Question Service Direct'},
+        {'url': 'http://localhost:8001', 'description': 'Question Service Direct'},
         # Proxy access (via nginx)
         {'url': 'http://localhost:5173/question-service-api', 'description': 'Question Service via Nginx Proxy'},
     ],
