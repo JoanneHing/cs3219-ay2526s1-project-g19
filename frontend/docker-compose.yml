@@ -11,7 +11,7 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
       - NODE_ENV=${ENVIRONMENT:-development}
-      - VITE_QUESTION_SERVICE_URL=${VITE_QUESTION_SERVICE_URL:-http://localhost:8001}
+      - VITE_QUESTION_SERVICE_URL=${VITE_QUESTION_SERVICE_URL:-http://localhost:8000}
       - VITE_MATCHING_SERVICE_URL=${VITE_MATCHING_SERVICE_URL:-http://localhost:8002}
       - VITE_HISTORY_SERVICE_URL=${VITE_HISTORY_SERVICE_URL:-http://localhost:8003}
       - VITE_USER_SERVICE_URL=${VITE_USER_SERVICE_URL:-http://localhost:8004}
