@@ -17,12 +17,38 @@ Including another URLconf
 # question_service/question_service/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from .view import QuestionViewSet, TopicsView
+
+
+class ProxyAwareSwaggerView(SpectacularSwaggerView):
+    """
+    Custom Swagger view that respects X-Forwarded-Prefix from nginx proxy.
+    Generates the correct schema URL when accessed through a proxy path like /question-service-api
+    """
+    def get(self, request, *args, **kwargs):
+        # Get the forwarded prefix from nginx
+        forwarded_prefix = request.META.get('HTTP_X_FORWARDED_PREFIX', '')
+
+        # If accessed through proxy, prepend the prefix to the schema URL
+        if forwarded_prefix:
+            # Get the full schema path with prefix
+            schema_path = f"{forwarded_prefix}/api/schema/"
+            # Override url to use absolute path
+            self.url = schema_path
+
+        return super().get(request, *args, **kwargs)
+
 
 router = DefaultRouter()
 router.register(r"questions", QuestionViewSet, basename="questions")
 
 urlpatterns = [
     path("api/", include(router.urls)),
-    path("api/topics", TopicsView.as_view()),
+    path("api/topics", TopicsView.as_view(), name="topics"),
+
+    # OpenAPI 3.0 schema and documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', ProxyAwareSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

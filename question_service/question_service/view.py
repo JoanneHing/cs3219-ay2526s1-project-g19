@@ -8,6 +8,8 @@ from django.conf import settings
 from django.db import connection
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFilter, ChoiceFilter, NumberFilter
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
+from drf_spectacular.types import OpenApiTypes
 from .models import Question, Difficulty
 from .serializer import QuestionListSerializer, QuestionDetailSerializer
 
@@ -63,6 +65,108 @@ class QuestionFilter(FilterSet):
         model = Question
         fields = ["difficulty", "status"]
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List questions",
+        description="Retrieve a paginated list of questions with optional filtering and sorting.",
+        parameters=[
+            OpenApiParameter(
+                name="page",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Page number for pagination",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of items per page (alias for page_size, max 100)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of items per page (max 100)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="topic",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter by topic (supports multiple values)",
+                required=False,
+                many=True,
+            ),
+            OpenApiParameter(
+                name="category",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter by category (alias for topic)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="difficulty",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter by difficulty level",
+                required=False,
+                enum=["EASY", "MEDIUM", "HARD"],
+            ),
+            OpenApiParameter(
+                name="status",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter by active status",
+                required=False,
+                enum=["active", "inactive", "true", "false", "1", "0"],
+            ),
+            OpenApiParameter(
+                name="popularity_min",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Minimum number of attempts (popularity threshold)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="sort",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Sort field",
+                required=False,
+                enum=["newest", "created_at", "difficulty", "percentage_solved", "popularity", "topic", "category"],
+            ),
+            OpenApiParameter(
+                name="order",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Sort order",
+                required=False,
+                enum=["asc", "desc"],
+            ),
+            OpenApiParameter(
+                name="fields",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Comma-separated list of fields to include in response (sparse fieldsets)",
+                required=False,
+                examples=[
+                    OpenApiExample("Basic fields", value="title,difficulty,topics"),
+                    OpenApiExample("With ID", value="question_id,title,slug"),
+                ],
+            ),
+        ],
+        responses={200: QuestionListSerializer(many=True)},
+        tags=["questions"],
+    ),
+    retrieve=extend_schema(
+        summary="Get question details",
+        description="Retrieve detailed information about a specific question by ID.",
+        responses={200: QuestionDetailSerializer},
+        tags=["questions"],
+    ),
+)
 class QuestionViewSet(mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
                       viewsets.GenericViewSet):
@@ -118,7 +222,27 @@ class QuestionViewSet(mixins.ListModelMixin,
         return self.get_paginated_response(serializer.data)
 
 class TopicsView(APIView):
-    def get(self, request):
+    @extend_schema(
+        summary="Get all topics",
+        description="Retrieve a list of all unique topics from active questions.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "topics": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Sorted list of unique topics",
+                    }
+                },
+                "example": {
+                    "topics": ["Array", "Dynamic Programming", "Hash Table", "Math", "String"]
+                },
+            }
+        },
+        tags=["topics"],
+    )
+    def get(self, request):  # noqa: ARG002
         topics_list = []
         engine = settings.DATABASES.get('default', {}).get('ENGINE', '')
         if 'postgresql' in engine:
