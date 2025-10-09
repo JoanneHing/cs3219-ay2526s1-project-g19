@@ -2,7 +2,7 @@
 # Run independently: cd question_service && docker-compose up
 
 services:
-  question_service:
+  question-service:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,13 +12,18 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,question-service}
+      - DJANGO_USE_SQLITE=0
       - DATABASE_URL=${QUESTION_DATABASE_URL}
       - DB_HOST=${QUESTION_DB_HOST:-question_db}
       - DB_PORT=${QUESTION_DB_PORT:-5432}
       - DB_NAME=${QUESTION_DB_NAME:-question_db}
       - DB_USER=${QUESTION_DB_USER:-peerprep}
       - DB_PASSWORD=${QUESTION_DB_PASSWORD:-peerprep_dev_password}
+      # Service-to-service communication URLs
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
+      - MATCHING_SERVICE_URL=${MATCHING_SERVICE_URL:-http://matching-service:8000}
+      - HISTORY_SERVICE_URL=${HISTORY_SERVICE_URL:-http://history-service:8000}
     volumes:
       - ./:/app:rw
     networks:

@@ -33,7 +33,10 @@ const CodeEditor = ({ room, currentUsername }) => {
 
     useEffect(() => {
         // Initialize collaboration socket
-        collabSocketRef.current = io(import.meta.env.VITE_COLLABORATION_SERVICE_URL)
+        // When using proxy paths, Socket.IO needs the path option set correctly
+        // This tells Socket.IO to connect to `ws://<host>/collaboration-service-api/socket.io`
+        collabSocketRef.current = io(window.location.origin, { path: `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io` });
+        console.log('Connecting to Socket.IO with path:', `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io`)
 
         collabSocketRef.current.on("connect", () => {
             console.log(`Connected to collab server with SID ${collabSocketRef.current.id}`)

@@ -2,7 +2,7 @@
 
 export const API_CONFIGS = {
   user: {
-    baseURL: import.meta.env.VITE_USER_SERVICE_URL || 'http://localhost:8004/',
+    baseURL: import.meta.env.VITE_USER_SERVICE_URL,
     timeout: 10000,
   },
   // order: {

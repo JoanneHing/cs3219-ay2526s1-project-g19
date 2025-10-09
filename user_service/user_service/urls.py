@@ -15,8 +15,30 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, reverse
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+
+
+class ProxyAwareSwaggerView(SpectacularSwaggerView):
+    """
+    Custom Swagger view that respects X-Forwarded-Prefix from nginx proxy.
+    Generates the correct schema URL when accessed through a proxy path like /user-service-api
+    """
+    def get(self, request, *args, **kwargs):
+        # Get the forwarded prefix from nginx
+        forwarded_prefix = request.META.get('HTTP_X_FORWARDED_PREFIX', '')
+
+        # If accessed through proxy, prepend the prefix to the schema URL
+        if forwarded_prefix:
+            # Store original url_name
+            original_url_name = self.url_name
+            # Get the full schema path with prefix
+            schema_path = f"{forwarded_prefix}/api/schema/"
+            # Override url to use absolute path
+            self.url = schema_path
+
+        return super().get(request, *args, **kwargs)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +51,6 @@ urlpatterns = [
 
     # OpenAPI 3.0 schema and documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/docs/', ProxyAwareSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

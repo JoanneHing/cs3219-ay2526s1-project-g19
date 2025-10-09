@@ -125,4 +125,5 @@ async def cursor(sid, data):
 # Run the server
 if __name__ == "__main__":
     app.on_startup.append(lambda app: init_redis())  # Initialize Redis on startup
-    web.run_app(app, port=8005)
+    port = int(os.environ.get("PORT", 8005))  # Read from env or default to 8005
+    web.run_app(app, port=port)
