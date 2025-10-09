@@ -17,11 +17,12 @@ Including another URLconf
 # question_service/question_service/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .view import QuestionViewSet
+from .view import QuestionViewSet, TopicsView
 
 router = DefaultRouter()
 router.register(r"questions", QuestionViewSet, basename="questions")
 
 urlpatterns = [
     path("api/", include(router.urls)),
+    path("api/topics", TopicsView.as_view()),
 ]
