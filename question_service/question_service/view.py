@@ -176,7 +176,8 @@ class QuestionViewSet(mixins.ListModelMixin,
     filterset_class = QuestionFilter
 
     def get_serializer_class(self):
-        return QuestionDetailSerializer if self.action == "retrieve" else QuestionListSerializer
+        # Return full details for both list and retrieve
+        return QuestionDetailSerializer
 
     def get_queryset(self):
         # annotate sortable fields with explicit Float casting and zero-guard
@@ -211,14 +212,9 @@ class QuestionViewSet(mixins.ListModelMixin,
         }
         qs = qs.order_by(sort_map.get(sort, f"-created_at"))
 
-        # sparse fieldsets (?fields=title,topics,...)
-        fields_param = request.query_params.get("fields")
-        serializer_kwargs = {}
-        if fields_param and self.action == "list":
-            serializer_kwargs["fields"] = [f.strip() for f in fields_param.split(",") if f.strip()]
-
+        # Always return full detail serializer for list responses
         page = self.paginate_queryset(qs)
-        serializer = self.get_serializer(page, many=True, **serializer_kwargs)
+        serializer = self.get_serializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 
 class TopicsView(APIView):
