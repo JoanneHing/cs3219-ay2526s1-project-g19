@@ -81,11 +81,12 @@ const CodeEditor = ({ room, currentUsername }) => {
     }
 
     class CursorWidget extends WidgetType {
-        constructor(userId, color, username) {
+        constructor(userId, color, username, line) {
             super()
             this.userId = userId
             this.color = color
             this.username = username
+            this.line = line
         }
 
         toDOM() {
@@ -110,10 +111,24 @@ const CodeEditor = ({ room, currentUsername }) => {
             const label = document.createElement("div")
             label.textContent = this.username
             label.className = "cursor-label"
-            label.style.cssText = `
+            // Default: above the cursor
+            let labelPosition = `
                 position: absolute;
                 bottom: 100%;
                 left: 0;
+                margin-bottom: 4px;
+            `
+            // If on line 1 or 2, flip below
+            if (this.line <= 2) {
+                labelPosition = `
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    margin-top: 4px;
+                `
+            }
+            label.style.cssText = `
+                ${labelPosition}
                 background: ${this.color};
                 color: white;
                 padding: 4px 8px;
@@ -126,7 +141,6 @@ const CodeEditor = ({ room, currentUsername }) => {
                 transition: opacity 0.2s ease;
                 pointer-events: none;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                margin-bottom: 4px;
             `
             
             wrapper.appendChild(cursor)
@@ -138,8 +152,6 @@ const CodeEditor = ({ room, currentUsername }) => {
             wrapper.addEventListener('mouseleave', () => {
                 label.style.opacity = '0'
             })
-            
-            // Also show on click/touch for better mobile support
             wrapper.addEventListener('click', () => {
                 label.style.opacity = '1'
                 setTimeout(() => {
@@ -182,7 +194,7 @@ const CodeEditor = ({ room, currentUsername }) => {
                 const pos = lineCharToPos(tr.state.doc, { line: cursor.line, ch: cursor.ch })
                 if (pos >= 0 && pos <= tr.state.doc.length) {
                     const decoration = Decoration.widget({
-                        widget: new CursorWidget(userId, cursor.color, cursor.username),
+                        widget: new CursorWidget(userId, cursor.color, cursor.username, cursor.line),
                         side: 1
                     })
                     decorations.push(decoration.range(pos))
