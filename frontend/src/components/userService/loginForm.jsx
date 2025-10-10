@@ -37,7 +37,7 @@ const validatePassword = (value, errors) => {
 const ErrorMessage = ({ errorsArray }) => {
     if (!errorsArray || errorsArray.length === 0) return null;
     return (
-        <div className="text-red-500 text-xs mt-1 space-y-0.5">
+        <div className="text-red-400 text-xs mt-1 space-y-0.5">
             {errorsArray.map((err, idx) => (
                 <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1"/> {err}</p>
             ))}
@@ -159,24 +159,25 @@ const LoginForm = () => {
     const getBorderColor = (name) => {
         const fieldErrors = error[name];
 
-        if (!fieldErrors) return "border-gray-300";
+        if (!fieldErrors) return "border-gray-500";
 
         const hasError = Array.isArray(fieldErrors) && fieldErrors.length > 0;
         
-        return hasError ? "border-red-500" : "border-gray-300";
+        return hasError ? "border-red-400" : "border-gray-500";
     }
 
     return (
-        <div className="flex flex-col items-center border border-gray-300 p-8 rounded-lg gap-5 w-150 min-w-[300px] max-w-[500px]">
-            <img src="./src/assets/PeerPrepLogo.png" alt="Peerpad Logo" className="w-40"/>
+        <div className="flex flex-col items-center border border-gray-700 p-8 rounded-lg gap-5 w-150 min-w-[300px] max-w-[500px] bg-background-secondary shadow-lg">
+            <img src="./src/assets/PeerPrepLogoLight.png" alt="Peerpad Logo" className="w-40"/>
             <h2 className="font-bold">Welcome Back</h2>
-            <p className="text-gray-600">Sign in to continue your peer collaboration journey</p>
+            <p className="text-gray-300">Sign in to continue your peer collaboration journey</p>
             <div className="w-full">
-                <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+                <form className="flex flex-col gap-4 text-gray-300" onSubmit={handleSubmit}>
 
                     {/* Email Field */}
                     <div className="flex flex-col gap-1">
                         <label className="font-ubuntu">Email</label>
+                        <div className={`flex items-center w-full border ${getBorderColor("email")} p-2 rounded focus-within:border-primary focus-within:border-2 h-10 bg-background-secondary`}>
                         <input 
                             type="text"
                             name="email"
@@ -185,14 +186,15 @@ const LoginForm = () => {
                             required
                             onChange={handleInputChange}
                             onBlur={handleBlur}
-                            className={`w-full border ${getBorderColor("email")} p-2 rounded h-10`} />
+                            className="focus:outline-none flex-grow bg-transparent" />
+                        </div>
                         <ErrorMessage errorsArray={error.email} />
                     </div>
 
                     {/* Password Field */}
                     <div className="flex flex-col gap-1">
                         <label className="font-ubuntu">Password</label>
-                        <div className={`flex items-center w-full border ${getBorderColor("password")} p-2 rounded focus-within:border-primary focus-within:border-2 h-10`}>
+                        <div className={`flex items-center w-full border ${getBorderColor("password")} p-2 rounded focus-within:border-primary focus-within:border-2 h-10 bg-background-secondary`}>
                             <input 
                                 type={inputType} 
                                 name="password"
@@ -201,11 +203,11 @@ const LoginForm = () => {
                                 required
                                 onChange={handleInputChange}
                                 onBlur={handleBlur}
-                                className="focus:outline-none flex-grow"/>
+                                className="focus:outline-none flex-grow bg-transparent"/>
                             <button
                                 type="button"
                                 onClick={togglePasswordVisibility}
-                                className="focus:outline-none bg-transparent hover:bg-transparent hover:text-gray-500 text-gray-400">
+                                className="focus:outline-none bg-transparent hover:bg-transparent hover:text-gray-100 text-gray-300">
                             {showPassword?
                                 <Eye className="w-5 h-5"/>
                                 :
@@ -218,7 +220,7 @@ const LoginForm = () => {
 
                     {/* Login Error Message */}
                     {loginError && (
-                        <div className="text-red-500 text-sm text-center p-2 bg-red-50 rounded">
+                        <div className="text-red-400 text-sm text-center p-2 bg-red-50 rounded">
                             <MessageSquareWarning className="inline w-4 h-4 mr-1"/>
                             {loginError}
                         </div>
@@ -231,7 +233,7 @@ const LoginForm = () => {
             </div>
             <div className="flex flex-col items-center gap-2 text-sm ">
                 <p><a href="/reset-password">Forgot your password?</a></p>
-                <p>Don't have an account? <a href="/register">Create one</a></p>
+                <p className="text-gray-300">Don't have an account? <a href="/register">Create one</a></p>
             </div>
         </div>
     )

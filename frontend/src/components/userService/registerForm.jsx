@@ -214,17 +214,17 @@ const RegisterForm = () => {
     const getBorderColor = (name) => {
         const fieldErrors = error[name];
 
-        if (!fieldErrors) return "border-gray-300";
+        if (!fieldErrors) return "border-gray-500";
 
         const hasError = Array.isArray(fieldErrors) && fieldErrors.length > 0;
         
-        return hasError ? "border-red-500" : "border-gray-300";
+        return hasError ? "border-red-400" : "border-gray-500";
     }
 
     const ErrorMessage = ({ errorsArray }) => {
         if (!errorsArray || errorsArray.length === 0) return null;
         return (
-            <div className="text-red-500 text-xs mt-1 space-y-0.5">
+            <div className="text-red-400 text-xs mt-1 space-y-0.5">
                 {errorsArray.map((err, idx) => (
                     <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1"/> {err}</p>
                 ))}
@@ -245,16 +245,17 @@ const RegisterForm = () => {
     }
 
     return (
-        <div className="flex flex-col items-center border border-gray-300 p-8 rounded-lg gap-3 w-150 min-w-[520px] max-w-[550px]">
-            <img src="./src/assets/PeerPrepLogo.png" alt="PeerPrep Logo" className="w-40 rounded-lg"/>
+        <div className="flex flex-col items-center border border-gray-700 p-8 rounded-lg gap-3 w-150 min-w-[520px] max-w-[550px] bg-background-secondary shadow-lg">
+            <img src="./src/assets/PeerPrepLogoLight.png" alt="PeerPrep Logo" className="w-40 rounded-lg"/>
             <h2 className="font-bold">Sign Up</h2>
-            <p className="text-gray-600">Create your PeerPrep account today!</p>
+            <p className="text-gray-300">Create your PeerPrep account today!</p>
             <div className="w-full">
-                <form className="flex flex-col gap-4" onSubmit={handleSubmit}> 
+                <form className="flex flex-col gap-4 text-gray-300" onSubmit={handleSubmit}> 
 
                     {/* Username Field */}
                     <div className="flex flex-col gap-1">
                         <label className="font-ubuntu text-sm font-medium">Username</label>
+                        <div className={`flex items-center w-full border ${getBorderColor("username")} p-2 rounded focus-within:border-primary focus-within:border-2 h-10 bg-background-secondary`}>
                         <input 
                             type="text"
                             name="username"
@@ -263,24 +264,25 @@ const RegisterForm = () => {
                             value={formData.username}
                             onChange={handleInputChange}
                             onBlur={handleBlur}
-                            className={`w-full border ${getBorderColor("username")} p-2 rounded-lg h-10 transition duration-150 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none`} />
-                        
+                            className="focus:outline-none flex-grow bg-transparent" />
+                        </div>
                         <ErrorMessage errorsArray={error.username} />
                     </div>
                     
                     {/* Email Field */}
                     <div className="flex flex-col gap-1">
                         <label className="font-ubuntu text-sm font-medium">Email</label>
-                        <input 
-                            type="text" 
-                            name="email"
-                            placeholder="your.email@example.com"
-                            required
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            onBlur={handleBlur}
-                            className={`w-full border ${getBorderColor("email")} p-2 rounded-lg h-10 transition duration-150 focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 outline-none`} />
-                            
+                        <div className={`flex items-center w-full border ${getBorderColor("email")} p-2 rounded focus-within:border-primary focus-within:border-2 h-10 bg-background-secondary`}>
+                            <input 
+                                type="text" 
+                                name="email"
+                                placeholder="your.email@example.com"
+                                required
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                onBlur={handleBlur}
+                                className="focus:outline-none flex-grow bg-transparent" />
+                        </div>    
                         <ErrorMessage errorsArray={error.email} />
                     </div>
                     
@@ -300,7 +302,7 @@ const RegisterForm = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(prev => !prev)}
-                                className="focus:outline-none bg-transparent hover:bg-transparent text-gray-400 p-1">
+                                className="focus:outline-none bg-transparent hover:bg-transparent text-gray-300 p-1 hover:text-gray-100">
                                 {showPassword ? <Eye className="w-5 h-5"/> : <EyeOff className="w-5 h-5"/>}
                             </button>
                         </div>
@@ -324,7 +326,7 @@ const RegisterForm = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowConfirmPassword(prev => !prev)}
-                                className="focus:outline-none bg-transparent hover:bg-transparent text-gray-400 p-1">
+                                className="focus:outline-none bg-transparent hover:bg-transparent text-gray-300 p-1 hover:text-gray-100">
                                 {showConfirmPassword ? 
                                     <Eye className="w-5 h-5"/> : 
                                     <EyeOff className="w-5 h-5"/>}
@@ -352,7 +354,7 @@ const RegisterForm = () => {
             </div>
             
             <div className="flex flex-col items-center gap-2 text-sm mt-4">
-                <p className="text-gray-700">Already have an account? 
+                <p className="text-gray-300">Already have an account? 
                     <a href="/login" className="font-medium ml-1">
                         Log in
                     </a>
