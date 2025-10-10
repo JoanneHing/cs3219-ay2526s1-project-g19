@@ -168,7 +168,7 @@ const LoginForm = () => {
 
     return (
         <div className="flex flex-col items-center border border-gray-300 p-8 rounded-lg gap-5 w-150 min-w-[300px] max-w-[500px]">
-            <img src="./src/assets/PeerPrepLogo.png" alt="Peerpad Logo" className="w-40"/>
+            <img src="./src/assets/PeerPrepLogo.png" alt="Peerprep Logo" className="w-40"/>
             <h2 className="font-bold">Welcome Back</h2>
             <p className="text-gray-600">Sign in to continue your peer collaboration journey</p>
             <div className="w-full">
