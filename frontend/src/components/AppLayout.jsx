@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 
 const AppLayout = () => {
   return (
-    <div className="min-h-screen bg-gray-50 font-inter">
+    <div className="min-h-screen bg-background font-inter">
       <main>
         <Outlet /> 
       </main>
