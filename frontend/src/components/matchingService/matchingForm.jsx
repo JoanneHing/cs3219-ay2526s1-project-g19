@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Children, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 // Selection Options
@@ -68,6 +68,15 @@ const BubbleLabels = ({ label, isSelected, onClick}) => {
             {label}
         </span>
     );
+};
+
+// Overylay for pop up windows
+const Overlay = ({ Children }) => {
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+        <div className = "rounded-lg shadow-lg p-8 max-w-lg w-full relative bg-background-secondary border border-gray-700">
+            {Children}
+        </div>
+    </div>
 };
 
 const MatchingForm = () => {
