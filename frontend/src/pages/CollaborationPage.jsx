@@ -48,18 +48,18 @@ const CollaborationPage = () => {
   return (
     <div className="h-screen w-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-950 dark:via-slate-900 dark:to-indigo-950">
       {/* Header */}
-      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 shadow-sm flex-shrink-0">
+      <div className="bg-background backdrop-blur-xl border-b border-gray-700 shadow-sm flex-shrink-0">
         <div className="px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <Code2 className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-gray-900 dark:text-white">
+                <h1 className="text-base font-bold text-gray-200">
                   Collaborative Coding
                 </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-gray-400">
                   Room: {room} • {username}
                 </p>
               </div>
@@ -73,11 +73,11 @@ const CollaborationPage = () => {
         {/* Left Panel - Question + Chat with Resizable Split */}
         <div 
           ref={leftPanelRef}
-          className="w-1/2 flex flex-col border-r border-gray-200 dark:border-gray-800"
+          className="w-1/2 flex flex-col border-r border-gray-700"
         >
           {/* Question Panel */}
           <div 
-            className="overflow-y-auto bg-white/60 dark:bg-gray-900/60"
+            className="overflow-y-auto bg-background"
             style={{ height: `${leftPanelSplit}%` }}
           >
             <QuestionPanel />
@@ -87,18 +87,18 @@ const CollaborationPage = () => {
           <div
             onMouseDown={handleMouseDown}
             className={`
-              flex items-center justify-center h-2 bg-gray-200 dark:bg-gray-800 
-              hover:bg-blue-400 dark:hover:bg-blue-600 cursor-row-resize 
+              flex items-center justify-center h-2 bg-gray-700 
+              hover:bg-primary cursor-row-resize 
               transition-colors duration-150 group relative
-              ${isDragging ? 'bg-blue-500 dark:bg-blue-600' : ''}
+              ${isDragging ? 'bg-primary' : ''}
             `}
           >
-            <GripVertical className="w-5 h-5 text-gray-400 group-hover:text-white dark:text-gray-600 dark:group-hover:text-white rotate-90" />
+            <GripVertical className="w-5 h-5 text-gray-300 group-hover:text-white rotate-90" />
           </div>
           
           {/* Chat Box */}
           <div 
-            className="bg-white/60 dark:bg-gray-900/60 flex flex-col"
+            className="bg-background flex flex-col"
             style={{ height: `${100 - leftPanelSplit}%` }}
           >
             <ChatBox
@@ -109,18 +109,18 @@ const CollaborationPage = () => {
         </div>
 
         {/* Right Panel - Code Editor */}
-        <div className="w-1/2 overflow-y-auto bg-white/60 dark:bg-gray-900/60">
+        <div className="w-1/2 overflow-y-auto bg-background">
           <div className="p-2 h-full">
-            <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-lg shadow-xl border border-gray-200/50 dark:border-gray-800/50 p-3 h-full flex flex-col">
+            <div className="bg-background backdrop-blur-xl rounded-lg shadow-xl border border-gray-800/50 p-3 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                   <Split className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                  <h2 className="text-base font-bold text-gray-200">
                     Code Editor
                   </h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-400">
                     Collaborate in real-time
                   </p>
                 </div>

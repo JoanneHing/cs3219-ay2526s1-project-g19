@@ -68,7 +68,7 @@ const ChatBox = ({ room, currentUsername }) => {
   return (
     <div className="h-full w-full flex flex-col">
       <ChatHeader />
-      <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gray-900">
+      <div className="flex-1 flex flex-col min-h-0 bg-background">
         <ChatMessagesList
           messages={messages}
           currentUsername={currentUsername}
