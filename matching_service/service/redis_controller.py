@@ -184,7 +184,7 @@ class RedisController:
         return
 
     async def set_expiry(self, user_id: UUID):
-        user_expiry_key = f"user_expiry:{user_id}"
+        user_expiry_key = self._get_user_expiry_key(user_id=user_id)
         await self.redis.set(user_expiry_key, "1", ex=EXPIRATION_DURATION)
         return
 
@@ -269,6 +269,11 @@ class RedisController:
             await self.redis.srem(key, str(user_id))
         return
 
+    async def remove_expiry(self, user_id: UUID) -> None:
+        user_expiry_key = self._get_user_expiry_key(user_id=user_id)
+        await self.redis.delete(user_expiry_key)
+        return
+
     ## Helper methods
 
     def _get_criteria_key_list(
@@ -293,6 +298,9 @@ class RedisController:
 
     def _get_user_meta_key(self, user_id: UUID) -> str:
         return f"user:{user_id}:meta"
+
+    def _get_user_expiry_key(self, user_id: UUID) -> str:
+        return f"user_expiry:{user_id}"
 
     ## Debug
 

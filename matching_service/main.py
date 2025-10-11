@@ -25,6 +25,9 @@ async def lifespan(app: FastAPI):
     expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
     yield
     expiry_event_listener.cancel()
+    logger.info("Closing all websockets")
+    await websocket_service.broadcast_shutdown()
+
 
 router = APIRouter(
     prefix="/api"
@@ -68,7 +71,10 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
         while True:
             try:
                 await websocket.receive_text()
-            except WebSocketDisconnect:
+            except (WebSocketDisconnect, RuntimeError):
+                logger.info(f"User {user_id} ws disconncted. Cleaning up...")
+                await redis_controller.remove_expiry(user_id=user_id)
+                await redis_controller.remove_from_queue(user_id=user_id)
                 break
     finally:
         await websocket_service.close_ws_connection(user_id=user_id)
@@ -77,6 +83,7 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
 @router.post("/flush")
 async def flush():
     return await matching_service.clear_redis()
+
 
 app.include_router(router)
 
