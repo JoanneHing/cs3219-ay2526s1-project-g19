@@ -1,11 +1,8 @@
 import logging
 from uuid import UUID
-from dotenv import load_dotenv
 from schemas.matching import MatchingCriteriaSchema
 from service.redis_controller import redis_controller
-from service.websocket import websocket_service
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 

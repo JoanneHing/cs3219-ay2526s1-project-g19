@@ -13,6 +13,7 @@ from service.redis_controller import redis_controller
 from service.matching import matching_service
 from service.websocket import websocket_service
 from uuid import UUID
+from config import settings
 
 with open("log_config.json", "r") as f:
     config = json.load(f)
@@ -92,6 +93,6 @@ if __name__=="__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=os.getenv("ENV", "prd") == "dev"
+        reload=settings.env == "dev"
     )
     logger.info("Stopping matching service...")

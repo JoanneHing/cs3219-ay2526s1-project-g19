@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import os
-from dotenv import load_dotenv
 import redis.asyncio as redis
 from constants.matching import RELAX_LANGUAGE_DURATION, MatchingCriteriaEnum
 from uuid import UUID
@@ -12,17 +11,17 @@ from datetime import datetime
 from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
 from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema
 from service.websocket import websocket_service
+from config import settings
 
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 
 class RedisController:
     def __init__(self):
         self.redis = redis.Redis(
-            host=os.getenv("REDIS_HOST"),
-            port=os.getenv("REDIS_PORT"),
+            host=settings.redis_host,
+            port=settings.redis_port,
             db=0,
             decode_responses=True
         )
