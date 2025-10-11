@@ -25,7 +25,7 @@ class MatchingStatus(StrEnum):
 class MatchedCriteriaSchema(BaseModel):
     topic: str
     difficulty: str
-    language: str = ""
+    language: str
 
 
 class MatchingEventMessage(BaseModel):

@@ -4,7 +4,7 @@ import logging
 import os
 from dotenv import load_dotenv
 import redis.asyncio as redis
-from constants.matching import MatchingCriteriaEnum
+from constants.matching import RELAX_LANGUAGE_DURATION, MatchingCriteriaEnum
 from uuid import UUID
 from fastapi import HTTPException, status
 import time
@@ -51,6 +51,7 @@ class RedisController:
             user_id=user_id
         )
         await self.set_expiry(user_id=user_id)
+        await self.set_relax_language_timer(user_id=user_id)
 
     async def find_match(
         self,
@@ -69,7 +70,8 @@ class RedisController:
         if matched_user_id:
             await self.handle_matched(
                 user_id=user_id,
-                matched_user_id=matched_user_id
+                matched_user_id=matched_user_id,
+                match_secondary_lang=match_secondary_lang
             )
         logger.info(f"{await self.debug_show()}")
         return
@@ -97,7 +99,8 @@ class RedisController:
     async def get_matched_criteria(
         self,
         user_id: UUID,
-        matched_user_id: UUID
+        matched_user_id: UUID,
+        match_secondary_lang: bool = False
     ) -> MatchedCriteriaSchema:
         user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id))
         matched_user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=matched_user_id))
@@ -105,9 +108,32 @@ class RedisController:
         user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id))
         matched_user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=matched_user_id))
         difficulty_set = user_difficulty_criteria_set & matched_user_difficulty_criteria_set
+        user_primary_lang = await self.get_criteria_list(
+                criteria=MatchingCriteriaEnum.PRIMARY_LANG,
+                user_id=user_id
+            )
+        matched_user_primary_lang = await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.PRIMARY_LANG,
+            user_id=matched_user_id
+        )
+        if not match_secondary_lang:
+            assert user_primary_lang[0] == matched_user_primary_lang[0]
+            language = user_primary_lang[0]
+        else:
+            user_lang = set(user_primary_lang + await self.get_criteria_list(
+                criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+                user_id=user_id
+            ))
+            matched_user_lang = set(matched_user_primary_lang + await self.get_criteria_list(
+                criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+                user_id=matched_user_id
+            ))
+            language_set = user_lang & matched_user_lang
+            language = language_set.pop()
         return MatchedCriteriaSchema(
             topic=topic_set.pop(),
-            difficulty=difficulty_set.pop()
+            difficulty=difficulty_set.pop(),
+            language=language
         )
 
     async def start_expiry_listener(self):
@@ -123,8 +149,10 @@ class RedisController:
                 if message is not None:
                     expired_key = message["data"]
                     logger.info(f"Key expired: {expired_key}")
-                    # Run expiry handler asynchronously so slow handlers don't block listening
-                    asyncio.create_task(self.handle_expiry(expired_key))
+                    if expired_key.split(":")[0] == "relax":
+                        asyncio.create_task(self.handle_relax_language(expired_key))
+                    else:
+                        asyncio.create_task(self.handle_timeout(expired_key))
                 # Small sleep prevents a busy loop if Redis is quiet
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
@@ -133,7 +161,7 @@ class RedisController:
             await self.pubsub.close()
             await self.redis.close()
 
-    async def handle_expiry(self, expiry_key: str):
+    async def handle_timeout(self, expiry_key: str):
         user_id = UUID(expiry_key.split(":")[1])
         logger.info(f"User {user_id} expired. Removing from queue...")
         await self.websocket_service.send_timeout(user_id=user_id)
@@ -141,14 +169,33 @@ class RedisController:
         await self.remove_from_queue(user_id=user_id)
         return
 
+    async def handle_relax_language(self, expired_key: str):
+        user_id = UUID(expired_key.split(":")[2])
+        logger.info(f"Relaxing language matching for user {user_id}")
+        second_lang = await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+            user_id=user_id
+        )
+        await self.add_to_criteria_set(
+            criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+            keys=second_lang,
+            user_id=user_id
+        )
+        await self.find_match(
+            user_id=user_id,
+            match_secondary_lang=True
+        )
+
     async def handle_matched(
         self,
         user_id: UUID,
-        matched_user_id: UUID
+        matched_user_id: UUID,
+        match_secondary_lang: bool = False
     ) -> None:
         matched_criteria = await self.get_matched_criteria(
             user_id=user_id,
-            matched_user_id=matched_user_id
+            matched_user_id=matched_user_id,
+            match_secondary_lang=match_secondary_lang
         )
         logger.info(f"User {user_id} matched with user {matched_user_id}")
         await self.websocket_service.send_match_success(
@@ -228,6 +275,11 @@ class RedisController:
         await self.redis.set(user_expiry_key, "1", ex=EXPIRATION_DURATION)
         return
 
+    async def set_relax_language_timer(self, user_id: UUID):
+        user_relax_language_key = self._get_user_relax_language_timer_key(user_id=user_id)
+        await self.redis.set(user_relax_language_key, "1", ex=RELAX_LANGUAGE_DURATION)
+        return
+
     ## Query operations
 
     async def store_all_union_set(
@@ -237,14 +289,27 @@ class RedisController:
     ) -> None:
         await self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
         await self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
-        await self.store_union_set(criteria=MatchingCriteriaEnum.PRIMARY_LANG, user_id=user_id)
+        await self.store_union_set(
+            criteria=MatchingCriteriaEnum.LANGUAGE,
+            user_id=user_id,
+            match_secondary_lang=match_secondary_lang
+        )
 
     async def store_union_set(
         self,
         criteria: MatchingCriteriaEnum,
-        user_id: UUID
+        user_id: UUID,
+        match_secondary_lang: bool = False
     ) -> None:
-        criteria_list = await self.get_criteria_list(criteria=criteria, user_id=user_id)
+        criteria_list = await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.PRIMARY_LANG if criteria == MatchingCriteriaEnum.LANGUAGE else criteria,
+            user_id=user_id
+        )
+        if criteria == MatchingCriteriaEnum.LANGUAGE and match_secondary_lang:
+            criteria_list += await self.get_criteria_list(
+                criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+                user_id=user_id
+            )
         redis_key_list = self._get_criteria_key_list(criteria=criteria, criteria_list=criteria_list)
         if redis_key_list:
             await self.redis.sunionstore(
@@ -282,13 +347,10 @@ class RedisController:
         user_id: UUID
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
-        val_check = await self.redis.hget(name=meta_key, key=criteria.value)
-        if not val_check:
-            logger.info("problem below")
-            logger.info(meta_key)
-            logger.info(criteria.value)
-            logger.info(await self.redis.hgetall(meta_key))
-        return json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
+        criteria_list = json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
+        if isinstance(criteria_list, str):
+            return [criteria_list]
+        return criteria_list
 
     async def get_earliest_user(self, user_id: UUID) -> UUID | None:
         intersection_key = self._get_intersection_key(user_id=user_id)
@@ -330,7 +392,7 @@ class RedisController:
     def _get_criteria_key_list(
         self,
         criteria: MatchingCriteriaEnum,
-        criteria_list: str | list[str]
+        criteria_list: list[str]
     ) -> list[str]:
         if criteria == MatchingCriteriaEnum.PRIMARY_LANG:
             criteria = MatchingCriteriaEnum.LANGUAGE
@@ -358,6 +420,9 @@ class RedisController:
 
     def _get_user_expiry_key(self, user_id: UUID) -> str:
         return f"user_expiry:{user_id}"
+
+    def _get_user_relax_language_timer_key(self, user_id: UUID) -> str:
+        return f"relax:user:{user_id}"
 
     ## Debug
 

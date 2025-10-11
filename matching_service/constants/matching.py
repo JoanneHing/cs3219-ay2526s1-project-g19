@@ -9,3 +9,4 @@ class MatchingCriteriaEnum(str, Enum):
     SECONDARY_LANG = "seclanguage"
 
 EXPIRATION_DURATION = 60
+RELAX_LANGUAGE_DURATION = 30
