@@ -8,7 +8,7 @@ class MatchingCriteriaSchema(BaseModel):
     topics: list[str]
     difficulty: list[str]
     primary_lang: str | None = None
-    secondary_lang: list[str] = []
+    secondary_lang: list[str]
     proficiency: int = 0
 
 

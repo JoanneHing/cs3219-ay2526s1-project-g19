@@ -72,11 +72,9 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
             try:
                 await websocket.receive_text()
             except (WebSocketDisconnect, RuntimeError):
-                logger.info(f"User {user_id} ws disconncted. Cleaning up...")
-                await redis_controller.remove_expiry(user_id=user_id)
-                await redis_controller.remove_from_queue(user_id=user_id)
                 break
     finally:
+        await redis_controller.remove_from_queue(user_id=user_id)
         await websocket_service.close_ws_connection(user_id=user_id)
 
 

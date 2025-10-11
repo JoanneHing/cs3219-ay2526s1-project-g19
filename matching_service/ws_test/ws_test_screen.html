@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>WebSocket Chat</title>
+    <title>WebSocket Matchmaking</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
         input, select, button { margin: 5px; }
@@ -10,21 +10,21 @@
     </style>
 </head>
 <body>
-    <h1>WebSocket Chat</h1>
+    <h1>WebSocket Matchmaking Test</h1>
 
     <!-- User ID -->
     <label for="userIdInput">User ID:</label>
     <input type="text" id="userIdInput" placeholder="Enter user ID" autocomplete="off"/>
     <button id="connectBtn">Connect</button>
     <button id="disconnectBtn">Disconnect</button>
-    <br>
+    <br><br>
 
     <!-- Criteria Selection -->
     <label for="topicSelect">Topics:</label>
     <select id="topicSelect" multiple>
         <option value="sorting">Sorting</option>
         <option value="searching">Searching</option>
-        <option value="linkedlist">LinkedList</option>
+        <option value="linkedlist">Linked List</option>
         <option value="trees">Trees</option>
         <option value="dynamic programming">Dynamic Programming</option>
     </select>
@@ -34,6 +34,23 @@
         <option value="easy">Easy</option>
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
+    </select>
+    <br><br>
+
+    <!-- Language Selection -->
+    <label for="primaryLangSelect">Primary Language:</label>
+    <select id="primaryLangSelect">
+        <option value="">-- Select --</option>
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="javascript">JavaScript</option>
+    </select>
+
+    <label for="secondaryLangSelect">Secondary Languages:</label>
+    <select id="secondaryLangSelect" multiple>
+        <option value="python">Python</option>
+        <option value="java">Java</option>
+        <option value="javascript">JavaScript</option>
     </select>
 
     <ul id="messages"></ul>
@@ -57,9 +74,14 @@
             const userId = document.getElementById("userIdInput").value.trim();
             const topics = getSelectedValues("topicSelect");
             const difficulties = getSelectedValues("difficultySelect");
+            const primaryLang = document.getElementById("primaryLangSelect").value;
+            const secondaryLangs = getSelectedValues("secondaryLangSelect");
 
+            // Validation
             if (!userId) { alert("Please enter a user ID."); return; }
             if (topics.length === 0) { alert("Please select at least one topic."); return; }
+            if (!primaryLang) { alert("Please select a primary language."); return; }
+            if (secondaryLangs.length === 0) { alert("Please select at least one secondary language."); return; }
 
             if (!ws || ws.readyState !== WebSocket.OPEN) {
                 ws = new WebSocket(`ws://localhost:8002/api/ws?user_id=${userId}`);
@@ -72,47 +94,38 @@
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                             user_id: userId,
-                            criteria: { topics: topics, difficulty: difficulties }
+                            criteria: {
+                                topics: topics,
+                                difficulty: difficulties,
+                                primary_lang: primaryLang,
+                                secondary_lang: secondaryLangs
+                            }
                         })
                     })
                     .then(res => res.json())
-                    .then(data => printMessage(`Match API response: ${data}`))
+                    .then(data => printMessage(`Match API response: ${JSON.stringify(data)}`))
                     .catch(err => printMessage(`Error calling /api/match: ${err}`));
 
-                    printMessage(`Criteria sent: topics: [${topics.join(", ")}], difficulty: [${difficulties.join(", ")}]`);
+                    printMessage(`Criteria sent: 
+                        topics: [${topics.join(", ")}], 
+                        difficulty: [${difficulties.join(", ")}], 
+                        primary_lang: ${primaryLang}, 
+                        secondary_lang: [${secondaryLangs.join(", ")}]`);
                 };
 
                 ws.onmessage = function(event) {
-                    const messages = document.getElementById('messages');
-
                     try {
-                        const data = JSON.parse(event.data);  // parse JSON
-
-                        const topic = data.criteria?.topic ?? "N/A";
-                        const difficulty = data.criteria?.difficulty ?? "N/A";
-                        const language = data.criteria?.language ?? data.criteria?.langugage ?? "N/A"; // handle typo
-
+                        const data = JSON.parse(event.data);
                         const formatted = `
                             Status: ${data.status ?? "N/A"}
                             Matched User ID: ${data.matched_user_id ?? "N/A"}
-                            Criteria:
-                            Topic: ${topic}
-                            Difficulty: ${difficulty}
-                            Language: ${language}
+                            Criteria: ${JSON.stringify(data.criteria ?? {}, null, 2)}
                         `.trim();
-
-                        const message = document.createElement('li');
-                        message.textContent = formatted;
-                        messages.appendChild(message);
+                        printMessage(formatted);
                     } catch (err) {
-                        printMessage(err)
-                        // fallback if message is not JSON
-                        const message = document.createElement('li');
-                        message.textContent = event.data;
-                        messages.appendChild(message);
+                        printMessage("Non-JSON message: " + event.data);
                     }
                 };
-
 
                 ws.onclose = function() {
                     printMessage("WebSocket connection closed.");
@@ -128,6 +141,7 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.close();
                 ws = null;
+                printMessage("Disconnected manually.");
             }
         };
     </script>

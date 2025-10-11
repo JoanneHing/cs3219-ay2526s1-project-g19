@@ -42,49 +42,41 @@ class RedisController:
         await self.store_user_criteria_map(
             user_id=user_id,
             topics=criteria.topics,
-            difficulty=criteria.difficulty
+            difficulty=criteria.difficulty,
+            primary_lang=criteria.primary_lang,
+            secondary_lang=criteria.secondary_lang
         )
-        await self.add_to_criteria_set(
-            criteria=MatchingCriteriaEnum.TOPIC,
-            keys=criteria.topics,
-            user_id=user_id
-        )
-        await self.add_to_criteria_set(
-            criteria=MatchingCriteriaEnum.DIFFICULTY,
-            keys=criteria.difficulty,
+        await self.add_to_all_criteria_set(
+            criteria=criteria,
             user_id=user_id
         )
         await self.set_expiry(user_id=user_id)
 
-    async def find_match(self, user_id: UUID) -> None:
+    async def find_match(
+        self,
+        user_id: UUID,
+        match_secondary_lang: bool = False
+    ) -> None:
         # store all criteria internal unions
-        await self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
-        await self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
+        await self.store_all_union_set(
+            user_id=user_id,
+            match_secondary_lang=match_secondary_lang
+        )
         # get intersection of criteria internal unions
         await self.store_inter_set(user_id=user_id)
         # deconflict with joined time
         matched_user_id = await self.get_earliest_user(user_id=user_id)
         if matched_user_id:
-            matched_criteria = await self.get_matched_criteria(
+            await self.handle_matched(
                 user_id=user_id,
                 matched_user_id=matched_user_id
             )
-            logger.info(f"User {user_id} matched with user {matched_user_id}")
-            await self.websocket_service.send_match_success(
-                user_a=user_id,
-                user_b=matched_user_id,
-                criteria=matched_criteria
-            )
-            await self.websocket_service.close_ws_connection(user_id=user_id)
-            await self.websocket_service.close_ws_connection(user_id=matched_user_id)
-            logger.info(f"Removing user {user_id} from queue")
-            await self.remove_from_queue(user_id=user_id)
-            logger.info(f"Removing user {matched_user_id} from queue")
-            await self.remove_from_queue(user_id=matched_user_id)
         logger.info(f"{await self.debug_show()}")
         return
 
     async def remove_from_queue(self, user_id: UUID):
+        user_expiry_key = self._get_user_expiry_key(user_id=user_id)
+        await self.redis.delete(user_expiry_key)
         await self.remove_from_general_queue(user_id=user_id)
         await self.remove_from_criteria_set(
             user_id=user_id,
@@ -93,6 +85,10 @@ class RedisController:
         await self.remove_from_criteria_set(
             user_id=user_id,
             criteria=MatchingCriteriaEnum.DIFFICULTY
+        )
+        await self.remove_from_criteria_set(
+            user_id=user_id,
+            criteria=MatchingCriteriaEnum.PRIMARY_LANG
         )
         # remove user criteria map
         await self.redis.delete(self._get_user_meta_key(user_id=user_id))
@@ -145,6 +141,24 @@ class RedisController:
         await self.remove_from_queue(user_id=user_id)
         return
 
+    async def handle_matched(
+        self,
+        user_id: UUID,
+        matched_user_id: UUID
+    ) -> None:
+        matched_criteria = await self.get_matched_criteria(
+            user_id=user_id,
+            matched_user_id=matched_user_id
+        )
+        logger.info(f"User {user_id} matched with user {matched_user_id}")
+        await self.websocket_service.send_match_success(
+            user_a=user_id,
+            user_b=matched_user_id,
+            criteria=matched_criteria
+        )
+        await self.websocket_service.close_ws_connection(user_id=user_id)
+        await self.websocket_service.close_ws_connection(user_id=matched_user_id)
+
     ## Add operations
 
     async def add_to_general_queue(self, user_id: UUID) -> None:
@@ -160,22 +174,48 @@ class RedisController:
         self,
         user_id: UUID,
         topics: list[str],
-        difficulty: list[str]
+        difficulty: list[str],
+        primary_lang: str,
+        secondary_lang: list[str]
     ):
         meta_key = self._get_user_meta_key(user_id=user_id)
         await self.redis.hset(
             name=meta_key,
             mapping={
                 MatchingCriteriaEnum.TOPIC.value: json.dumps(topics),
-                MatchingCriteriaEnum.DIFFICULTY.value: json.dumps(difficulty)
-            },
+                MatchingCriteriaEnum.DIFFICULTY.value: json.dumps(difficulty),
+                MatchingCriteriaEnum.PRIMARY_LANG.value: json.dumps(primary_lang),
+                MatchingCriteriaEnum.SECONDARY_LANG.value: json.dumps(secondary_lang)
+            }
+        )
+        return
+
+    async def add_to_all_criteria_set(
+        self,
+        criteria: MatchingCriteriaSchema,
+        user_id: UUID
+    ) -> None:
+        await self.add_to_criteria_set(
+            criteria=MatchingCriteriaEnum.TOPIC,
+            keys=criteria.topics,
+            user_id=user_id
+        )
+        await self.add_to_criteria_set(
+            criteria=MatchingCriteriaEnum.DIFFICULTY,
+            keys=criteria.difficulty,
+            user_id=user_id
+        )
+        await self.add_to_criteria_set(
+            criteria=MatchingCriteriaEnum.LANGUAGE,
+            keys=criteria.primary_lang,
+            user_id=user_id
         )
         return
 
     async def add_to_criteria_set(
         self,
         criteria: MatchingCriteriaEnum,
-        keys: list[str],
+        keys: str | list[str],
         user_id: UUID
     ):
         redis_key_list = self._get_criteria_key_list(criteria=criteria, criteria_list=keys)
@@ -189,6 +229,15 @@ class RedisController:
         return
 
     ## Query operations
+
+    async def store_all_union_set(
+        self,
+        user_id: UUID,
+        match_secondary_lang: bool = False
+    ) -> None:
+        await self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
+        await self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
+        await self.store_union_set(criteria=MatchingCriteriaEnum.PRIMARY_LANG, user_id=user_id)
 
     async def store_union_set(
         self,
@@ -211,7 +260,8 @@ class RedisController:
         intersection_key = self._get_intersection_key(user_id=user_id)
         keys = [
             self._get_union_set_key(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id),
-            self._get_union_set_key(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
+            self._get_union_set_key(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id),
+            self._get_union_set_key(criteria=MatchingCriteriaEnum.LANGUAGE, user_id=user_id)
         ]
         await self.redis.sinterstore(
             dest=intersection_key,
@@ -232,6 +282,12 @@ class RedisController:
         user_id: UUID
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
+        val_check = await self.redis.hget(name=meta_key, key=criteria.value)
+        if not val_check:
+            logger.info("problem below")
+            logger.info(meta_key)
+            logger.info(criteria.value)
+            logger.info(await self.redis.hgetall(meta_key))
         return json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
 
     async def get_earliest_user(self, user_id: UUID) -> UUID | None:
@@ -269,18 +325,17 @@ class RedisController:
             await self.redis.srem(key, str(user_id))
         return
 
-    async def remove_expiry(self, user_id: UUID) -> None:
-        user_expiry_key = self._get_user_expiry_key(user_id=user_id)
-        await self.redis.delete(user_expiry_key)
-        return
-
     ## Helper methods
 
     def _get_criteria_key_list(
         self,
         criteria: MatchingCriteriaEnum,
-        criteria_list: list[str]
+        criteria_list: str | list[str]
     ) -> list[str]:
+        if criteria == MatchingCriteriaEnum.PRIMARY_LANG:
+            criteria = MatchingCriteriaEnum.LANGUAGE
+        if isinstance(criteria_list, str):
+            criteria_list = [criteria_list]
         return [f"queue:{criteria.value}:{key}" for key in criteria_list]
 
     def _get_union_set_key(
@@ -288,6 +343,8 @@ class RedisController:
         criteria: MatchingCriteriaEnum,
         user_id: UUID
     ) -> str:
+        if criteria == MatchingCriteriaEnum.PRIMARY_LANG:
+            criteria = MatchingCriteriaEnum.LANGUAGE
         return f"set:union:{criteria.value}:user:{str(user_id)}"
 
     def _get_intersection_key(

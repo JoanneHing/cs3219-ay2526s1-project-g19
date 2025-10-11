@@ -32,8 +32,8 @@ class WebSocketService:
         self,
         user_id: UUID
     ) -> None:
-        logger.info(f"Closing websocket of {user_id}")
         if user_id in self.ws_connections:
+            logger.info(f"Closing websocket of {user_id}")
             ws = self.ws_connections[user_id]
             if ws.client_state == WebSocketState.CONNECTED:
                 await ws.close()
