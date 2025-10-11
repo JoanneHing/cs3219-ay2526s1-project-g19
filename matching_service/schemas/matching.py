@@ -20,6 +20,7 @@ class MatchUserRequestSchema(BaseModel):
 class MatchingStatus(StrEnum):
     SUCCESS = "success"
     TIMEOUT = "timeout"
+    RELAX_LANGUAGE = "relax"
 
 
 class MatchedCriteriaSchema(BaseModel):
@@ -41,8 +42,8 @@ class MatchingEventMessage(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def check_timeout(self) -> Self:
-        if self.status == MatchingStatus.TIMEOUT:
+    def check_non_success(self) -> Self:
+        if self.status != MatchingStatus.SUCCESS:
             if self.matched_user_id or self.criteria:
-                raise ValueError(f"Timeout status message cannot have matched user id or criteria")
+                raise ValueError(f"Non-success status message cannot have matched user id or criteria")
         return self

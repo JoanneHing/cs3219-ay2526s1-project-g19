@@ -74,5 +74,15 @@ class WebSocketService:
             await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
         return
 
+    async def send_relax_lang(
+        self,
+        user_id: UUID
+    ) -> None:
+        logger.info(f"Sending relax language message to user {user_id}")
+        message = MatchingEventMessage(status=MatchingStatus.RELAX_LANGUAGE)
+        if user_id in self.ws_connections:
+            await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
+        return
+
 
 websocket_service = WebSocketService()

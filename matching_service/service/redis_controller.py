@@ -172,6 +172,7 @@ class RedisController:
     async def handle_relax_language(self, expired_key: str):
         user_id = UUID(expired_key.split(":")[2])
         logger.info(f"Relaxing language matching for user {user_id}")
+        await self.websocket_service.send_relax_lang(user_id=user_id)
         second_lang = await self.get_criteria_list(
             criteria=MatchingCriteriaEnum.SECONDARY_LANG,
             user_id=user_id
