@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react";
 
 const useAuth = () => {
     // TODO: Replace with actual authentication logic
@@ -41,6 +42,7 @@ const NavBar = () => {
                 <button
                     onClick={logout}
                     className="bg-red-500 text-white hover:bg-red-600 font-semibold py-2 px-4 rounded">
+                    <LogOut className="inline-block mr-2" />
                     Logout
                 </button>
             </div>
