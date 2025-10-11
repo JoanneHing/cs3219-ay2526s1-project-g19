@@ -5,7 +5,7 @@ import logging.config
 import os
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 import logging
 from schemas.matching import MatchUserRequestSchema
@@ -56,6 +56,11 @@ async def match_users(data: MatchUserRequestSchema):
         criteria=data.criteria
     )
     return res
+
+@router.post("/match/cancel")
+async def cancel_matching(user_id: UUID):
+    await websocket_service.close_ws_connection(user_id=user_id)
+    return f"Matching for user {user_id} cancelled"
 
 
 @router.get("/debug/show")

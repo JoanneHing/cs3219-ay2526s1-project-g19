@@ -139,8 +139,11 @@
 
         document.getElementById("disconnectBtn").onclick = function() {
             if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close();
-                ws = null;
+                const userId = document.getElementById("userIdInput").value.trim();
+                fetch(`http://127.0.0.1:8002/api/match/cancel?user_id=${userId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }
+                    })
                 printMessage("Disconnected manually.");
             }
         };

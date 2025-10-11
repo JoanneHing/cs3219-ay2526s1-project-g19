@@ -78,6 +78,8 @@ class RedisController:
     async def remove_from_queue(self, user_id: UUID):
         user_expiry_key = self._get_user_expiry_key(user_id=user_id)
         await self.redis.delete(user_expiry_key)
+        user_relax_key = self._get_user_relax_language_timer_key(user_id=user_id)
+        await self.redis.delete(user_relax_key)
         await self.remove_from_general_queue(user_id=user_id)
         await self.remove_from_criteria_set(
             user_id=user_id,
