@@ -9,7 +9,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 import time
 from datetime import datetime
-from constants.matching import MatchingCriteriaEnum
+from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
 from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema
 from service.websocket import websocket_service
 
@@ -28,7 +28,6 @@ class RedisController:
         )
         self.general_queue_key="gen_queue:"
         self.pubsub = self.redis.pubsub()
-        self.EXPIRE_DURATION = 5
         self.websocket_service = websocket_service
 
         ## Add operations
@@ -186,7 +185,7 @@ class RedisController:
 
     async def set_expiry(self, user_id: UUID):
         user_expiry_key = f"user_expiry:{user_id}"
-        await self.redis.set(user_expiry_key, "1", ex=self.EXPIRE_DURATION)
+        await self.redis.set(user_expiry_key, "1", ex=EXPIRATION_DURATION)
         return
 
     ## Query operations
