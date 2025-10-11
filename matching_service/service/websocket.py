@@ -13,8 +13,6 @@ class WebSocketService:
     def __init__(self):
         self.ws_connections: dict[UUID, WebSocket] = {}
 
-        ## WebSocket stuff
-
     def record_ws_connection(
         self,
         user_id: UUID,
@@ -64,6 +62,16 @@ class WebSocketService:
         )
         if user_b in self.ws_connections:
             await self.ws_connections[user_b].send_json(json.loads(message.model_dump_json()))
+        return
+
+    async def send_timeout(
+        self,
+        user_id: UUID
+    ) -> None:
+        logger.info(f"Sending timeout message to user {user_id} ")
+        message = MatchingEventMessage(status=MatchingStatus.TIMEOUT)
+        if user_id in self.ws_connections:
+            await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
         return
 
 

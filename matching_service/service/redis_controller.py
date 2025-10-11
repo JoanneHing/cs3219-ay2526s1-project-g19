@@ -1,8 +1,9 @@
+import asyncio
 import json
 import logging
 import os
 from dotenv import load_dotenv
-import redis
+import redis.asyncio as redis
 from constants.matching import MatchingCriteriaEnum
 from uuid import UUID
 from fastapi import HTTPException, status
@@ -10,6 +11,7 @@ import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum
 from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema
+from service.websocket import websocket_service
 
 
 load_dotenv()
@@ -25,96 +27,153 @@ class RedisController:
             decode_responses=True
         )
         self.general_queue_key="gen_queue:"
+        self.pubsub = self.redis.pubsub()
+        self.EXPIRE_DURATION = 5
+        self.websocket_service = websocket_service
 
         ## Add operations
 
-    def add_to_queue(
+    async def add_to_queue(
         self,
         user_id: UUID,
         criteria: MatchingCriteriaSchema
     ):
         # add to general queue with timestamp for fifo deconflict
-        self.add_to_general_queue(user_id=user_id)
-        self.store_user_criteria_map(
+        await self.add_to_general_queue(user_id=user_id)
+        await self.store_user_criteria_map(
             user_id=user_id,
             topics=criteria.topics,
             difficulty=criteria.difficulty
         )
-        self.add_to_criteria_set(
+        await self.add_to_criteria_set(
             criteria=MatchingCriteriaEnum.TOPIC,
             keys=criteria.topics,
             user_id=user_id
         )
-        self.add_to_criteria_set(
+        await self.add_to_criteria_set(
             criteria=MatchingCriteriaEnum.DIFFICULTY,
             keys=criteria.difficulty,
             user_id=user_id
         )
+        await self.set_expiry(user_id=user_id)
 
-    def find_match(self, user_id: UUID) -> UUID | None:
+    async def find_match(self, user_id: UUID) -> None:
         # store all criteria internal unions
-        self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
-        self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
+        await self.store_union_set(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)
+        await self.store_union_set(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
         # get intersection of criteria internal unions
-        self.store_inter_set(user_id=user_id)
+        await self.store_inter_set(user_id=user_id)
         # deconflict with joined time
-        return self.get_earliest_user(user_id=user_id)
+        matched_user_id = await self.get_earliest_user(user_id=user_id)
+        if matched_user_id:
+            matched_criteria = await self.get_matched_criteria(
+                user_id=user_id,
+                matched_user_id=matched_user_id
+            )
+            logger.info(f"User {user_id} matched with user {matched_user_id}")
+            await self.websocket_service.send_match_success(
+                user_a=user_id,
+                user_b=matched_user_id,
+                criteria=matched_criteria
+            )
+            await self.websocket_service.close_ws_connection(user_id=user_id)
+            await self.websocket_service.close_ws_connection(user_id=matched_user_id)
+            logger.info(f"Removing user {user_id} from queue")
+            await self.remove_from_queue(user_id=user_id)
+            logger.info(f"Removing user {matched_user_id} from queue")
+            await self.remove_from_queue(user_id=matched_user_id)
+        logger.info(f"{await self.debug_show()}")
+        return
 
-    def remove_from_queue(self, user_id: UUID):
-        self.remove_from_general_queue(user_id=user_id)
-        self.remove_from_criteria_set(
+    async def remove_from_queue(self, user_id: UUID):
+        await self.remove_from_general_queue(user_id=user_id)
+        await self.remove_from_criteria_set(
             user_id=user_id,
             criteria=MatchingCriteriaEnum.TOPIC
         )
-        self.remove_from_criteria_set(
+        await self.remove_from_criteria_set(
             user_id=user_id,
             criteria=MatchingCriteriaEnum.DIFFICULTY
         )
         # remove user criteria map
-        self.redis.delete(self._get_user_meta_key(user_id=user_id))
+        await self.redis.delete(self._get_user_meta_key(user_id=user_id))
         return
 
-    def get_matched_criteria(
+    async def get_matched_criteria(
         self,
         user_id: UUID,
         matched_user_id: UUID
     ) -> MatchedCriteriaSchema:
-        topic_set = set(self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id)) & \
-            set(self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=matched_user_id))
-        difficulty_set = set(self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)) & \
-            set(self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=matched_user_id))
+        user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id))
+        matched_user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=matched_user_id))
+        topic_set =  user_topic_criteria_set & matched_user_topic_criteria_set
+        user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id))
+        matched_user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=matched_user_id))
+        difficulty_set = user_difficulty_criteria_set & matched_user_difficulty_criteria_set
         return MatchedCriteriaSchema(
             topic=topic_set.pop(),
             difficulty=difficulty_set.pop()
         )
 
+    async def start_expiry_listener(self):
+        await self.pubsub.psubscribe("__keyevent@0__:expired")
+        logger.info("Subscribed to key expiry events")
+
+        try:
+            while True:
+                message = await self.pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=None
+                )
+                if message is not None:
+                    expired_key = message["data"]
+                    logger.info(f"Key expired: {expired_key}")
+                    # Run expiry handler asynchronously so slow handlers don't block listening
+                    asyncio.create_task(self.handle_expiry(expired_key))
+                # Small sleep prevents a busy loop if Redis is quiet
+                await asyncio.sleep(0.01)
+        except asyncio.CancelledError:
+            logger.info("Expiry event listener cancelled — shutting down")
+        finally:
+            await self.pubsub.close()
+            await self.redis.close()
+
+    async def handle_expiry(self, expiry_key: str):
+        user_id = UUID(expiry_key.split(":")[1])
+        logger.info(f"User {user_id} expired. Removing from queue...")
+        await self.websocket_service.send_timeout(user_id=user_id)
+        await self.websocket_service.close_ws_connection(user_id=user_id)
+        await self.remove_from_queue(user_id=user_id)
+        return
+
     ## Add operations
 
-    def add_to_general_queue(self, user_id: UUID) -> None:
+    async def add_to_general_queue(self, user_id: UUID) -> None:
         time_joined = time.time()
         logger.info(f"Adding user {user_id} to queue at {datetime.fromtimestamp(time_joined).strftime("%Y-%m-%d %H:%M:%S")}")
-        added = self.redis.zadd(self.general_queue_key, {str(user_id): time_joined}, nx=True)
+        added = await self.redis.zadd(self.general_queue_key, {str(user_id): time_joined}, nx=True)
         # check if user was already in queue
         if not added:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"User {user_id} already in queue")
         return
 
-    def store_user_criteria_map(
+    async def store_user_criteria_map(
         self,
         user_id: UUID,
         topics: list[str],
         difficulty: list[str]
     ):
         meta_key = self._get_user_meta_key(user_id=user_id)
-        self.redis.hset(
+        await self.redis.hset(
             name=meta_key,
             mapping={
                 MatchingCriteriaEnum.TOPIC.value: json.dumps(topics),
                 MatchingCriteriaEnum.DIFFICULTY.value: json.dumps(difficulty)
-            }
+            },
         )
+        return
 
-    def add_to_criteria_set(
+    async def add_to_criteria_set(
         self,
         criteria: MatchingCriteriaEnum,
         keys: list[str],
@@ -122,26 +181,31 @@ class RedisController:
     ):
         redis_key_list = self._get_criteria_key_list(criteria=criteria, criteria_list=keys)
         for key in redis_key_list:
-            self.redis.sadd(key, str(user_id))
+            await self.redis.sadd(key, str(user_id))
+        return
+
+    async def set_expiry(self, user_id: UUID):
+        user_expiry_key = f"user_expiry:{user_id}"
+        await self.redis.set(user_expiry_key, "1", ex=self.EXPIRE_DURATION)
         return
 
     ## Query operations
 
-    def store_union_set(
+    async def store_union_set(
         self,
         criteria: MatchingCriteriaEnum,
         user_id: UUID
     ) -> None:
-        criteria_list = self.get_criteria_list(criteria=criteria, user_id=user_id)
+        criteria_list = await self.get_criteria_list(criteria=criteria, user_id=user_id)
         redis_key_list = self._get_criteria_key_list(criteria=criteria, criteria_list=criteria_list)
         if redis_key_list:
-            self.redis.sunionstore(
+            await self.redis.sunionstore(
                 self._get_union_set_key(criteria=criteria, user_id=user_id),
                 *redis_key_list
             )
         return
 
-    def store_inter_set(
+    async def store_inter_set(
         self,
         user_id: UUID
     ) -> None:
@@ -150,60 +214,60 @@ class RedisController:
             self._get_union_set_key(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id),
             self._get_union_set_key(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id)
         ]
-        self.redis.sinterstore(
+        await self.redis.sinterstore(
             dest=intersection_key,
             keys=keys
         )
         # remove self
-        self.redis.srem(
+        await self.redis.srem(
             intersection_key,
             str(user_id)
         )
         # clean up union sets
-        self.redis.delete(*keys)
+        await self.redis.delete(*keys)
         return
 
-    def get_criteria_list(
+    async def get_criteria_list(
         self,
         criteria: MatchingCriteriaEnum,
         user_id: UUID
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
-        return json.loads(self.redis.hget(name=meta_key, key=criteria.value))
+        return json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
 
-    def get_earliest_user(self, user_id: UUID) -> UUID | None:
+    async def get_earliest_user(self, user_id: UUID) -> UUID | None:
         intersection_key = self._get_intersection_key(user_id=user_id)
-        inter_set_length = self.redis.scard(intersection_key)
+        inter_set_length = await self.redis.scard(intersection_key)
         if inter_set_length == 0:
             return None
         if inter_set_length == 1:
-            return UUID(self.redis.spop(intersection_key))
+            return UUID(await self.redis.spop(intersection_key))
         temp_set_key = f"sortedset:match:user:{str(user_id)}"
-        self.redis.zinterstore(
+        await self.redis.zinterstore(
             temp_set_key,
             {self.general_queue_key: 1, intersection_key: 0},  # keep sorted set scores (timestamp)
             aggregate="SUM"
         )
-        assert self.redis.zcard(temp_set_key) > 0
-        earliest_user = self.redis.zpopmin(temp_set_key, 1)[0][0]
-        self.redis.delete(intersection_key, temp_set_key)
+        assert await self.redis.zcard(temp_set_key) > 0
+        earliest_user = await self.redis.zpopmin(temp_set_key, 1)[0][0]
+        await self.redis.delete(intersection_key, temp_set_key)
         return UUID(earliest_user)
 
     ## Remove operations
 
-    def remove_from_general_queue(self, user_id: UUID) -> None:
-        self.redis.zrem(self.general_queue_key, str(user_id))
+    async def remove_from_general_queue(self, user_id: UUID) -> None:
+        await self.redis.zrem(self.general_queue_key, str(user_id))
         return
 
-    def remove_from_criteria_set(
+    async def remove_from_criteria_set(
         self,
         user_id: UUID,
         criteria: MatchingCriteriaEnum
     ) -> None:
-        criteria_list = self.get_criteria_list(criteria=criteria, user_id=user_id)
+        criteria_list = await self.get_criteria_list(criteria=criteria, user_id=user_id)
         key_list = self._get_criteria_key_list(criteria=criteria, criteria_list=criteria_list)
         for key in key_list:
-            self.redis.srem(key, str(user_id))
+            await self.redis.srem(key, str(user_id))
         return
 
     ## Helper methods
@@ -233,37 +297,37 @@ class RedisController:
 
     ## Debug
 
-    def debug_show(self) -> dict:
+    async def debug_show(self) -> dict:
         r = self.redis
         result = {}
 
-        keys = r.keys('*')
+        keys = await r.keys('*')
         if not keys:
             return {"message": "Redis is empty."}
 
         for key in sorted(keys):
-            key_type = r.type(key)
+            key_type = await r.type(key)
             entry = {"type": key_type, "values": None}
 
             try:
                 if key_type == 'set':
-                    values = r.smembers(key)
+                    values = await r.smembers(key)
                     entry["values"] = sorted(values)
 
                 elif key_type == 'zset':
-                    values = r.zrange(key, 0, -1, withscores=True)
+                    values = await r.zrange(key, 0, -1, withscores=True)
                     entry["values"] = [{"member": member, "score": int(score)} for member, score in values]
 
                 elif key_type == 'list':
-                    values = r.lrange(key, 0, -1)
+                    values = await r.lrange(key, 0, -1)
                     entry["values"] = values
 
                 elif key_type == 'hash':
-                    values = r.hgetall(key)
+                    values = await r.hgetall(key)
                     entry["values"] = values
 
                 else:  # string
-                    value = r.get(key)
+                    value = await r.get(key)
                     entry["values"] = value
 
             except Exception as e:
@@ -273,8 +337,9 @@ class RedisController:
 
         return result
 
-    def clear_redis(self) -> None:
-        self.redis.flushdb()
+    async def clear_redis(self) -> None:
+        await self.redis.flushdb()
         return
+
 
 redis_controller = RedisController()

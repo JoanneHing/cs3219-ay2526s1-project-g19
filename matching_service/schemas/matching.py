@@ -30,8 +30,8 @@ class MatchedCriteriaSchema(BaseModel):
 
 class MatchingEventMessage(BaseModel):
     status: MatchingStatus
-    matched_user_id: UUID | None
-    criteria: MatchedCriteriaSchema | None
+    matched_user_id: UUID | None = None
+    criteria: MatchedCriteriaSchema | None = None
 
     @model_validator(mode="after")
     def check_success(self) -> Self:

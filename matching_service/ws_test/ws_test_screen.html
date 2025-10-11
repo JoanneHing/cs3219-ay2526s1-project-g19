@@ -62,12 +62,12 @@
             if (topics.length === 0) { alert("Please select at least one topic."); return; }
 
             if (!ws || ws.readyState !== WebSocket.OPEN) {
-                ws = new WebSocket(`ws://localhost:8001/api/ws?user_id=${userId}`);
+                ws = new WebSocket(`ws://localhost:8002/api/ws?user_id=${userId}`);
 
                 ws.onopen = function() {
                     printMessage(`Connected as user ${userId}`);
 
-                    fetch("http://127.0.0.1:8001/api/match", {
+                    fetch("http://127.0.0.1:8002/api/match", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
@@ -119,7 +119,7 @@
                 };
 
                 ws.onerror = function(err) {
-                    printMessage("WebSocket error: " + err);
+                    printMessage("WebSocket error: " + JSON.stringify(err));
                 };
             }
         };

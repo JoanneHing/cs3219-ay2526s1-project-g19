@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 import json
 import logging.config
 import os
@@ -8,6 +9,7 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
 from schemas.matching import MatchUserRequestSchema
+from service.redis_controller import redis_controller
 from service.matching import matching_service
 from service.websocket import websocket_service
 from uuid import UUID
@@ -17,10 +19,17 @@ with open("log_config.json", "r") as f:
 logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
+    yield
+    expiry_event_listener.cancel()
+
 router = APIRouter(
     prefix="/api"
 )
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/test_ws")
@@ -30,8 +39,8 @@ async def get():
     return HTMLResponse(content=html_content)
 
 
-@router.post("/match", status_code=status.HTTP_201_CREATED, responses={
-    201: {},
+@router.post("/match", status_code=status.HTTP_202_ACCEPTED, responses={
+    202: {"description": "Accepted"},
     409: {"description": "User already in queue"}
 })
 async def match_users(data: MatchUserRequestSchema):
@@ -46,12 +55,13 @@ async def match_users(data: MatchUserRequestSchema):
 
 
 @router.get("/debug/show")
-def debug_show():
-    return matching_service.debug_show()
+async def debug_show():
+    return await matching_service.debug_show()
 
 
 @router.websocket("/ws")
 async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
+    logger.info(f"Connecting ws for {user_id}")
     websocket_service.record_ws_connection(user_id=user_id, websocket=websocket)
     await websocket.accept()
     try:
@@ -65,9 +75,8 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
 
 
 @router.post("/flush")
-def flush():
-    return matching_service.clear_redis()
-
+async def flush():
+    return await matching_service.clear_redis()
 
 app.include_router(router)
 
