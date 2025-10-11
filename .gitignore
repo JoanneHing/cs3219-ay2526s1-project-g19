@@ -24,3 +24,6 @@
 
 # Docker override files
 **/docker-compose.override.yml
+
+node_modules/
+node_modules
