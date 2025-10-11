@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'django_filters',
+    'drf_spectacular',
     "question_service.apps.QuestionServiceConfig",
 ]
 
@@ -138,6 +139,7 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # In local development allow anonymous access to make testing easier
@@ -145,6 +147,9 @@ if DEBUG:
     REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'] = [
         'rest_framework.permissions.AllowAny'
     ]
+
+# Make trailing slashes optional by auto-appending
+APPEND_SLASH = True
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -163,6 +168,24 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# DRF Spectacular Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Question Service API',
+    'DESCRIPTION': 'Question Management and Topic API',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/',
+    'SERVERS': [
+        # Direct access (development)
+        {'url': 'http://localhost:8001', 'description': 'Question Service Direct'},
+        # Proxy access (via nginx)
+        {'url': 'http://localhost:5173/question-service-api', 'description': 'Question Service via Nginx Proxy'},
+    ],
+    # Use relative schema URL so it works through proxy
+    'SCHEMA_COERCE_PATH_PK': True,
+}
 
 # Logging configuration
 LOGGING = {

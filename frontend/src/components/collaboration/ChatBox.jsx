@@ -19,10 +19,10 @@ const ChatBox = ({ room, currentUsername }) => {
 
   useEffect(() => {
     // Initialize chat socket
-    // When using proxy paths, Socket.IO needs the path option set correctly
-    chatSocketRef.current = io({
-      path: `${import.meta.env.VITE_CHAT_SERVICE_URL}/socket.io`
-    });
+    // The first argument is the namespace, which we don't use.
+    // The options object contains the path, which should be the proxy path.
+    // This tells Socket.IO to connect to `ws://<host>/chat-service-api/socket.io`
+    chatSocketRef.current = io(window.location.origin, { path: `${import.meta.env.VITE_CHAT_SERVICE_URL}/socket.io` });
 
     chatSocketRef.current.on("connect", () => {
       console.log(`Connected to chat server with SID ${chatSocketRef.current.id}`);

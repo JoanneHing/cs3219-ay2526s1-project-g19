@@ -34,10 +34,8 @@ const CodeEditor = ({ room, currentUsername }) => {
     useEffect(() => {
         // Initialize collaboration socket
         // When using proxy paths, Socket.IO needs the path option set correctly
-        // For /collaboration-service-api proxy, socket.io endpoint is /collaboration-service-api/socket.io/
-        collabSocketRef.current = io({
-            path: `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io`
-        })
+        // This tells Socket.IO to connect to `ws://<host>/collaboration-service-api/socket.io`
+        collabSocketRef.current = io(window.location.origin, { path: `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io` });
         console.log('Connecting to Socket.IO with path:', `${import.meta.env.VITE_COLLABORATION_SERVICE_URL}/socket.io`)
 
         collabSocketRef.current.on("connect", () => {
