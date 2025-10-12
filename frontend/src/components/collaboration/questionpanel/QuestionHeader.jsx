@@ -10,7 +10,7 @@ const QuestionHeader = ({ title, difficulty, topics, stats, company_tags }) => (
         </div>
         <h1 className="text-2xl font-bold text-white">{title}</h1>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 mb-4">
         <span className="px-3 py-1.5 rounded-full bg-green-600/90 text-white text-xs font-semibold shadow-sm flex items-center gap-1">
           <CheckCircle className="w-3 h-3" />
           {difficulty}
