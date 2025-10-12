@@ -103,6 +103,8 @@ async def send(sid, data):
     await redis_client.rpush(cache_key, json.dumps(message_data.to_dict()))
     # Keep only last 100 messages
     await redis_client.ltrim(cache_key, -100, -1)
+    # Set expiry time (refreshes on every message)
+    await redis_client.expire(cache_key, EXPIRY_TIME)
 
     # Broadcast message to room using MessageData
     await sio.emit("receive", message_data.to_dict(), room=room)
