@@ -9,7 +9,7 @@ const EditorRunButton = ({ onClick, isRunning }) => (
       transition-all duration-200 transform
       ${isRunning 
         ? 'bg-gray-400 cursor-not-allowed' 
-        : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 active:scale-95 cursor-pointer'
+        : 'bg-primary hover:from-green-700 hover:bg-primary-dark active:scale-95 cursor-pointer'
       }
       text-white
     `}
