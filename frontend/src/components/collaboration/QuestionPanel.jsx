@@ -27,7 +27,7 @@ export default function QuestionPanel() {
 
   return (
     <div className="p-2 max-w-5xl">
-      <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-800/50 overflow-hidden">
+      <div className="bg-primary-secondary/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-400/50 overflow-hidden">
         <QuestionHeader
           title={question.title}
           difficulty={question.difficulty}
@@ -41,7 +41,7 @@ export default function QuestionPanel() {
       </div>
       {/* Footer (Optional) */}
       <div className="my-2 text-center">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-gray-400">
           Time Complexity: {question.timeComplexity} • Space Complexity: {question.spaceComplexity}
         </p>
       </div>
