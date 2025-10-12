@@ -1,7 +1,7 @@
 import { CheckCircle, Code2 } from 'lucide-react';
 
 const QuestionHeader = ({ title, difficulty, topics }) => (
-  <div className="relative bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 px-8 py-6">
+  <div className="relative bg-gradient-to-r from-primary via-primary to-primary-dark px-8 py-6">
     <div className="absolute inset-0 bg-black/5"></div>
     <div className="relative">
       <div className="flex items-center gap-3 mb-3">
@@ -11,7 +11,7 @@ const QuestionHeader = ({ title, difficulty, topics }) => (
         <h1 className="text-2xl font-bold text-white">{title}</h1>
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className="px-3 py-1.5 rounded-full bg-white/90 text-emerald-700 text-xs font-semibold shadow-sm flex items-center gap-1">
+        <span className="px-3 py-1.5 rounded-full bg-green-600/90 text-white text-xs font-semibold shadow-sm flex items-center gap-1">
           <CheckCircle className="w-3 h-3" />
           {difficulty}
         </span>

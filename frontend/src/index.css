@@ -22,8 +22,13 @@ a {
   color: #6cbdff;
   text-decoration: inherit;
 }
+
 a:hover {
   color: #6cbdff;
+}
+
+p {
+  color: #D1D5DB;
 }
 
 body {
