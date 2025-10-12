@@ -21,7 +21,7 @@ services:
     volumes:
       - ./:/app:rw
     networks:
-      # - shared_network
+      - shared_network
       - matching_network
     depends_on:
       matching_redis:
@@ -54,9 +54,9 @@ volumes:
     name: peerprep_matching_redis_data
 
 networks:
-  # shared_network:
-  #   external: true
-  #   name: peerprep_shared_network
+  shared_network:
+    external: true
+    name: peerprep_shared_network
   matching_network:
     driver: bridge
     name: peerprep_matching_network
