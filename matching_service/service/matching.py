@@ -1,5 +1,8 @@
 import logging
 from uuid import UUID
+
+import httpx
+from config import settings
 from schemas.matching import MatchingCriteriaSchema
 from service.redis_controller import redis_controller
 
@@ -22,7 +25,10 @@ class MatchingService:
         )
         logger.info(f"{await self.redis_controller.debug_show()}")
         # find eligible matches
-        await self.redis_controller.find_match(user_id=user_id)
+        await self.redis_controller.find_match(
+            user_id=user_id,
+            match_secondary_lang=criteria.primary_lang is None
+        )
         return f"User {user_id} joined queue"
 
     async def debug_show(self) -> dict:

@@ -2,12 +2,12 @@ import asyncio
 from contextlib import asynccontextmanager
 import json
 import logging.config
-import os
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
+from service.django_question_service import django_question_service
 from schemas.matching import MatchUserRequestSchema
 from service.redis_controller import redis_controller
 from service.matching import matching_service
@@ -23,11 +23,12 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Running events on start...")
+    await django_question_service.setup()
     expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
     yield
+    logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
-    logger.info("Closing all websockets")
-    await websocket_service.broadcast_shutdown()
 
 
 router = APIRouter(
@@ -56,6 +57,7 @@ async def match_users(data: MatchUserRequestSchema):
         criteria=data.criteria
     )
     return res
+
 
 @router.post("/match/cancel")
 async def cancel_matching(user_id: UUID):

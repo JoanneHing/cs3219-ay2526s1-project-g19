@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketState
 
-from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema, MatchingEventMessage, MatchingStatus
+from schemas.message import MatchingStatus, MatchedCriteriaSchema, MatchingEventMessage
 
 
 logger = logging.getLogger(__name__)

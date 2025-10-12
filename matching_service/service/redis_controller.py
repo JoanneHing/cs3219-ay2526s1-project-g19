@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import os
 import redis.asyncio as redis
 from constants.matching import RELAX_LANGUAGE_DURATION, MatchingCriteriaEnum
 from uuid import UUID
@@ -9,7 +8,8 @@ from fastapi import HTTPException, status
 import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
-from schemas.matching import MatchedCriteriaSchema, MatchingCriteriaSchema
+from schemas.matching import MatchingCriteriaSchema
+from schemas.message import MatchedCriteriaSchema
 from service.websocket import websocket_service
 from config import settings
 
@@ -50,7 +50,8 @@ class RedisController:
             user_id=user_id
         )
         await self.set_expiry(user_id=user_id)
-        await self.set_relax_language_timer(user_id=user_id)
+        if criteria.primary_lang:
+            await self.set_relax_language_timer(user_id=user_id)
 
     async def find_match(
         self,
@@ -69,8 +70,7 @@ class RedisController:
         if matched_user_id:
             await self.handle_matched(
                 user_id=user_id,
-                matched_user_id=matched_user_id,
-                match_secondary_lang=match_secondary_lang
+                matched_user_id=matched_user_id
             )
         logger.info(f"{await self.debug_show()}")
         return
@@ -93,6 +93,10 @@ class RedisController:
             user_id=user_id,
             criteria=MatchingCriteriaEnum.PRIMARY_LANG
         )
+        await self.remove_from_criteria_set(
+            user_id=user_id,
+            criteria=MatchingCriteriaEnum.SECONDARY_LANG
+        )
         # remove user criteria map
         await self.redis.delete(self._get_user_meta_key(user_id=user_id))
         return
@@ -100,14 +104,25 @@ class RedisController:
     async def get_matched_criteria(
         self,
         user_id: UUID,
-        matched_user_id: UUID,
-        match_secondary_lang: bool = False
+        matched_user_id: UUID
     ) -> MatchedCriteriaSchema:
-        user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=user_id))
-        matched_user_topic_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.TOPIC, user_id=matched_user_id))
+        user_topic_criteria_set = set(await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.TOPIC,
+            user_id=user_id
+        ))
+        matched_user_topic_criteria_set = set(await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.TOPIC,
+            user_id=matched_user_id
+        ))
         topic_set =  user_topic_criteria_set & matched_user_topic_criteria_set
-        user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=user_id))
-        matched_user_difficulty_criteria_set = set(await self.get_criteria_list(criteria=MatchingCriteriaEnum.DIFFICULTY, user_id=matched_user_id))
+        user_difficulty_criteria_set = set(await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.DIFFICULTY,
+            user_id=user_id
+        ))
+        matched_user_difficulty_criteria_set = set(await self.get_criteria_list(
+            criteria=MatchingCriteriaEnum.DIFFICULTY,
+            user_id=matched_user_id
+        ))
         difficulty_set = user_difficulty_criteria_set & matched_user_difficulty_criteria_set
         user_primary_lang = await self.get_criteria_list(
                 criteria=MatchingCriteriaEnum.PRIMARY_LANG,
@@ -117,9 +132,9 @@ class RedisController:
             criteria=MatchingCriteriaEnum.PRIMARY_LANG,
             user_id=matched_user_id
         )
-        if not match_secondary_lang:
-            assert user_primary_lang[0] == matched_user_primary_lang[0]
-            language = user_primary_lang[0]
+        if user_primary_lang and matched_user_primary_lang:
+            if user_primary_lang[0] == matched_user_primary_lang[0]:
+                language = user_primary_lang[0]
         else:
             user_lang = set(user_primary_lang + await self.get_criteria_list(
                 criteria=MatchingCriteriaEnum.SECONDARY_LANG,
@@ -179,7 +194,7 @@ class RedisController:
             user_id=user_id
         )
         await self.add_to_criteria_set(
-            criteria=MatchingCriteriaEnum.SECONDARY_LANG,
+            criteria=MatchingCriteriaEnum.LANGUAGE,
             keys=second_lang,
             user_id=user_id
         )
@@ -191,15 +206,13 @@ class RedisController:
     async def handle_matched(
         self,
         user_id: UUID,
-        matched_user_id: UUID,
-        match_secondary_lang: bool = False
+        matched_user_id: UUID
     ) -> None:
         matched_criteria = await self.get_matched_criteria(
             user_id=user_id,
-            matched_user_id=matched_user_id,
-            match_secondary_lang=match_secondary_lang
+            matched_user_id=matched_user_id
         )
-        logger.info(f"User {user_id} matched with user {matched_user_id}")
+        logger.info(f"User {user_id} matched with user {matched_user_id}. Criteria: {matched_criteria}")
         await self.websocket_service.send_match_success(
             user_a=user_id,
             user_b=matched_user_id,
@@ -256,7 +269,7 @@ class RedisController:
         )
         await self.add_to_criteria_set(
             criteria=MatchingCriteriaEnum.LANGUAGE,
-            keys=criteria.primary_lang,
+            keys=criteria.primary_lang if criteria.primary_lang else criteria.secondary_lang,
             user_id=user_id
         )
         return
@@ -350,6 +363,8 @@ class RedisController:
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
         criteria_list = json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
+        if criteria_list is None:
+            criteria_list = []
         if isinstance(criteria_list, str):
             return [criteria_list]
         return criteria_list
@@ -396,7 +411,7 @@ class RedisController:
         criteria: MatchingCriteriaEnum,
         criteria_list: list[str]
     ) -> list[str]:
-        if criteria == MatchingCriteriaEnum.PRIMARY_LANG:
+        if criteria == MatchingCriteriaEnum.PRIMARY_LANG or criteria == MatchingCriteriaEnum.SECONDARY_LANG:
             criteria = MatchingCriteriaEnum.LANGUAGE
         if isinstance(criteria_list, str):
             criteria_list = [criteria_list]
