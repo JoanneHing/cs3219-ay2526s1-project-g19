@@ -16,6 +16,7 @@ Including another URLconf
 """
 # question_service/question_service/urls.py
 from django.urls import path, include
+from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from .view import QuestionViewSet, TopicsView
@@ -44,6 +45,10 @@ router = DefaultRouter()
 router.register(r"questions", QuestionViewSet, basename="questions")
 
 urlpatterns = [
+    # Django Admin
+    path('admin/', admin.site.urls),
+    
+    # API endpoints
     path("api/", include(router.urls)),
     path("api/topics", TopicsView.as_view(), name="topics"),
 

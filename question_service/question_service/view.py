@@ -11,7 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet, CharFi
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from .models import Question, Difficulty
-from .serializer import QuestionListSerializer, QuestionDetailSerializer
+from .serializer import QuestionSerializer
 
 class QuestionPagination(PageNumberPagination):
     page_size = 20
@@ -145,39 +145,58 @@ class QuestionFilter(FilterSet):
                 required=False,
                 enum=["asc", "desc"],
             ),
-            OpenApiParameter(
-                name="fields",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description="Comma-separated list of fields to include in response (sparse fieldsets)",
-                required=False,
-                examples=[
-                    OpenApiExample("Basic fields", value="title,difficulty,topics"),
-                    OpenApiExample("With ID", value="question_id,title,slug"),
-                ],
-            ),
         ],
-        responses={200: QuestionListSerializer(many=True)},
+        responses={200: QuestionSerializer(many=True)},
         tags=["questions"],
     ),
     retrieve=extend_schema(
         summary="Get question details",
         description="Retrieve detailed information about a specific question by ID.",
-        responses={200: QuestionDetailSerializer},
+        responses={200: QuestionSerializer},
+        tags=["questions"],
+    ),
+    create=extend_schema(
+        summary="Create question",
+        description="Create a new question with all required fields.",
+        request=QuestionSerializer,
+        responses={201: QuestionSerializer},
+        tags=["questions"],
+    ),
+    update=extend_schema(
+        summary="Update question",
+        description="Update an existing question (full update).",
+        request=QuestionSerializer,
+        responses={200: QuestionSerializer},
+        tags=["questions"],
+    ),
+    partial_update=extend_schema(
+        summary="Partial update question",
+        description="Partially update an existing question (partial update).",
+        request=QuestionSerializer,
+        responses={200: QuestionSerializer},
+        tags=["questions"],
+    ),
+    destroy=extend_schema(
+        summary="Delete question",
+        description="Delete a question by ID.",
+        responses={204: None},
         tags=["questions"],
     ),
 )
 class QuestionViewSet(mixins.ListModelMixin,
                       mixins.RetrieveModelMixin,
+                      mixins.CreateModelMixin,
+                      mixins.UpdateModelMixin,
+                      mixins.DestroyModelMixin,
                       viewsets.GenericViewSet):
-    queryset = (Question.objects.all().filter(is_active=True).select_related("stats","score"))
+    queryset = Question.objects.all().select_related("stats","score")
     pagination_class = QuestionPagination
     filter_backends = [DjangoFilterBackend]
     filterset_class = QuestionFilter
 
     def get_serializer_class(self):
         # Return full details for both list and retrieve
-        return QuestionDetailSerializer
+        return QuestionSerializer
 
     def get_queryset(self):
         # annotate sortable fields with explicit Float casting and zero-guard
