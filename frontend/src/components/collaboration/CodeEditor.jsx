@@ -291,7 +291,7 @@ const CodeEditor = ({ room, currentUsername }) => {
                         line: data.line,
                         ch: data.ch,
                         color: getUserColor(data.userId),
-                        username: currentUsername,
+                        username: data.username,
                         timestamp: Date.now()
                     }
                 }))
