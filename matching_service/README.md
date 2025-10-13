@@ -40,17 +40,20 @@ The matching service is responsible for matching users based on the below define
             "user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa5",
             "criteria": {
                 "topics": [
-                "string"
+                    "string"
                 ],
                 "difficulty": [
-                "string"
+                    "string"
                 ],
                 "primary_lang": "string",
-                "secondary_lang": [],
+                "secondary_lang": [
+                    "string"
+                ],
                 "proficiency": 0
             }
             }
         ```
+        - Note: topics, difficulty, and secondary_lang could be empty list to imply ALL options. Language will only default to all options if primary_lang is null and secondary_lang is empty list.
     - Response:
         - `202 Accepted`: User successfully requested to be added into queue
         - `422 Validation Error`: Invalid/Malformed input
