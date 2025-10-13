@@ -1,4 +1,5 @@
-import { WidgetType } from "@codemirror/view"
+import { Decoration, EditorView, WidgetType } from "@codemirror/view"
+import { StateField } from "@codemirror/state"
 
 export class CursorWidget extends WidgetType {
     constructor(userId, color, username, line) {
@@ -113,9 +114,6 @@ export class CursorWidget extends WidgetType {
         return false
     }
 }
-
-import { StateField, Decoration, EditorView } from "@codemirror/view"
-import { CursorWidget } from "./CursorWidget"
 
 export const lineCharToPos = (doc, lineChar) => {
     try {
