@@ -21,36 +21,26 @@
 
     <!-- Criteria Selection -->
     <label for="topicSelect">Topics:</label>
-    <select id="topicSelect" multiple>
-        <option value="sorting">Sorting</option>
-        <option value="searching">Searching</option>
-        <option value="linkedlist">Linked List</option>
-        <option value="trees">Trees</option>
-        <option value="dynamic programming">Dynamic Programming</option>
-    </select>
+    <select id="topicSelect" multiple></select>
 
     <label for="difficultySelect">Difficulty:</label>
-    <select id="difficultySelect" multiple>
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard</option>
-    </select>
+    <select id="difficultySelect" multiple></select>
     <br><br>
 
     <!-- Language Selection -->
     <label for="primaryLangSelect">Primary Language:</label>
     <select id="primaryLangSelect">
         <option value="">-- Select --</option>
-        <option value="python">Python</option>
-        <option value="java">Java</option>
-        <option value="javascript">JavaScript</option>
+        <option value="Python">Python</option>
+        <option value="Java">Java</option>
+        <option value="Javascript">JavaScript</option>
     </select>
 
     <label for="secondaryLangSelect">Secondary Languages:</label>
     <select id="secondaryLangSelect" multiple>
-        <option value="python">Python</option>
-        <option value="java">Java</option>
-        <option value="javascript">JavaScript</option>
+        <option value="Python">Python</option>
+        <option value="Java">Java</option>
+        <option value="Javascript">JavaScript</option>
     </select>
 
     <ul id="messages"></ul>
@@ -58,6 +48,9 @@
     <script>
         let ws;
 
+        // -----------------------------
+        // Helper functions
+        // -----------------------------
         function printMessage(msg) {
             const messages = document.getElementById('messages');
             const message = document.createElement('li');
@@ -70,6 +63,61 @@
             return Array.from(select.selectedOptions).map(opt => opt.value);
         }
 
+        // -----------------------------
+        // Dynamic loading of topics and difficulties
+        // -----------------------------
+        async function loadSelectOptions() {
+            try {
+                // Fetch topics from backend
+                const topicsRes = await fetch('http://127.0.0.1:8001/api/topics');
+
+                if (!topicsRes.ok) {
+                    throw new Error(`Failed to fetch topics: HTTP ${topicsRes.status}`);
+                }
+
+                const data = await topicsRes.json();
+                const topics = data.topics || [];
+
+                // Use hardcoded difficulties for now
+                const difficulties = ["Easy", "Medium", "Hard"];
+
+                // Get select elements
+                const topicSelect = document.getElementById('topicSelect');
+                const difficultySelect = document.getElementById('difficultySelect');
+
+                // Clear existing options
+                topicSelect.innerHTML = '';
+                difficultySelect.innerHTML = '';
+
+                // Populate topics
+                topics.forEach(topic => {
+                    const option = document.createElement('option');
+                    option.value = topic.value || topic; // supports object {value,label} or string
+                    option.textContent = topic.label || topic;
+                    topicSelect.appendChild(option);
+                });
+
+                // Populate difficulties
+                difficulties.forEach(diff => {
+                    const option = document.createElement('option');
+                    option.value = diff.value || diff; // supports object {value,label} or string
+                    option.textContent = diff.label || diff;
+                    difficultySelect.appendChild(option);
+                });
+
+                printMessage('Loaded topics and difficulties successfully.');
+            } catch (error) {
+                printMessage('Error loading topics/difficulties: ' + error.message);
+            }
+        }
+
+
+        // Load options on page load
+        window.onload = loadSelectOptions;
+
+        // -----------------------------
+        // WebSocket connection handlers
+        // -----------------------------
         document.getElementById("connectBtn").onclick = function() {
             const userId = document.getElementById("userIdInput").value.trim();
             const topics = getSelectedValues("topicSelect");
@@ -140,10 +188,10 @@
         document.getElementById("disconnectBtn").onclick = function() {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const userId = document.getElementById("userIdInput").value.trim();
-                fetch(`http://127.0.0.1:8002/api/match/cancel?user_id=${userId}`, {
-                        method: "POST",
+                fetch(`http://127.0.0.1:8002/api/match?user_id=${userId}`, {
+                        method: "DELETE",
                         headers: { "Content-Type": "application/json" }
-                    })
+                    });
                 printMessage("Disconnected manually.");
             }
         };
