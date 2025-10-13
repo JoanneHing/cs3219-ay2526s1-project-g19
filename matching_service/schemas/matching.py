@@ -46,24 +46,21 @@ class MatchingCriteriaSchema(BaseModel):
 
     @model_validator(mode="after")
     def language_validation(self) -> Self:
-        valid_languages = django_question_service.get_languages()
-        invalid_lang_msg = "Language {} is not a valid language in the list " + str(valid_languages)
-        if self.primary_lang is not None and self.primary_lang not in valid_languages:
-            # skip validation for now
-            # raise ValueError(invalid_lang_msg.format(self.primary_lang))
-            pass
+        # check valid language
+        invalid_lang_msg = "Language {} is not a valid language in the list " + str(VALID_LANGUAGE_LIST)
+        if self.primary_lang is not None and self.primary_lang not in VALID_LANGUAGE_LIST:
+            raise ValueError(invalid_lang_msg.format(self.primary_lang))
         for lang in self.secondary_lang:
-            if lang not in valid_languages:
-                # skip validation for now
-                # raise ValueError(invalid_lang_msg.format(lang))
-                pass
+            if lang not in VALID_LANGUAGE_LIST:
+                raise ValueError(invalid_lang_msg.format(lang))
+        # check schema format
         if self.primary_lang is not None and len(self.secondary_lang) > 0:
             if self.primary_lang in self.secondary_lang:
                 raise ValueError(f"Primary language {self.primary_lang} cannot be in secondary languages list {self.secondary_lang}")
         if self.primary_lang is None:
             if len(self.secondary_lang) > 0:
                 raise ValueError(f"Cannot have secondary languages without primary language")
-            self.secondary_lang = django_question_service.get_languages()
+            self.secondary_lang = VALID_LANGUAGE_LIST
         return self
 
 
