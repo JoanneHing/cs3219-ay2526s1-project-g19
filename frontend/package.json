@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/lint": "^6.9.0",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.3",
     "@uiw/codemirror-theme-sublime": "^4.25.2",
