@@ -1,4 +1,5 @@
 import logging
+from fastapi import HTTPException, status
 import httpx
 from config import settings
 
@@ -18,11 +19,23 @@ class DjangoQuestionService:
         return
 
     async def get_topics(self) -> list[str]:
-        resp = await self.client.get(f"{settings.question_service_url}{self.get_topics_path}")
-        data: dict = resp.json()
-        topics = data.get("topics") or []
-        logger.info(f"Topic list retrieved from question service: {topics}")
-        return topics
+        try:
+            resp = await self.client.get(f"{settings.question_service_url}{self.get_topics_path}")
+            data: dict = resp.json()
+            topics = data.get("topics") or []
+            logger.info(f"Topic list retrieved from question service: {topics}")
+            return topics
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+            logger.error(f"Cannot connect to question service: {e}")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Cannot connect to question service")
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Question service returned HTTP error: {e}")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Question service returned error")
+
+        except (httpx.DecodingError, ValueError) as e:
+            logger.error(f"Invalid JSON from question service: {e}")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Invalid response from question service")
 
     async def get_difficulty(self) -> list[str]:
         # dummy data
