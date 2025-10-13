@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
 from service.django_question_service import django_question_service
-from schemas.matching import MatchUserRequestSchema
+from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller
 from service.matching import matching_service
 from service.websocket import websocket_service
@@ -63,6 +63,11 @@ async def match_users(data: MatchUserRequestSchema):
 async def cancel_matching(user_id: UUID):
     await websocket_service.close_ws_connection(user_id=user_id)
     return f"Matching for user {user_id} cancelled"
+
+
+@router.get("/languages", response_model=list[str])
+async def get_languages():
+    return VALID_LANGUAGE_LIST
 
 
 @router.get("/debug/show")

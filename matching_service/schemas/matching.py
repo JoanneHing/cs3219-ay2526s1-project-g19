@@ -70,3 +70,12 @@ class MatchingCriteriaSchema(BaseModel):
 class MatchUserRequestSchema(BaseModel):
     user_id: UUID
     criteria: MatchingCriteriaSchema
+
+
+VALID_LANGUAGE_LIST = [
+    "Python",
+    "Java",
+    "Javascript",
+    "C",
+    "C++"
+]
