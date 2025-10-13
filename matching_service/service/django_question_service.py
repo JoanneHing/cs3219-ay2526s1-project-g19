@@ -9,29 +9,29 @@ class DjangoQuestionService:
     def __init__(self):
         self.topics: list[str] | None = None
         self.difficulty: list[str] | None = None
+        self.client = httpx.AsyncClient()
+        self.get_topics_path = "/api/topics"
+        self.get_difficulty_path = "/api/difficulty"
 
-    async def setup(self):
-        async with httpx.AsyncClient() as client:
-            # get topic list
-            resp = await client.get(f"{settings.question_service_url}/api/topics")
-            data: dict = resp.json()
-            self.topics = data.get("topics") or []
-            logger.info(f"Topic list retrieved from question service: {self.topics}")
-            # get difficulty list
-            # resp = await client.get(f"{settings.question_service_url}/api/difficulty")
-            # data: dict = resp.json()
-            # self.difficulty = data.get("difficulty") or []
-            # dummy data
-            self.difficulty = ["Easy", "Medium", "Hard"]
-            logger.info(f"Difficulty list retrieved from question service: {self.difficulty}")
+    async def shutdown(self):
+        self.client.aclose()
+        return
 
-    def get_topics(self):
-        assert self.topics != None
-        return self.topics
+    async def get_topics(self) -> list[str]:
+        resp = await self.client.get(f"{settings.question_service_url}{self.get_topics_path}")
+        data: dict = resp.json()
+        topics = data.get("topics") or []
+        logger.info(f"Topic list retrieved from question service: {topics}")
+        return topics
 
-    def get_difficulty(self):
-        assert self.difficulty != None
-        return self.difficulty
+    async def get_difficulty(self) -> list[str]:
+        # dummy data
+        return ["Easy", "Medium", "Hard"]
+        resp = await self.client.get(f"{settings.question_service_url}{self.get_difficulty_path}")
+        data: dict = resp.json()
+        difficulty = data.get("difficulty") or []
+        logger.info(f"Difficulty list retrieved from question service: {difficulty}")
+        return difficulty
 
 
 django_question_service = DjangoQuestionService()

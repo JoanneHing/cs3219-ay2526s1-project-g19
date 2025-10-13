@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Running events on start...")
-    await django_question_service.setup()
     expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
     yield
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
+    await django_question_service.shutdown()
 
 
 router = APIRouter(
