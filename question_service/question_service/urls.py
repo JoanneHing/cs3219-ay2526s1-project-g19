@@ -19,7 +19,7 @@ from django.urls import path, include
 from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-from .view import QuestionViewSet, TopicsView
+from .view import QuestionViewSet, TopicsView, DifficultiesView
 
 
 class ProxyAwareSwaggerView(SpectacularSwaggerView):
@@ -51,6 +51,7 @@ urlpatterns = [
     # API endpoints
     path("api/", include(router.urls)),
     path("api/topics", TopicsView.as_view(), name="topics"),
+    path("api/difficulty", DifficultiesView.as_view(), name="difficulties"),
 
     # OpenAPI 3.0 schema and documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -281,3 +281,26 @@ class TopicsView(APIView):
                             seen.add(t)
             topics_list = sorted(seen)
         return Response({"topics": topics_list})
+
+class DifficultiesView(APIView):
+    @extend_schema(
+        summary="Get all difficulties",
+        description="Retrieve the list of available difficulty values.",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "difficulties": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of difficulty values"
+                    }
+                },
+                "example": {"difficulties": ["easy", "medium", "hard"]}
+            }
+        },
+        tags=["difficulties"],
+    )
+    def get(self, request):  # noqa: ARG002
+        values = [choice[0] for choice in Difficulty.choices]
+        return Response({"difficulties": values})
