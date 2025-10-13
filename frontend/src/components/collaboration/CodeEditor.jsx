@@ -21,6 +21,7 @@ const CodeEditor = ({ room, currentUsername }) => {
     const [cursorPosition, setCursorPosition] = useState({ line: 1, ch: 0 })
     const [remoteCursors, setRemoteCursors] = useState({})
     const [isConnected, setIsConnected] = useState(false)
+    const [linterMode, setLinterMode] = useState("python") // "none" or "python"
     const editorViewRef = useRef(null)
     const collabSocketRef = useRef(null)
     const cursorsRef = useRef({})
@@ -516,9 +517,10 @@ const CodeEditor = ({ room, currentUsername }) => {
         }
     }
 
+    // Conditionally include linter based on mode
     const cursorExtension = [
         cursorsField,
-        pythonLinter,
+        ...(linterMode === "python" ? [pythonLinter] : []),
         EditorView.updateListener.of((update) => {
             if (update.selectionSet) {
                 const pos = update.state.selection.main.head
@@ -544,7 +546,23 @@ const CodeEditor = ({ room, currentUsername }) => {
 
     return (
         <div className="w-full max-w-6xl mx-auto p-6 space-y-4">
-            <EditorStatsBar cursorPosition={cursorPosition} remoteCursors={remoteCursors} />
+            <div className="flex items-center justify-between">
+                <EditorStatsBar cursorPosition={cursorPosition} remoteCursors={remoteCursors} />
+                <div className="flex items-center gap-2">
+                    <label htmlFor="linter-select" className="text-sm font-medium text-gray-300">
+                        Linter:
+                    </label>
+                    <select
+                        id="linter-select"
+                        value={linterMode}
+                        onChange={(e) => setLinterMode(e.target.value)}
+                        className="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-slate-500 transition-colors cursor-pointer"
+                    >
+                        <option value="none">None</option>
+                        <option value="python">Python Linter</option>
+                    </select>
+                </div>
+            </div>
             <div className="rounded-xl overflow-hidden shadow-2xl border border-slate-700">
                 <EditorHeader filename="editor.py" />
                 <CodeMirror
