@@ -2,18 +2,52 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import io from "socket.io-client"
 import CodeMirror from "@uiw/react-codemirror"
 import { python } from "@codemirror/lang-python"
+import { java } from "@codemirror/lang-java"
+import { javascript } from "@codemirror/lang-javascript"
+import { cpp } from "@codemirror/lang-cpp"
 import { sublime } from "@uiw/codemirror-theme-sublime"
 import { EditorView } from "@codemirror/view"
-import { createPythonLinter } from "./codeeditor/utils/Linter"
+import { createLinter } from "./codeeditor/utils/Linter"
 import { createCursorsField, posToLineChar, getUserColor } from "./codeeditor/utils/CursorWidget"
 import EditorHeader from "./codeeditor/EditorHeader"
 import EditorStatsBar from "./codeeditor/EditorCursorBar"
 import EditorRunButton from "./codeeditor/EditorRunButton"
 import EditorOutputTerminal from "./codeeditor/EditorOutputTerminal"
 
-const CodeEditor = ({ room, currentUsername }) => {
+const CodeEditor = ({ room, currentUsername, language }) => {
+    const getDefaultCode = (lang) => {
+        switch (lang) {
+            case "Python":
+                return "print('Hello, World!')"
+            case "Javascript":
+                return "console.log('Hello, World!');"
+            case "Java":
+                return `public class Main {
+  public static void main(String[] args) {
+    System.out.println("Hello, World!");
+  }
+}`
+            case "C++":
+                return `#include <iostream>
+using namespace std;
+
+int main() {
+  cout << "Hello, World!" << endl;
+  return 0;
+}`
+            case "C":
+                return `#include <stdio.h>
+
+int main() {
+  printf("Hello, World!\\n");
+  return 0;
+}`
+            default:
+                return "print('Hello, World!')"
+        }
+    }
     const [code, setCode] = useState({
-        value: "print('hello world')",
+        value: getDefaultCode(language),
         isReceived: false,
     })
     const [output, setOutput] = useState("")
@@ -21,43 +55,32 @@ const CodeEditor = ({ room, currentUsername }) => {
     const [cursorPosition, setCursorPosition] = useState({ line: 1, ch: 0 })
     const [remoteCursors, setRemoteCursors] = useState({})
     const [isConnected, setIsConnected] = useState(false)
-    const [selectedLanguage, setSelectedLanguage] = useState("python")
     const editorViewRef = useRef(null)
     const collabSocketRef = useRef(null)
     const cursorsRef = useRef({})
     const lastEmitTime = useRef(0)
 
-    // Language configuration
-    const languages = [
-        { id: "python", name: "Python", extension: ".py" },
-        { id: "javascript", name: "JavaScript", extension: ".js" },
-        { id: "java", name: "Java", extension: ".java" }
-    ]
-
-    const getLanguageExtension = (language) => {
-        switch (language) {
+    const getLanguageExtension = (lang) => {
+        switch (lang) {
             case "python":
                 return python()
             case "javascript":
                 return javascript()
             case "java":
                 return java()
+            case "c":
+            case "C":
+                return cpp() // C uses cpp extension
+            case "cpp":
+            case "C++":
+                return cpp()
             default:
                 return python()
         }
     }
 
-    const getLinter = (language) => {
-        switch (language) {
-            case "python":
-                return createPythonLinter()
-            default:
-                return null
-        }
-    }
-
-    const getCurrentLanguage = () => {
-        return languages.find(lang => lang.id === selectedLanguage) || languages[0]
+    const getLinter = (lang) => {
+        return createLinter(lang)
     }
 
     // Create cursors field using the abstracted function
@@ -135,7 +158,7 @@ const CodeEditor = ({ room, currentUsername }) => {
 
         collabSocketRef.current.on("cursor", (data) => {
             console.log("Received cursor update:", data)
-            
+
             if (data.userId !== collabSocketRef.current.id) {
                 setRemoteCursors(prev => ({
                     ...prev,
@@ -172,7 +195,7 @@ const CodeEditor = ({ room, currentUsername }) => {
             setRemoteCursors(prev => {
                 const filtered = {}
                 let hasChanges = false
-                
+
                 Object.entries(prev).forEach(([userId, cursor]) => {
                     if (now - cursor.timestamp < 60000) {
                         filtered[userId] = cursor
@@ -180,7 +203,7 @@ const CodeEditor = ({ room, currentUsername }) => {
                         hasChanges = true
                     }
                 })
-                
+
                 return hasChanges ? filtered : prev
             })
         }, 10000)
@@ -200,16 +223,19 @@ const CodeEditor = ({ room, currentUsername }) => {
     const runCode = async () => {
         setIsRunning(true)
         setOutput("Running...")
-        
+
         try {
             const response = await fetch(`${import.meta.env.VITE_EXECUTION_API}/run`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ code: code.value }),
+                body: JSON.stringify({
+                    code: code.value,
+                    language: language // Send language to execution service
+                }),
             })
-            
+
             const data = await response.json()
             setOutput(data.output || data.error)
         } catch (error) {
@@ -219,11 +245,7 @@ const CodeEditor = ({ room, currentUsername }) => {
         }
     }
 
-    const handleLanguageChange = (newLanguage) => {
-        setSelectedLanguage(newLanguage)
-    }
-
-    const currentLinter = getLinter(selectedLanguage)
+    const currentLinter = getLinter(language)
 
     const cursorExtension = [
         cursorsField,
@@ -255,18 +277,15 @@ const CodeEditor = ({ room, currentUsername }) => {
         <div className="w-full max-w-6xl mx-auto p-6 space-y-4">
             <EditorStatsBar cursorPosition={cursorPosition} remoteCursors={remoteCursors} />
             <div className="rounded-xl overflow-hidden shadow-2xl border border-slate-700">
-                <EditorHeader 
-                    filename={`editor${getCurrentLanguage().extension}`}
-                    languages={languages}
-                    selectedLanguage={selectedLanguage}
-                    onLanguageChange={handleLanguageChange}
+                <EditorHeader
+                    language={language}
                 />
                 <CodeMirror
                     value={code.value}
                     height="50vh"
                     maxHeight="50vh"
                     onChange={(value) => updateCode(room, value)}
-                    extensions={[getLanguageExtension(selectedLanguage), ...cursorExtension]}
+                    extensions={[getLanguageExtension(language), ...cursorExtension]}
                     theme={sublime}
                     onCreateEditor={(view) => {
                         editorViewRef.current = view

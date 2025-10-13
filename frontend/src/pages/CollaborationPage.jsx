@@ -10,6 +10,7 @@ const CollaborationPage = () => {
   const [isDragging, setIsDragging] = useState(false)
   const leftPanelRef = useRef(null)
   const room = "example-room"
+  const language = "C++"
 
   // Handle vertical resizing for left panel
   const handleMouseDown = (e) => {
@@ -19,12 +20,12 @@ const CollaborationPage = () => {
 
   const handleMouseMove = useCallback((e) => {
     if (!isDragging || !leftPanelRef.current) return
-    
+
     const panel = leftPanelRef.current
     const rect = panel.getBoundingClientRect()
     const offsetY = e.clientY - rect.top
     const percentage = (offsetY / rect.height) * 100
-    
+
     // Constrain between 20% and 80%
     const newSplit = Math.min(Math.max(percentage, 20), 80)
     setLeftPanelSplit(newSplit)
@@ -71,33 +72,33 @@ const CollaborationPage = () => {
       {/* Main Content - Full Height Split */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Question + Chat with Resizable Split */}
-        <div 
+        <div
           ref={leftPanelRef}
           className="w-1/2 flex flex-col border-r border-gray-700"
         >
           {/* Question Panel */}
-          <div 
+          <div
             className="overflow-y-auto bg-background"
             style={{ height: `${leftPanelSplit}%` }}
           >
             <QuestionPanel />
           </div>
-          
+
           {/* Draggable Divider */}
           <div
             onMouseDown={handleMouseDown}
             className={`
-              flex items-center justify-center h-2 bg-gray-700 
-              hover:bg-primary cursor-row-resize 
+              flex items-center justify-center h-2 bg-gray-700
+              hover:bg-primary cursor-row-resize
               transition-colors duration-150 group relative
               ${isDragging ? 'bg-primary' : ''}
             `}
           >
             <GripVertical className="w-5 h-5 text-gray-300 group-hover:text-white rotate-90" />
           </div>
-          
+
           {/* Chat Box */}
-          <div 
+          <div
             className="bg-background flex flex-col"
             style={{ height: `${100 - leftPanelSplit}%` }}
           >
@@ -125,11 +126,12 @@ const CollaborationPage = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="flex-1 overflow-y-auto">
-                <CodeEditor 
-                  room={room} 
+                <CodeEditor
+                  room={room}
                   currentUsername={username}
+                  language={language}
                 />
               </div>
             </div>
