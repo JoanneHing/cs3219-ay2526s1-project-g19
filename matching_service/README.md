@@ -5,7 +5,7 @@ The matching service is responsible for matching users based on the below define
 1. Topic selection (multiselect)
 1. Difficulty selection (multiselect): Easy, Medium, Hard (or as defined by Question Service)
 1. Language preference (One primary language, *up to* two secondary language)
-1. Proficiency level (within +-10%)
+1. Proficiency level (within +-10%) - to be implemented
 
 ## Matching Service API Endpoints
 ### WebSockets for Informing User Matched
@@ -52,46 +52,17 @@ The matching service is responsible for matching users based on the below define
             }
         ```
     - Response:
-        - `201 Created`: User successfully added into queue - returns queue id
-        - `400 Bad Request`: Invalid/Malformed input
+        - `202 Accepted`: User successfully requested to be added into queue
+        - `422 Validation Error`: Invalid/Malformed input
         - `409 Conflict`: User already in queue
-    - Output/Response body:
-        ```python
-        {
-            status: Status,
-            queue_id: UUID,
-            timeout: int
-        }
-        ```
-    - Possible pushed events:
-        - UserMatched event:
-            ```python
-            {
-                user_a: {id: UUID, proficiency: int},
-                user_b: {id: UUID, proficiency: int},
-                topic: Topic,
-                difficulty: Difficulty,
-                language: Language
-            }
-            ```
-        - Timeout event
-- `GET /api/match/status` - Checks the matching status of the user (Only if polling driven approach is used)
-    - Used by: Frontend - Finding match page
-    - Input:
-        - `user_id: UUID **or** queue_id: UUID (up for discussion)`
-    - Response:
-        - `200 OK`: Returns the matching status of the user
-        - `400 Bad Request`: Invalid/Malformed input
-        - `404 Not Found`: User not in queue
-    - Output/Response body:
-        - `{ status: Status, time_remaining: int }`
+    - Returns: "User xxx joined queue"/"User xxx already in queue"
+    - Possible pushed events: See WebSockets section
 - `DELETE /api/match` - Removes the user from the matching queue
     - Used by: Frontend - Finding match page - Cancel button
     - Input:
-        - `user_id: UUID **or** queue_id: UUID (up for discussion)`
+        - `user_id: UUID`
     - Response:
         - `200 OK`: User successfully removed from queue
-        - `400 Bad Request`: Invalid/Malformed input
         - `404 Not Found`: User not in queue
 ### Lobby feature
 - `GET /api/lobbies` - Retrieves available matching lobbies

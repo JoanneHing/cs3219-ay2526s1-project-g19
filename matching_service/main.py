@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import json
 import logging.config
 from pathlib import Path
-from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
@@ -59,8 +59,17 @@ async def match_users(data: MatchUserRequestSchema):
     return res
 
 
-@router.post("/match/cancel")
+@router.delete("/match", responses={
+    200: {"description": "OK"},
+    404: {"description": "User not in queue"}
+})
 async def cancel_matching(user_id: UUID):
+    if not websocket_service.check_ws_connection(user_id=user_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User {user_id} not in queue"
+        )
+    logger.info(f"Cancelling match for user {user_id}")
     await websocket_service.close_ws_connection(user_id=user_id)
     return f"Matching for user {user_id} cancelled"
 
