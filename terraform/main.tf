@@ -340,22 +340,31 @@ module "elasticache_chat" {
 }
 
 # =============================================================================
-# Phase 3: Application Load Balancer (Commented out for Phase 1)
+# Phase 3: Application Load Balancer
 # =============================================================================
-# module "alb" {
-#   source = "./modules/alb"
-#
-#   project_name         = var.project_name
-#   environment          = var.environment
-#   vpc_id               = module.vpc.vpc_id
-#   public_subnet_ids    = module.vpc.public_subnet_ids
-#   alb_security_group_id = module.security_groups.alb_security_group_id
-#
-#   # Service names for target groups
-#   services = var.service_names
-#
-#   tags = var.tags
-# }
+module "alb" {
+  source = "./modules/alb"
+
+  project_name          = var.project_name
+  environment           = var.environment
+  vpc_id                = module.vpc.vpc_id
+  public_subnet_ids     = module.vpc.public_subnet_ids
+  alb_security_group_id = module.security_groups.alb_security_group_id
+
+  # Optional: Enable deletion protection in production
+  enable_deletion_protection = var.alb_enable_deletion_protection
+
+  # Optional: S3 bucket for access logs
+  access_logs_bucket = var.alb_access_logs_bucket
+
+  # Optional: ACM certificate ARN for HTTPS
+  certificate_arn = var.alb_certificate_arn
+
+  # CloudWatch alarm actions
+  alarm_actions = var.alarm_actions
+
+  tags = var.tags
+}
 
 # =============================================================================
 # Phase 4: ECS Cluster (Commented out for Phase 1)

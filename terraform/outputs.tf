@@ -131,22 +131,32 @@ output "redis_connection_strings" {
 }
 
 # -----------------------------------------------------------------------------
-# Phase 3: ALB Outputs (Commented out for Phase 1)
+# Phase 3: ALB Outputs
 # -----------------------------------------------------------------------------
-# output "alb_dns_name" {
-#   description = "DNS name of the Application Load Balancer"
-#   value       = module.alb.alb_dns_name
-# }
+output "alb_dns_name" {
+  description = "DNS name of the Application Load Balancer"
+  value       = module.alb.alb_dns_name
+}
 
-# output "alb_zone_id" {
-#   description = "Zone ID of the Application Load Balancer"
-#   value       = module.alb.alb_zone_id
-# }
+output "alb_zone_id" {
+  description = "Zone ID of the Application Load Balancer"
+  value       = module.alb.alb_zone_id
+}
 
-# output "alb_target_group_arns" {
-#   description = "Map of target group ARNs"
-#   value       = module.alb.target_group_arns
-# }
+output "alb_url" {
+  description = "Full HTTP URL to access the application"
+  value       = module.alb.alb_url
+}
+
+output "alb_target_group_arns" {
+  description = "Map of target group ARNs for ECS services"
+  value       = module.alb.target_group_arns
+}
+
+output "service_urls" {
+  description = "URLs for each service through the ALB"
+  value       = module.alb.service_urls
+}
 
 # -----------------------------------------------------------------------------
 # Phase 4: ECS Cluster Outputs (Commented out for Phase 1)

@@ -164,6 +164,33 @@ variable "redis_snapshot_retention_limit" {
 }
 
 # -----------------------------------------------------------------------------
+# ALB Configuration (Phase 3)
+# -----------------------------------------------------------------------------
+variable "alb_enable_deletion_protection" {
+  description = "Enable deletion protection for ALB"
+  type        = bool
+  default     = false  # Set to true in production
+}
+
+variable "alb_access_logs_bucket" {
+  description = "S3 bucket name for ALB access logs (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "alb_certificate_arn" {
+  description = "ARN of ACM certificate for HTTPS (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "alarm_actions" {
+  description = "List of ARNs for CloudWatch alarm actions (SNS topics)"
+  type        = list(string)
+  default     = []
+}
+
+# -----------------------------------------------------------------------------
 # ECS Service Configuration (Phase 4)
 # -----------------------------------------------------------------------------
 variable "service_names" {
