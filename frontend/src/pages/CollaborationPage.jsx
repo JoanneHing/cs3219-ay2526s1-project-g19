@@ -110,30 +110,14 @@ const CollaborationPage = () => {
         </div>
 
         {/* Right Panel - Code Editor */}
-        <div className="w-1/2 overflow-y-auto bg-background">
+        <div className="w-2/3 overflow-y-auto bg-background">
           <div className="p-2 h-full">
-            <div className="bg-background backdrop-blur-xl rounded-lg shadow-xl border border-gray-800/50 p-3 h-full flex flex-col">
-              <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                  <Split className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-gray-200">
-                    Code Editor
-                  </h2>
-                  <p className="text-xs text-gray-400">
-                    Collaborate in real-time
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <CodeEditor
-                  room={room}
-                  currentUsername={username}
-                  language={language}
-                />
-              </div>
+            <div className="bg-background backdrop-blur-xl rounded-lg shadow-xl p-3 h-full flex flex-col">
+              <CodeEditor
+                room={room}
+                currentUsername={username}
+                language={language}
+              />
             </div>
           </div>
         </div>

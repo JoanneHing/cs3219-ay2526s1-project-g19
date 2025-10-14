@@ -38,8 +38,7 @@ You must do this by modifying the input array in-place with O(1) extra memory.`,
   };
 
   return (
-    <div className="p-2 max-w-5xl">
-      <div className="bg-primary-secondary/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-400/50 overflow-hidden">
+      <div className="bg-primary-secondary/80 backdrop-blur-xl">
         <QuestionHeader
           title={question.title}
           difficulty={question.difficulty}
@@ -53,6 +52,5 @@ You must do this by modifying the input array in-place with O(1) extra memory.`,
           constraints={question.constraints}
         />
       </div>
-    </div>
   );
 }
