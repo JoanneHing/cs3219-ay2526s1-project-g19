@@ -88,22 +88,25 @@ resource "aws_db_parameter_group" "main" {
   family      = "postgres15"
   description = "Custom parameter group for ${var.name_prefix}"
 
-  # Connection pooling settings
+  # Connection pooling settings (static - requires reboot)
   parameter {
-    name  = "max_connections"
-    value = "200"
+    name         = "max_connections"
+    value        = "200"
+    apply_method = "pending-reboot"
   }
 
-  # Memory settings
+  # Memory settings (static - requires reboot)
   parameter {
-    name  = "shared_buffers"
-    value = "{DBInstanceClassMemory/32768}" # 25% of memory
+    name         = "shared_buffers"
+    value        = "{DBInstanceClassMemory/32768}" # 25% of memory
+    apply_method = "pending-reboot"
   }
 
-  # WAL settings for performance
+  # WAL settings for performance (static - requires reboot)
   parameter {
-    name  = "wal_buffers"
-    value = "2048"
+    name         = "wal_buffers"
+    value        = "2048"
+    apply_method = "pending-reboot"
   }
 
   # Query tuning

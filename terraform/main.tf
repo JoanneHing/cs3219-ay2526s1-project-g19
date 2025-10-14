@@ -367,32 +367,692 @@ module "alb" {
 }
 
 # =============================================================================
-# Phase 4: ECS Cluster (Commented out for Phase 1)
+# Phase 4: ECS Cluster
 # =============================================================================
-# module "ecs_cluster" {
-#   source = "./modules/ecs-cluster"
-#
-#   project_name = var.project_name
-#   environment  = var.environment
-#
-#   # Enable container insights for monitoring
-#   enable_container_insights = true
-#
-#   tags = var.tags
-# }
+module "ecs_cluster" {
+  source = "./modules/ecs-cluster"
+
+  project_name = var.project_name
+  environment  = var.environment
+
+  # Enable container insights for monitoring
+  enable_container_insights = var.enable_container_insights
+
+  # CloudWatch log retention
+  log_retention_days = var.ecs_log_retention_days
+
+  tags = var.tags
+}
 
 # =============================================================================
-# Phase 5: Service Discovery (Commented out for Phase 1)
+# Phase 4: Service Discovery (AWS Cloud Map)
 # =============================================================================
-# module "service_discovery" {
-#   source = "./modules/service-discovery"
-#
-#   project_name = var.project_name
-#   environment  = var.environment
-#   vpc_id       = module.vpc.vpc_id
-#
-#   # Service names for Cloud Map
-#   services = var.service_names
-#
-#   tags = var.tags
-# }
+module "service_discovery" {
+  source = "./modules/service-discovery"
+
+  project_name = var.project_name
+  environment  = var.environment
+  vpc_id       = module.vpc.vpc_id
+
+  tags = var.tags
+}
+
+# =============================================================================
+# Phase 4: ECR Repositories (for Docker images)
+# =============================================================================
+locals {
+  services = {
+    "frontend"              = {}
+    "user-service"          = {}
+    "question-service"      = {}
+    "matching-service"      = {}
+    "history-service"       = {}
+    "collaboration-service" = {}
+    "chat-service"          = {}
+  }
+}
+
+resource "aws_ecr_repository" "services" {
+  for_each = local.services
+
+  name                 = "${var.project_name}-${var.environment}-${each.key}"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+
+  tags = merge(
+    var.tags,
+    {
+      Name    = "${var.project_name}-${var.environment}-${each.key}"
+      Service = each.key
+    }
+  )
+}
+
+# ECR lifecycle policy to keep only recent images
+resource "aws_ecr_lifecycle_policy" "services" {
+  for_each = local.services
+
+  repository = aws_ecr_repository.services[each.key].name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 5 images"
+        selection = {
+          tagStatus     = "any"
+          countType     = "imageCountMoreThan"
+          countNumber   = 5
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+
+# =============================================================================
+# Phase 4: ECS Services with Task Definitions
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. User Service
+# -----------------------------------------------------------------------------
+module "ecs_service_user" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "user-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["user-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.user_service_cpu
+  container_memory = var.user_service_memory
+  desired_count    = var.user_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG        = "false"
+    SECRET_KEY   = var.secret_key
+    ALLOWED_HOSTS = "${module.alb.alb_dns_name},user-service,user-service.${module.service_discovery.namespace_name}"
+
+    # Database Connection
+    DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_user.db_endpoint}/user_db"
+    DB_HOST      = module.rds_user.db_host
+    DB_PORT      = "5432"
+    DB_NAME      = "user_db"
+    DB_USER      = var.db_username
+    DB_PASSWORD  = var.db_password
+
+    # Service-to-Service URLs
+    QUESTION_SERVICE_URL      = "http://question-service.${module.service_discovery.namespace_name}:8000"
+    MATCHING_SERVICE_URL      = "http://matching-service.${module.service_discovery.namespace_name}:8000"
+    HISTORY_SERVICE_URL       = "http://history-service.${module.service_discovery.namespace_name}:8000"
+    COLLABORATION_SERVICE_URL = "http://collaboration-service.${module.service_discovery.namespace_name}:8000"
+    CHAT_SERVICE_URL          = "http://chat-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["user-service"]
+
+  # Service Discovery
+  enable_service_discovery       = true
+  service_discovery_service_arn  = module.service_discovery.service_discovery_service_ids["user-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 2. Question Service
+# -----------------------------------------------------------------------------
+module "ecs_service_question" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "question-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["question-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.question_service_cpu
+  container_memory = var.question_service_memory
+  desired_count    = var.question_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG             = "false"
+    SECRET_KEY        = var.secret_key
+    ALLOWED_HOSTS     = "${module.alb.alb_dns_name},question-service,question-service.${module.service_discovery.namespace_name}"
+    DJANGO_USE_SQLITE = "0"
+
+    # Database Connection
+    DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_question.db_endpoint}/question_db"
+    DB_HOST      = module.rds_question.db_host
+    DB_PORT      = "5432"
+    DB_NAME      = "question_db"
+    DB_USER      = var.db_username
+    DB_PASSWORD  = var.db_password
+
+    # Service-to-Service URLs
+    USER_SERVICE_URL     = "http://user-service.${module.service_discovery.namespace_name}:8000"
+    MATCHING_SERVICE_URL = "http://matching-service.${module.service_discovery.namespace_name}:8000"
+    HISTORY_SERVICE_URL  = "http://history-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["question-service"]
+
+  # Service Discovery
+  enable_service_discovery      = true
+  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["question-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 3. Matching Service
+# -----------------------------------------------------------------------------
+module "ecs_service_matching" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "matching-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["matching-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.matching_service_cpu
+  container_memory = var.matching_service_memory
+  desired_count    = var.matching_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG         = "false"
+    ALLOWED_HOSTS = "${module.alb.alb_dns_name},matching-service,matching-service.${module.service_discovery.namespace_name}"
+
+    # Database Connection
+    DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_matching.db_endpoint}/matching_db"
+    DB_HOST      = module.rds_matching.db_host
+    DB_PORT      = "5432"
+    DB_NAME      = "matching_db"
+    DB_USER      = var.db_username
+    DB_PASSWORD  = var.db_password
+
+    # Redis Connection
+    REDIS_URL  = "redis://${module.elasticache_matching.redis_endpoint}:6379/0"
+    REDIS_HOST = module.elasticache_matching.redis_endpoint
+    REDIS_PORT = "6379"
+
+    # Service-to-Service URLs
+    USER_SERVICE_URL     = "http://user-service.${module.service_discovery.namespace_name}:8000"
+    QUESTION_SERVICE_URL = "http://question-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["matching-service"]
+
+  # Service Discovery
+  enable_service_discovery      = true
+  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["matching-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 4. History Service
+# -----------------------------------------------------------------------------
+module "ecs_service_history" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "history-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["history-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.history_service_cpu
+  container_memory = var.history_service_memory
+  desired_count    = var.history_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG         = "false"
+    SECRET_KEY    = var.secret_key
+    ALLOWED_HOSTS = "${module.alb.alb_dns_name},history-service,history-service.${module.service_discovery.namespace_name}"
+
+    # Database Connection
+    DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_history.db_endpoint}/history_db"
+    DB_HOST      = module.rds_history.db_host
+    DB_PORT      = "5432"
+    DB_NAME      = "history_db"
+    DB_USER      = var.db_username
+    DB_PASSWORD  = var.db_password
+
+    # Service-to-Service URLs
+    USER_SERVICE_URL          = "http://user-service.${module.service_discovery.namespace_name}:8000"
+    QUESTION_SERVICE_URL      = "http://question-service.${module.service_discovery.namespace_name}:8000"
+    COLLABORATION_SERVICE_URL = "http://collaboration-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["history-service"]
+
+  # Service Discovery
+  enable_service_discovery      = true
+  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["history-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 5. Collaboration Service (WebSocket)
+# -----------------------------------------------------------------------------
+module "ecs_service_collaboration" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "collaboration-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["collaboration-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.collaboration_service_cpu
+  container_memory = var.collaboration_service_memory
+  desired_count    = var.collaboration_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG = "false"
+    PORT  = "8000"
+
+    # Redis Connection (for WebSocket session management)
+    REDIS_URL  = "redis://${module.elasticache_collaboration.redis_endpoint}:6379/0"
+    REDIS_HOST = module.elasticache_collaboration.redis_endpoint
+    REDIS_PORT = "6379"
+
+    # Service-to-Service URLs
+    USER_SERVICE_URL     = "http://user-service.${module.service_discovery.namespace_name}:8000"
+    QUESTION_SERVICE_URL = "http://question-service.${module.service_discovery.namespace_name}:8000"
+    CHAT_SERVICE_URL     = "http://chat-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer (with sticky sessions for WebSocket)
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["collaboration-service"]
+
+  # Service Discovery
+  enable_service_discovery      = true
+  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["collaboration-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 6. Chat Service (WebSocket)
+# -----------------------------------------------------------------------------
+module "ecs_service_chat" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "chat-service"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["chat-service"].repository_url}:latest"
+  container_port   = 8000
+  container_cpu    = var.chat_service_cpu
+  container_memory = var.chat_service_memory
+  desired_count    = var.chat_service_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    DEBUG = "false"
+    PORT  = "8000"
+
+    # Redis Connection (for WebSocket session management)
+    REDIS_URL  = "redis://${module.elasticache_chat.redis_endpoint}:6379/0"
+    REDIS_HOST = module.elasticache_chat.redis_endpoint
+    REDIS_PORT = "6379"
+
+    # Service-to-Service URLs
+    USER_SERVICE_URL          = "http://user-service.${module.service_discovery.namespace_name}:8000"
+    COLLABORATION_SERVICE_URL = "http://collaboration-service.${module.service_discovery.namespace_name}:8000"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer (with sticky sessions for WebSocket)
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["chat-service"]
+
+  # Service Discovery
+  enable_service_discovery      = true
+  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["chat-service"]
+
+  tags = var.tags
+}
+
+# -----------------------------------------------------------------------------
+# 7. Frontend (React + Nginx)
+# -----------------------------------------------------------------------------
+module "ecs_service_frontend" {
+  source = "./modules/ecs-service"
+
+  project_name = var.project_name
+  environment  = var.environment
+  service_name = "frontend"
+
+  # ECS Configuration
+  cluster_id   = module.ecs_cluster.cluster_id
+  cluster_name = module.ecs_cluster.cluster_name
+  vpc_id       = module.vpc.vpc_id
+
+  # Networking
+  private_subnet_ids = module.vpc.private_subnet_ids
+  security_group_ids = [module.security_groups.ecs_security_group_id]
+
+  # Container Configuration
+  container_image  = "${aws_ecr_repository.services["frontend"].repository_url}:latest"
+  container_port   = 80
+  container_cpu    = var.frontend_cpu
+  container_memory = var.frontend_memory
+  desired_count    = var.frontend_desired_count
+
+  # Environment Variables
+  environment_variables = {
+    NODE_ENV = "production"
+
+    # Nginx proxy configuration (service hostnames for proxy_pass)
+    NGINX_USER_SERVICE_HOST          = "user-service.${module.service_discovery.namespace_name}"
+    NGINX_QUESTION_SERVICE_HOST      = "question-service.${module.service_discovery.namespace_name}"
+    NGINX_MATCHING_SERVICE_HOST      = "matching-service.${module.service_discovery.namespace_name}"
+    NGINX_HISTORY_SERVICE_HOST       = "history-service.${module.service_discovery.namespace_name}"
+    NGINX_COLLABORATION_SERVICE_HOST = "collaboration-service.${module.service_discovery.namespace_name}"
+    NGINX_CHAT_SERVICE_HOST          = "chat-service.${module.service_discovery.namespace_name}"
+
+    # VITE build-time variables (embedded in JS bundle)
+    VITE_QUESTION_SERVICE_URL      = "/question-service-api"
+    VITE_MATCHING_SERVICE_URL      = "/matching-service-api"
+    VITE_HISTORY_SERVICE_URL       = "/history-service-api"
+    VITE_USER_SERVICE_URL          = "/user-service-api"
+    VITE_COLLABORATION_SERVICE_URL = "/collaboration-service-api"
+    VITE_CHAT_SERVICE_URL          = "/chat-service-api"
+  }
+
+  # IAM Roles
+  task_execution_role_arn = module.ecs_cluster.task_execution_role_arn
+  task_role_arn           = module.ecs_cluster.task_role_arn
+
+  # CloudWatch Logs
+  log_group_name = module.ecs_cluster.cloudwatch_log_group_name
+  aws_region     = var.aws_region
+
+  # Load Balancer
+  enable_load_balancer = true
+  target_group_arn     = module.alb.target_group_arns["frontend"]
+
+  # No service discovery for frontend (public-facing only)
+  enable_service_discovery = false
+
+  tags = var.tags
+}
+
+# =============================================================================
+# Phase 5: Auto-Scaling Configuration
+# =============================================================================
+# Application Auto Scaling targets and policies for each ECS service
+
+locals {
+  autoscaling_services = {
+    "user-service" = {
+      service_name      = module.ecs_service_user.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "question-service" = {
+      service_name      = module.ecs_service_question.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "matching-service" = {
+      service_name      = module.ecs_service_matching.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "history-service" = {
+      service_name      = module.ecs_service_history.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "collaboration-service" = {
+      service_name      = module.ecs_service_collaboration.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "chat-service" = {
+      service_name      = module.ecs_service_chat.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+    "frontend" = {
+      service_name      = module.ecs_service_frontend.service_name
+      min_capacity      = var.ecs_min_capacity
+      max_capacity      = var.ecs_max_capacity
+      cpu_target        = var.autoscaling_cpu_target
+      memory_target     = var.autoscaling_memory_target
+    }
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Auto Scaling Targets
+# -----------------------------------------------------------------------------
+resource "aws_appautoscaling_target" "ecs_services" {
+  for_each = local.autoscaling_services
+
+  max_capacity       = each.value.max_capacity
+  min_capacity       = each.value.min_capacity
+  resource_id        = "service/${module.ecs_cluster.cluster_name}/${each.value.service_name}"
+  scalable_dimension = "ecs:service:DesiredCount"
+  service_namespace  = "ecs"
+}
+
+# -----------------------------------------------------------------------------
+# CPU-based Auto Scaling Policy
+# -----------------------------------------------------------------------------
+resource "aws_appautoscaling_policy" "ecs_cpu_policy" {
+  for_each = local.autoscaling_services
+
+  name               = "${var.project_name}-${var.environment}-${each.key}-cpu-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_services[each.key].resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_services[each.key].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_services[each.key].service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageCPUUtilization"
+    }
+
+    target_value       = each.value.cpu_target
+    scale_in_cooldown  = 300  # 5 minutes
+    scale_out_cooldown = 60   # 1 minute
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Memory-based Auto Scaling Policy
+# -----------------------------------------------------------------------------
+resource "aws_appautoscaling_policy" "ecs_memory_policy" {
+  for_each = local.autoscaling_services
+
+  name               = "${var.project_name}-${var.environment}-${each.key}-memory-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_services[each.key].resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_services[each.key].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_services[each.key].service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ECSServiceAverageMemoryUtilization"
+    }
+
+    target_value       = each.value.memory_target
+    scale_in_cooldown  = 300  # 5 minutes
+    scale_out_cooldown = 60   # 1 minute
+  }
+}
+
+# -----------------------------------------------------------------------------
+# ALB Request Count-based Auto Scaling Policy (for frontend and backend services)
+# -----------------------------------------------------------------------------
+resource "aws_appautoscaling_policy" "ecs_requests_policy" {
+  for_each = local.autoscaling_services
+
+  name               = "${var.project_name}-${var.environment}-${each.key}-requests-autoscaling"
+  policy_type        = "TargetTrackingScaling"
+  resource_id        = aws_appautoscaling_target.ecs_services[each.key].resource_id
+  scalable_dimension = aws_appautoscaling_target.ecs_services[each.key].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.ecs_services[each.key].service_namespace
+
+  target_tracking_scaling_policy_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ALBRequestCountPerTarget"
+      resource_label         = "${module.alb.alb_arn_suffix}/${module.alb.target_group_arn_suffixes[each.key]}"
+    }
+
+    target_value       = var.autoscaling_requests_target
+    scale_in_cooldown  = 300  # 5 minutes
+    scale_out_cooldown = 60   # 1 minute
+  }
+}

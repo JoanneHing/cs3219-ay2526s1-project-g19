@@ -159,62 +159,163 @@ output "service_urls" {
 }
 
 # -----------------------------------------------------------------------------
-# Phase 4: ECS Cluster Outputs (Commented out for Phase 1)
+# Phase 4: ECS Cluster Outputs
 # -----------------------------------------------------------------------------
-# output "ecs_cluster_id" {
-#   description = "ID of the ECS cluster"
-#   value       = module.ecs_cluster.cluster_id
-# }
+output "ecs_cluster_id" {
+  description = "ID of the ECS cluster"
+  value       = module.ecs_cluster.cluster_id
+}
 
-# output "ecs_cluster_name" {
-#   description = "Name of the ECS cluster"
-#   value       = module.ecs_cluster.cluster_name
-# }
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = module.ecs_cluster.cluster_name
+}
 
-# output "ecs_task_execution_role_arn" {
-#   description = "ARN of the ECS task execution role"
-#   value       = module.ecs_cluster.task_execution_role_arn
-# }
+output "ecs_cluster_arn" {
+  description = "ARN of the ECS cluster"
+  value       = module.ecs_cluster.cluster_arn
+}
 
-# output "ecs_task_role_arn" {
-#   description = "ARN of the ECS task role"
-#   value       = module.ecs_cluster.task_role_arn
-# }
+output "ecs_task_execution_role_arn" {
+  description = "ARN of the ECS task execution role"
+  value       = module.ecs_cluster.task_execution_role_arn
+}
+
+output "ecs_task_role_arn" {
+  description = "ARN of the ECS task role"
+  value       = module.ecs_cluster.task_role_arn
+}
+
+output "ecs_log_group_name" {
+  description = "Name of the CloudWatch log group for ECS"
+  value       = module.ecs_cluster.cloudwatch_log_group_name
+}
 
 # -----------------------------------------------------------------------------
-# Phase 5: Service Discovery Outputs (Commented out for Phase 1)
+# Phase 4: Service Discovery Outputs
 # -----------------------------------------------------------------------------
-# output "service_discovery_namespace_id" {
-#   description = "ID of the Cloud Map namespace"
-#   value       = module.service_discovery.namespace_id
-# }
+output "service_discovery_namespace_id" {
+  description = "ID of the Cloud Map namespace"
+  value       = module.service_discovery.namespace_id
+}
 
-# output "service_discovery_namespace_name" {
-#   description = "Name of the Cloud Map namespace"
-#   value       = module.service_discovery.namespace_name
-# }
+output "service_discovery_namespace_name" {
+  description = "Name of the Cloud Map namespace"
+  value       = module.service_discovery.namespace_name
+}
+
+output "service_discovery_dns_names" {
+  description = "DNS names for service-to-service communication"
+  value       = module.service_discovery.service_dns_names
+}
+
+# -----------------------------------------------------------------------------
+# Phase 4: ECR Repository Outputs
+# -----------------------------------------------------------------------------
+output "ecr_repository_urls" {
+  description = "Map of ECR repository URLs for pushing Docker images"
+  value = {
+    for name, repo in aws_ecr_repository.services : name => repo.repository_url
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Phase 4: ECS Service Outputs
+# -----------------------------------------------------------------------------
+output "ecs_service_names" {
+  description = "Names of all ECS services"
+  value = {
+    user          = module.ecs_service_user.service_name
+    question      = module.ecs_service_question.service_name
+    matching      = module.ecs_service_matching.service_name
+    history       = module.ecs_service_history.service_name
+    collaboration = module.ecs_service_collaboration.service_name
+    chat          = module.ecs_service_chat.service_name
+    frontend      = module.ecs_service_frontend.service_name
+  }
+}
+
+output "ecs_service_arns" {
+  description = "ARNs of all ECS services"
+  value = {
+    user          = module.ecs_service_user.service_arn
+    question      = module.ecs_service_question.service_arn
+    matching      = module.ecs_service_matching.service_arn
+    history       = module.ecs_service_history.service_arn
+    collaboration = module.ecs_service_collaboration.service_arn
+    chat          = module.ecs_service_chat.service_arn
+    frontend      = module.ecs_service_frontend.service_arn
+  }
+}
+
+output "ecs_task_definition_arns" {
+  description = "ARNs of all ECS task definitions"
+  value = {
+    user          = module.ecs_service_user.task_definition_arn
+    question      = module.ecs_service_question.task_definition_arn
+    matching      = module.ecs_service_matching.task_definition_arn
+    history       = module.ecs_service_history.task_definition_arn
+    collaboration = module.ecs_service_collaboration.task_definition_arn
+    chat          = module.ecs_service_chat.task_definition_arn
+    frontend      = module.ecs_service_frontend.task_definition_arn
+  }
+}
 
 # -----------------------------------------------------------------------------
 # Summary Output (for quick reference)
 # -----------------------------------------------------------------------------
-output "phase_1_summary" {
-  description = "Summary of Phase 1 infrastructure"
+output "deployment_summary" {
+  description = "Complete deployment summary with connection information"
   value = {
-    vpc_id          = module.vpc.vpc_id
-    public_subnets  = module.vpc.public_subnet_ids
-    private_subnets = module.vpc.private_subnet_ids
-    security_groups_created = [
-      "alb",
-      "ecs",
-      "db (user, question, matching, history)",
-      "redis (matching, collaboration, chat)"
-    ]
+    # Application Access
+    application_url = module.alb.alb_url
+    alb_dns_name    = module.alb.alb_dns_name
+
+    # Service Endpoints
+    service_endpoints = {
+      frontend      = "${module.alb.alb_url}/"
+      user          = "${module.alb.alb_url}/user-service-api"
+      question      = "${module.alb.alb_url}/question-service-api"
+      matching      = "${module.alb.alb_url}/matching-service-api"
+      history       = "${module.alb.alb_url}/history-service-api"
+      collaboration = "${module.alb.alb_url}/collaboration-service-api"
+      chat          = "${module.alb.alb_url}/chat-service-api"
+    }
+
+    # Infrastructure
+    vpc_id               = module.vpc.vpc_id
+    ecs_cluster_name     = module.ecs_cluster.cluster_name
+    service_discovery    = module.service_discovery.namespace_name
+
+    # Resources Created
+    resources = {
+      rds_instances       = 4
+      redis_clusters      = 3
+      ecs_services        = 7
+      ecr_repositories    = 7
+      availability_zones  = 2
+      nat_gateways       = 1
+    }
+
+    # Next Steps
     next_steps = [
-      "1. Run: terraform init",
-      "2. Run: terraform validate",
-      "3. Run: terraform plan",
-      "4. Review the plan output",
-      "5. Proceed to Phase 2 (RDS + ElastiCache) when ready"
+      "1. Build and push Docker images to ECR repositories",
+      "2. Run database migrations for each service",
+      "3. Verify services are healthy: terraform output ecs_service_names",
+      "4. Check CloudWatch logs: /ecs/peerprep-prod/<service-name>",
+      "5. Access application at the application_url above"
     ]
+  }
+}
+
+output "ecr_push_commands" {
+  description = "Commands to push Docker images to ECR"
+  value = {
+    for name, repo in aws_ecr_repository.services : name => {
+      login   = "aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${split("/", repo.repository_url)[0]}"
+      build   = "docker build -t ${name} ./<path-to-${name}>"
+      tag     = "docker tag ${name}:latest ${repo.repository_url}:latest"
+      push    = "docker push ${repo.repository_url}:latest"
+    }
   }
 }

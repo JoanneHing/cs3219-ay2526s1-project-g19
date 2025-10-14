@@ -271,3 +271,160 @@ variable "autoscaling_requests_target" {
   type        = number
   default     = 1000
 }
+
+# -----------------------------------------------------------------------------
+# Individual Service Configuration (Phase 4)
+# -----------------------------------------------------------------------------
+# Secret Key for Django/FastAPI services
+variable "secret_key" {
+  description = "Secret key for Django/FastAPI applications"
+  type        = string
+  sensitive   = true
+  default     = "CHANGE_ME_SECURE_SECRET_KEY_HERE"
+}
+
+# User Service
+variable "user_service_cpu" {
+  description = "CPU units for user service (256 = 0.25 vCPU, 512 = 0.5 vCPU, 1024 = 1 vCPU)"
+  type        = number
+  default     = 512
+}
+
+variable "user_service_memory" {
+  description = "Memory for user service in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "user_service_desired_count" {
+  description = "Desired number of user service tasks"
+  type        = number
+  default     = 2
+}
+
+# Question Service
+variable "question_service_cpu" {
+  description = "CPU units for question service"
+  type        = number
+  default     = 512
+}
+
+variable "question_service_memory" {
+  description = "Memory for question service in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "question_service_desired_count" {
+  description = "Desired number of question service tasks"
+  type        = number
+  default     = 2
+}
+
+# Matching Service
+variable "matching_service_cpu" {
+  description = "CPU units for matching service"
+  type        = number
+  default     = 512
+}
+
+variable "matching_service_memory" {
+  description = "Memory for matching service in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "matching_service_desired_count" {
+  description = "Desired number of matching service tasks"
+  type        = number
+  default     = 2
+}
+
+# History Service
+variable "history_service_cpu" {
+  description = "CPU units for history service"
+  type        = number
+  default     = 256
+}
+
+variable "history_service_memory" {
+  description = "Memory for history service in MB"
+  type        = number
+  default     = 512
+}
+
+variable "history_service_desired_count" {
+  description = "Desired number of history service tasks"
+  type        = number
+  default     = 2
+}
+
+# Collaboration Service
+variable "collaboration_service_cpu" {
+  description = "CPU units for collaboration service"
+  type        = number
+  default     = 512
+}
+
+variable "collaboration_service_memory" {
+  description = "Memory for collaboration service in MB"
+  type        = number
+  default     = 1024
+}
+
+variable "collaboration_service_desired_count" {
+  description = "Desired number of collaboration service tasks"
+  type        = number
+  default     = 2
+}
+
+# Chat Service
+variable "chat_service_cpu" {
+  description = "CPU units for chat service"
+  type        = number
+  default     = 256
+}
+
+variable "chat_service_memory" {
+  description = "Memory for chat service in MB"
+  type        = number
+  default     = 512
+}
+
+variable "chat_service_desired_count" {
+  description = "Desired number of chat service tasks"
+  type        = number
+  default     = 2
+}
+
+# Frontend
+variable "frontend_cpu" {
+  description = "CPU units for frontend"
+  type        = number
+  default     = 256
+}
+
+variable "frontend_memory" {
+  description = "Memory for frontend in MB"
+  type        = number
+  default     = 512
+}
+
+variable "frontend_desired_count" {
+  description = "Desired number of frontend tasks"
+  type        = number
+  default     = 2
+}
+
+# ECS Cluster Configuration
+variable "enable_container_insights" {
+  description = "Enable CloudWatch Container Insights for ECS cluster"
+  type        = bool
+  default     = true
+}
+
+variable "ecs_log_retention_days" {
+  description = "CloudWatch log retention period in days"
+  type        = number
+  default     = 7
+}

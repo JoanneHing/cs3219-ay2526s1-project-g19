@@ -73,18 +73,6 @@ resource "aws_elasticache_parameter_group" "main" {
     value = "allkeys-lru" # Evict least recently used keys
   }
 
-  # Enable persistence
-  parameter {
-    name  = "appendonly"
-    value = "yes"
-  }
-
-  # Database count (16 is default, we use 0, 1, 2)
-  parameter {
-    name  = "databases"
-    value = "16"
-  }
-
   # Connection timeout
   parameter {
     name  = "timeout"
