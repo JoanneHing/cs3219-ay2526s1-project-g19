@@ -3,9 +3,9 @@ import NavBar from './common/NavBar';
 
 const AppLayout = () => {
   return (
-    <div className="min-h-screen bg-background font-inter">
+    <div className="w-screen min-h-screen bg-background font-inter">
       <NavBar />
-      <main>
+      <main className="w-full">
         <Outlet /> 
       </main>
     </div>

@@ -47,20 +47,34 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    // Store result for notification handling
+    let result = { success: false, error: null };
+    
     try {
       // Call backend to invalidate session
       await userService.logout();
+      result.success = true;
     } catch (error) {
       console.error('Logout API call failed:', error);
-      // Continue with local logout even if API fails
+      
+      // Determine error type based on response status
+      if (error.response?.status === 401) {
+        result.error = { type: 'auth', message: 'Authentication required' };
+      } else if (error.response?.status === 400) {
+        result.error = { type: 'bad_request', message: 'Logout failed - invalid request' };
+      } else {
+        result.error = { type: 'network', message: 'Network error during logout' };
+      }
     } finally {
-      // Clear local state and storage
+      // Always clear local state and storage
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
+    
+    return result;
   };
 
   return (

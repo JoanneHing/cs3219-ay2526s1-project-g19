@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -40,6 +41,7 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <NotificationProvider>
         <Routes>
         <Route element={<AuthRoute />}>
           <Route path="/" element={<LandingPage />} />
@@ -62,7 +64,8 @@ const App = () => {
         </Route>
 
         <Route path="*" element={<h1>404 Not Found</h1>} />
-      </Routes>
+        </Routes>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );
