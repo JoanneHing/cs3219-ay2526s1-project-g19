@@ -80,6 +80,30 @@ variable "db_allocated_storage" {
   default     = 20
 }
 
+variable "db_max_allocated_storage" {
+  description = "Maximum allocated storage for autoscaling in GB"
+  type        = number
+  default     = 100
+}
+
+variable "db_backup_retention_period" {
+  description = "Backup retention period in days"
+  type        = number
+  default     = 7
+}
+
+variable "db_deletion_protection" {
+  description = "Enable deletion protection"
+  type        = bool
+  default     = false  # Set to true in production
+}
+
+variable "db_skip_final_snapshot" {
+  description = "Skip final snapshot when destroying (set to false in production)"
+  type        = bool
+  default     = true  # Set to false in production to keep final snapshot
+}
+
 variable "db_engine_version" {
   description = "PostgreSQL engine version"
   type        = string
@@ -131,6 +155,12 @@ variable "redis_engine_version" {
   description = "Redis engine version"
   type        = string
   default     = "7.0"
+}
+
+variable "redis_snapshot_retention_limit" {
+  description = "Snapshot retention limit in days"
+  type        = number
+  default     = 5
 }
 
 # -----------------------------------------------------------------------------

@@ -99,50 +99,245 @@ module "security_groups" {
 }
 
 # =============================================================================
-# Phase 2: RDS PostgreSQL (Commented out for Phase 1)
+# Phase 2: RDS PostgreSQL - 4 Separate Instances
 # =============================================================================
-# module "rds" {
-#   source = "./modules/rds"
-#
-#   project_name          = var.project_name
-#   environment           = var.environment
-#   vpc_id                = module.vpc.vpc_id
-#   private_subnet_ids    = module.vpc.private_subnet_ids
-#   db_security_group_id  = module.security_groups.db_security_group_id
-#
-#   # Database configuration
-#   db_instance_class     = var.db_instance_class
-#   db_allocated_storage  = var.db_allocated_storage
-#   db_engine_version     = var.db_engine_version
-#   db_name               = var.db_name
-#   db_username           = var.db_username
-#   db_password           = var.db_password
-#
-#   # High availability
-#   multi_az              = var.db_multi_az
-#
-#   tags = var.tags
-# }
+# DB Subnet Group for RDS instances
+resource "aws_db_subnet_group" "main" {
+  name       = "${var.project_name}-${var.environment}-db-subnet-group"
+  subnet_ids = module.vpc.private_subnet_ids
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-db-subnet-group"
+    }
+  )
+}
+
+# User Database
+module "rds_user" {
+  source = "./modules/rds"
+
+  name_prefix         = "${var.project_name}-${var.environment}-user"
+  vpc_id              = module.vpc.vpc_id
+  database_subnet_ids = module.vpc.private_subnet_ids
+  db_subnet_group_name = aws_db_subnet_group.main.name
+  security_group_ids  = [module.security_groups.user_db_security_group_id]
+
+  # Database configuration
+  engine_version      = var.db_engine_version
+  db_instance_class   = var.db_instance_class
+  allocated_storage   = var.db_allocated_storage
+  max_allocated_storage = var.db_max_allocated_storage
+  database_names      = ["user_db"]
+  master_username     = var.db_username
+  master_password     = var.db_password
+
+  # High availability
+  multi_az = var.db_multi_az
+
+  # Backups
+  backup_retention_period = var.db_backup_retention_period
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  # Safety
+  deletion_protection = var.db_deletion_protection
+  skip_final_snapshot = var.db_skip_final_snapshot
+  apply_immediately   = false
+
+  tags = var.tags
+}
+
+# Question Database
+module "rds_question" {
+  source = "./modules/rds"
+
+  name_prefix          = "${var.project_name}-${var.environment}-question"
+  vpc_id               = module.vpc.vpc_id
+  database_subnet_ids  = module.vpc.private_subnet_ids
+  db_subnet_group_name = aws_db_subnet_group.main.name
+  security_group_ids   = [module.security_groups.question_db_security_group_id]
+
+  # Database configuration
+  engine_version        = var.db_engine_version
+  db_instance_class     = var.db_instance_class
+  allocated_storage     = var.db_allocated_storage
+  max_allocated_storage = var.db_max_allocated_storage
+  database_names        = ["question_db"]
+  master_username       = var.db_username
+  master_password       = var.db_password
+
+  # High availability
+  multi_az = var.db_multi_az
+
+  # Backups
+  backup_retention_period = var.db_backup_retention_period
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  # Safety
+  deletion_protection = var.db_deletion_protection
+  skip_final_snapshot = var.db_skip_final_snapshot
+  apply_immediately   = false
+
+  tags = var.tags
+}
+
+# Matching Database
+module "rds_matching" {
+  source = "./modules/rds"
+
+  name_prefix          = "${var.project_name}-${var.environment}-matching"
+  vpc_id               = module.vpc.vpc_id
+  database_subnet_ids  = module.vpc.private_subnet_ids
+  db_subnet_group_name = aws_db_subnet_group.main.name
+  security_group_ids   = [module.security_groups.matching_db_security_group_id]
+
+  # Database configuration
+  engine_version        = var.db_engine_version
+  db_instance_class     = var.db_instance_class
+  allocated_storage     = var.db_allocated_storage
+  max_allocated_storage = var.db_max_allocated_storage
+  database_names        = ["matching_db"]
+  master_username       = var.db_username
+  master_password       = var.db_password
+
+  # High availability
+  multi_az = var.db_multi_az
+
+  # Backups
+  backup_retention_period = var.db_backup_retention_period
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  # Safety
+  deletion_protection = var.db_deletion_protection
+  skip_final_snapshot = var.db_skip_final_snapshot
+  apply_immediately   = false
+
+  tags = var.tags
+}
+
+# History Database
+module "rds_history" {
+  source = "./modules/rds"
+
+  name_prefix          = "${var.project_name}-${var.environment}-history"
+  vpc_id               = module.vpc.vpc_id
+  database_subnet_ids  = module.vpc.private_subnet_ids
+  db_subnet_group_name = aws_db_subnet_group.main.name
+  security_group_ids   = [module.security_groups.history_db_security_group_id]
+
+  # Database configuration
+  engine_version        = var.db_engine_version
+  db_instance_class     = var.db_instance_class
+  allocated_storage     = var.db_allocated_storage
+  max_allocated_storage = var.db_max_allocated_storage
+  database_names        = ["history_db"]
+  master_username       = var.db_username
+  master_password       = var.db_password
+
+  # High availability
+  multi_az = var.db_multi_az
+
+  # Backups
+  backup_retention_period = var.db_backup_retention_period
+  backup_window           = "03:00-04:00"
+  maintenance_window      = "mon:04:00-mon:05:00"
+
+  # Safety
+  deletion_protection = var.db_deletion_protection
+  skip_final_snapshot = var.db_skip_final_snapshot
+  apply_immediately   = false
+
+  tags = var.tags
+}
 
 # =============================================================================
-# Phase 2: ElastiCache Redis (Commented out for Phase 1)
+# Phase 2: ElastiCache Redis - 3 Separate Clusters
 # =============================================================================
-# module "elasticache" {
-#   source = "./modules/elasticache"
-#
-#   project_name           = var.project_name
-#   environment            = var.environment
-#   vpc_id                 = module.vpc.vpc_id
-#   private_subnet_ids     = module.vpc.private_subnet_ids
-#   redis_security_group_id = module.security_groups.redis_security_group_id
-#
-#   # Redis configuration
-#   redis_node_type        = var.redis_node_type
-#   redis_num_cache_nodes  = var.redis_num_cache_nodes
-#   redis_engine_version   = var.redis_engine_version
-#
-#   tags = var.tags
-# }
+# ElastiCache Subnet Group for Redis clusters
+resource "aws_elasticache_subnet_group" "main" {
+  name       = "${var.project_name}-${var.environment}-redis-subnet-group"
+  subnet_ids = module.vpc.private_subnet_ids
+
+  tags = merge(
+    var.tags,
+    {
+      Name = "${var.project_name}-${var.environment}-redis-subnet-group"
+    }
+  )
+}
+
+# Matching Redis Cluster
+module "elasticache_matching" {
+  source = "./modules/elasticache"
+
+  name_prefix            = "${var.project_name}-${var.environment}-matching"
+  vpc_id                 = module.vpc.vpc_id
+  cache_subnet_ids       = module.vpc.private_subnet_ids
+  cache_subnet_group_name = aws_elasticache_subnet_group.main.name
+  security_group_ids     = [module.security_groups.matching_redis_security_group_id]
+
+  # Redis configuration
+  engine_version   = var.redis_engine_version
+  node_type        = var.redis_node_type
+  num_cache_nodes  = var.redis_num_cache_nodes
+
+  # Maintenance and backups
+  maintenance_window       = "sun:05:00-sun:06:00"
+  snapshot_window          = "03:00-04:00"
+  snapshot_retention_limit = var.redis_snapshot_retention_limit
+
+  tags = var.tags
+}
+
+# Collaboration Redis Cluster (for WebSocket sessions)
+module "elasticache_collaboration" {
+  source = "./modules/elasticache"
+
+  name_prefix            = "${var.project_name}-${var.environment}-collab"
+  vpc_id                 = module.vpc.vpc_id
+  cache_subnet_ids       = module.vpc.private_subnet_ids
+  cache_subnet_group_name = aws_elasticache_subnet_group.main.name
+  security_group_ids     = [module.security_groups.collaboration_redis_security_group_id]
+
+  # Redis configuration
+  engine_version   = var.redis_engine_version
+  node_type        = var.redis_node_type
+  num_cache_nodes  = var.redis_num_cache_nodes
+
+  # Maintenance and backups
+  maintenance_window       = "sun:05:00-sun:06:00"
+  snapshot_window          = "03:00-04:00"
+  snapshot_retention_limit = var.redis_snapshot_retention_limit
+
+  tags = var.tags
+}
+
+# Chat Redis Cluster (for WebSocket sessions)
+module "elasticache_chat" {
+  source = "./modules/elasticache"
+
+  name_prefix            = "${var.project_name}-${var.environment}-chat"
+  vpc_id                 = module.vpc.vpc_id
+  cache_subnet_ids       = module.vpc.private_subnet_ids
+  cache_subnet_group_name = aws_elasticache_subnet_group.main.name
+  security_group_ids     = [module.security_groups.chat_redis_security_group_id]
+
+  # Redis configuration
+  engine_version   = var.redis_engine_version
+  node_type        = var.redis_node_type
+  num_cache_nodes  = var.redis_num_cache_nodes
+
+  # Maintenance and backups
+  maintenance_window       = "sun:05:00-sun:06:00"
+  snapshot_window          = "03:00-04:00"
+  snapshot_retention_limit = var.redis_snapshot_retention_limit
+
+  tags = var.tags
+}
 
 # =============================================================================
 # Phase 3: Application Load Balancer (Commented out for Phase 1)

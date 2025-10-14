@@ -62,37 +62,73 @@ output "redis_security_group_ids" {
 }
 
 # -----------------------------------------------------------------------------
-# Phase 2: RDS Outputs (Commented out for Phase 1)
+# Phase 2: RDS Outputs
 # -----------------------------------------------------------------------------
-# output "rds_endpoints" {
-#   description = "Map of RDS endpoint addresses"
-#   value       = module.rds.db_endpoints
-#   sensitive   = true
-# }
+output "rds_user_endpoint" {
+  description = "User database endpoint"
+  value       = module.rds_user.db_endpoint
+  sensitive   = true
+}
 
-# output "rds_ports" {
-#   description = "Map of RDS port numbers"
-#   value       = module.rds.db_ports
-# }
+output "rds_question_endpoint" {
+  description = "Question database endpoint"
+  value       = module.rds_question.db_endpoint
+  sensitive   = true
+}
 
-# output "rds_database_names" {
-#   description = "Map of database names"
-#   value       = module.rds.database_names
-# }
+output "rds_matching_endpoint" {
+  description = "Matching database endpoint"
+  value       = module.rds_matching.db_endpoint
+  sensitive   = true
+}
+
+output "rds_history_endpoint" {
+  description = "History database endpoint"
+  value       = module.rds_history.db_endpoint
+  sensitive   = true
+}
+
+output "rds_connection_strings" {
+  description = "Database connection strings for services"
+  value = {
+    user_db     = "postgresql://${var.db_username}:****@${module.rds_user.db_host}:${module.rds_user.db_port}/user_db"
+    question_db = "postgresql://${var.db_username}:****@${module.rds_question.db_host}:${module.rds_question.db_port}/question_db"
+    matching_db = "postgresql://${var.db_username}:****@${module.rds_matching.db_host}:${module.rds_matching.db_port}/matching_db"
+    history_db  = "postgresql://${var.db_username}:****@${module.rds_history.db_host}:${module.rds_history.db_port}/history_db"
+  }
+  sensitive = true
+}
 
 # -----------------------------------------------------------------------------
-# Phase 2: ElastiCache Outputs (Commented out for Phase 1)
+# Phase 2: ElastiCache Outputs
 # -----------------------------------------------------------------------------
-# output "redis_endpoints" {
-#   description = "Map of Redis primary endpoint addresses"
-#   value       = module.elasticache.redis_primary_endpoints
-#   sensitive   = true
-# }
+output "redis_matching_endpoint" {
+  description = "Matching Redis endpoint"
+  value       = module.elasticache_matching.redis_endpoint
+  sensitive   = true
+}
 
-# output "redis_ports" {
-#   description = "Map of Redis port numbers"
-#   value       = module.elasticache.redis_ports
-# }
+output "redis_collaboration_endpoint" {
+  description = "Collaboration Redis endpoint"
+  value       = module.elasticache_collaboration.redis_endpoint
+  sensitive   = true
+}
+
+output "redis_chat_endpoint" {
+  description = "Chat Redis endpoint"
+  value       = module.elasticache_chat.redis_endpoint
+  sensitive   = true
+}
+
+output "redis_connection_strings" {
+  description = "Redis connection strings for services"
+  value = {
+    matching      = "redis://${module.elasticache_matching.redis_endpoint}:${module.elasticache_matching.redis_port}/0"
+    collaboration = "redis://${module.elasticache_collaboration.redis_endpoint}:${module.elasticache_collaboration.redis_port}/0"
+    chat          = "redis://${module.elasticache_chat.redis_endpoint}:${module.elasticache_chat.redis_port}/0"
+  }
+  sensitive = true
+}
 
 # -----------------------------------------------------------------------------
 # Phase 3: ALB Outputs (Commented out for Phase 1)
