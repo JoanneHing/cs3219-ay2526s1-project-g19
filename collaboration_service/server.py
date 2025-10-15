@@ -1,7 +1,7 @@
+import logging
 import os
 import socketio
 from aiohttp import web
-import logging
 import redis.asyncio as aioredis
 from schemas import CodeChangeData, CursorData, ErrorData, RoomJoinData
 
@@ -9,41 +9,42 @@ logger = logging.getLogger(__name__)
 
 EXPIRY_TIME = 1800  # 30 minutes
 
+SERVICE_PREFIX = os.getenv("SERVICE_PREFIX", "/collaboration-service-api")
+if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
+    SERVICE_PREFIX = "/" + SERVICE_PREFIX
+SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
+
+
+@web.middleware
+async def fixed_prefix_middleware(request, handler):
+    """
+    Strip a configured prefix so the service can respond on both the root path
+    and the prefixed path (e.g. behind nginx /collaboration-service-api).
+    """
+    if SERVICE_PREFIX and request.path.startswith(SERVICE_PREFIX):
+        stripped_path = request.path[len(SERVICE_PREFIX):] or "/"
+        new_request = request.clone(rel_url=request.rel_url.with_path(stripped_path))
+        response = await handler(new_request)
+        location = response.headers.get("Location")
+        if location and location.startswith("/") and not location.startswith(SERVICE_PREFIX):
+            response.headers["Location"] = f"{SERVICE_PREFIX}{location}"
+        return response
+    return await handler(request)
+
+
 async def health_check(request):
     """Health check endpoint for ALB"""
     return web.json_response({"status": "healthy"})
 
-# this is awared duplication but itsok, required for docker and https AWS healthcheck, also acception routing of collaboration for sockets...
 
-# --- Setup AIOHTTP and Socket.IO for Dual Routing ---
-
-# 1. Create the CORE application that contains all routes and logic.
-core_app = web.Application()
 sio = socketio.AsyncServer(cors_allowed_origins="*")
+app = web.Application(middlewares=[fixed_prefix_middleware])
+sio.attach(app)
 
-# 2. Add HTTP routes AND attach Socket.IO to the CORE app.
-#    This defines /health and /socket.io/ within the CORE app's routing table.
-core_app.router.add_get('/health', health_check)
-sio.attach(core_app)
+app.router.add_get("/health", health_check)
+app.router.add_get("/health/", health_check)
 
-# 3. Create the MAIN application that will be run.
-app = web.Application()
-
-# 4. Mount the fully configured core_app under the desired prefix.
-#    This handles requests to /collaboration-service-api/health and /collaboration-service-api/socket.io/
-app.add_subapp('/collaboration-service-api', core_app) # Removed trailing '/' for cleaner routing
-
-# 5. Handle Root Paths (The Fix for the /health 404):
-# A. Explicitly add the /health endpoint to the ROOT router. This bypasses any subtle routing conflicts 
-#    and guarantees the Docker/ALB health check works on the root path.
-app.router.add_get('/health', health_check)
-
-# B. Add the core app's routes (crucially, the /socket.io/ routes) to the root router.
-#    This ensures WebSocket connections work at the root path (ws://host:port/).
-app.router.add_routes(core_app.router)  
-
-
-logger.info("Application configured to run at '/' and '/collaboration-service-api/'")
+logger.info("Application configured to run at '/' and '%s/'", SERVICE_PREFIX or "/")
 
 
 # # Sub-app with prefix
