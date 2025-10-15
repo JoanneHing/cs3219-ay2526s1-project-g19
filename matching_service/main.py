@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging
 from schemas.matching import MatchUserRequestSchema
@@ -23,8 +24,17 @@ if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
     SERVICE_PREFIX = "/" + SERVICE_PREFIX
 SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 
-router = APIRouter(prefix="/api")
-app = FastAPI()
+router = APIRouter(prefix="/api", redirect_slashes=False)
+app = FastAPI(redirect_slashes=False)
+allowed_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 if SERVICE_PREFIX:
     app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
 
@@ -34,7 +44,7 @@ async def health_check():
     return {"status": "healthy"}
 
 app.add_api_route(
-    "/health/",
+    "/health",
     endpoint=health_check,
     methods=["GET"],
     include_in_schema=False,
