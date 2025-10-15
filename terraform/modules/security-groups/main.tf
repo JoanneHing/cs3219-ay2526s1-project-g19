@@ -181,6 +181,24 @@ resource "aws_vpc_security_group_ingress_rule" "db_from_ecs" {
   }
 }
 
+# DB Ingress: PostgreSQL from local IP for migrations/development
+resource "aws_vpc_security_group_ingress_rule" "db_from_local_ip" {
+  for_each = toset(local.db_names)
+
+  security_group_id = aws_security_group.db[each.key].id
+  description       = "Allow PostgreSQL from Local IP for Migrations"
+
+  from_port         = 5432
+  to_port           = 5432
+  ip_protocol       = "tcp"
+  # 🛑 ACTION: Use the IP you just found, 137.132.26.199
+  cidr_ipv4         = "137.132.26.199/32" 
+
+  tags = {
+    Name = "${each.key}-db-from-local-ip"
+  }
+}
+
 # DB Egress: Allow all outbound (for updates, etc.)
 resource "aws_vpc_security_group_egress_rule" "db_all" {
   for_each = toset(local.db_names)

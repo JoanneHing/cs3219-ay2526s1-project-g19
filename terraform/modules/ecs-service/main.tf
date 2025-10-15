@@ -75,7 +75,22 @@ resource "aws_ecs_service" "main" {
   cluster         = var.cluster_id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  
+  # Only use launch_type when not using capacity providers
+  launch_type = var.use_capacity_providers ? null : "FARGATE"
+
+  # Use capacity provider strategy if enabled
+  dynamic "capacity_provider_strategy" {
+    for_each = var.use_capacity_providers ? [
+      { capacity_provider = "FARGATE_SPOT", weight = 4, base = 0 },
+      { capacity_provider = "FARGATE", weight = 1, base = 1 }
+    ] : []
+    content {
+      capacity_provider = capacity_provider_strategy.value.capacity_provider
+      weight            = capacity_provider_strategy.value.weight
+      base              = capacity_provider_strategy.value.base
+    }
+  }
 
   network_configuration {
     subnets          = var.private_subnet_ids

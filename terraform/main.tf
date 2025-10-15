@@ -414,6 +414,7 @@ locals {
 
 resource "aws_ecr_repository" "services" {
   for_each = local.services
+  force_delete = true
 
   name                 = "${var.project_name}-${var.environment}-${each.key}"
   image_tag_mutability = "MUTABLE"
@@ -525,7 +526,7 @@ module "ecs_service_user" {
 
   # Service Discovery
   enable_service_discovery       = true
-  service_discovery_service_arn  = module.service_discovery.service_discovery_service_ids["user-service"]
+  service_discovery_service_arn  = module.service_discovery.service_discovery_services["user-service"]
 
   tags = var.tags
 }
@@ -591,7 +592,7 @@ module "ecs_service_question" {
 
   # Service Discovery
   enable_service_discovery      = true
-  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["question-service"]
+  service_discovery_service_arn = module.service_discovery.service_discovery_services["question-service"]
 
   tags = var.tags
 }
@@ -659,7 +660,7 @@ module "ecs_service_matching" {
 
   # Service Discovery
   enable_service_discovery      = true
-  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["matching-service"]
+  service_discovery_service_arn = module.service_discovery.service_discovery_services["matching-service"]
 
   tags = var.tags
 }
@@ -724,7 +725,7 @@ module "ecs_service_history" {
 
   # Service Discovery
   enable_service_discovery      = true
-  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["history-service"]
+  service_discovery_service_arn = module.service_discovery.service_discovery_services["history-service"]
 
   tags = var.tags
 }
@@ -785,7 +786,7 @@ module "ecs_service_collaboration" {
 
   # Service Discovery
   enable_service_discovery      = true
-  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["collaboration-service"]
+  service_discovery_service_arn = module.service_discovery.service_discovery_services["collaboration-service"]
 
   tags = var.tags
 }
@@ -845,7 +846,7 @@ module "ecs_service_chat" {
 
   # Service Discovery
   enable_service_discovery      = true
-  service_discovery_service_arn = module.service_discovery.service_discovery_service_ids["chat-service"]
+  service_discovery_service_arn = module.service_discovery.service_discovery_services["chat-service"]
 
   tags = var.tags
 }

@@ -159,3 +159,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "use_capacity_providers" {
+  description = "Whether to use ECS capacity providers instead of launch_type"
+  type        = bool
+  default     = true
+}
