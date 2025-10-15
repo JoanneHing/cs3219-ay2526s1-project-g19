@@ -173,35 +173,15 @@ resource "aws_lb_listener" "http" {
 # =============================================================================
 # Listener Rules (path-based routing)
 # =============================================================================
-# =============================================================================
-# Listener Rules (path-based routing with dynamic path rewrite for all services)
-# =============================================================================
 
-=============================================================================
-# Listener Rules (path-based routing)
-# =============================================================================
 # Rule for user-service-api
 resource "aws_lb_listener_rule" "user_service" {
   listener_arn = aws_lb_listener.http.arn
   priority     = local.services["user-service"].priority
 
   action {
-    type = "forward"
-
-    forward {
-      target_group {
-        arn    = aws_lb_target_group.services["user-service"].arn
-        weight = 1
-      }
-    }
-
-    # Rewrite the path
-    modify_path {
-      enable  = true
-      type    = "replace"
-      source  = "/user-service-api"
-      target  = ""
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["user-service"].arn
   }
 
   condition {
