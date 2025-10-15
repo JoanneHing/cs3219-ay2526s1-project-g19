@@ -100,7 +100,23 @@ echo -e "${BLUE}[3/7] Checking Redis Clusters...${NC}"
 
 REDIS_SERVICES=("matching" "collab" "chat")
 for SERVICE in "${REDIS_SERVICES[@]}"; do
-    CACHE_ID="${PROJECT_NAME}-${ENVIRONMENT}-${SERVICE}-redis"
+    RG_ID="${PROJECT_NAME}-${ENVIRONMENT}-${SERVICE}-redis"
+    RG_STATUS=$(aws elasticache describe-replication-groups \
+        --replication-group-id "$RG_ID" \
+        --query 'ReplicationGroups[0].Status' \
+        --output text \
+        --region "$AWS_REGION" 2>/dev/null || echo "not-found")
+
+    if [ "$RG_STATUS" != "not-found" ] && [ "$RG_STATUS" != "None" ]; then
+        if [ "$RG_STATUS" == "available" ]; then
+            echo -e "${GREEN}✓${NC} ${SERVICE}-redis: $RG_STATUS"
+        else
+            echo -e "${YELLOW}⚠${NC} ${SERVICE}-redis: $RG_STATUS (waiting...)"
+        fi
+        continue
+    fi
+
+    CACHE_ID="${RG_ID}-001"
     CACHE_STATUS=$(aws elasticache describe-cache-clusters \
         --cache-cluster-id "$CACHE_ID" \
         --query 'CacheClusters[0].CacheClusterStatus' \

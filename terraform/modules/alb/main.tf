@@ -21,42 +21,42 @@ locals {
     user-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/admin/"  # Django admin exists by default
+      health_path = "/health"  # Django admin exists by default
       path_pattern = "/user-service-api/*"
       priority    = 10
     }
     question-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/admin/"  # Django admin exists by default
+      health_path = "/health"  # Django admin exists by default
       path_pattern = "/question-service-api/*"
       priority    = 20
     }
     matching-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/"  # FastAPI root endpoint
+      health_path = "/health"  # FastAPI health endpoint
       path_pattern = "/matching-service-api/*"
       priority    = 30
     }
     history-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/admin/"  # Django admin exists by default
+      health_path = "/health"  # Django admin exists by default
       path_pattern = "/history-service-api/*"
       priority    = 40
     }
     collaboration-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/"  # FastAPI root endpoint
+      health_path = "/health"  # FastAPI health endpoint
       path_pattern = "/collaboration-service-api/*"
       priority    = 50
     }
     chat-service = {
       port        = 8000
       protocol    = "HTTP"
-      health_path = "/"  # FastAPI root endpoint
+      health_path = "/health"  # FastAPI health endpoint
       path_pattern = "/chat-service-api/*"
       priority    = 60
     }
