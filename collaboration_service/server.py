@@ -9,17 +9,63 @@ logger = logging.getLogger(__name__)
 
 EXPIRY_TIME = 1800  # 30 minutes
 
-# Create a Socket.IO server
+async def health_check(request):
+    """Health check endpoint for ALB"""
+    return web.json_response({"status": "healthy"})
+
+# this is awared duplication but itsok, required for docker and https AWS healthcheck, also acception routing of collaboration for sockets...
+
+# --- Setup AIOHTTP and Socket.IO for Dual Routing ---
+
+# 1. Create the CORE application that contains all routes and logic.
+core_app = web.Application()
 sio = socketio.AsyncServer(cors_allowed_origins="*")
+
+# 2. Add HTTP routes AND attach Socket.IO to the CORE app.
+#    This defines /health and /socket.io/ within the CORE app's routing table.
+core_app.router.add_get('/health', health_check)
+sio.attach(core_app)
+
+# 3. Create the MAIN application that will be run.
 app = web.Application()
-sio.attach(app)
+
+# 4. Mount the fully configured core_app under the desired prefix.
+#    This handles requests to /collaboration-service-api/health and /collaboration-service-api/socket.io/
+app.add_subapp('/collaboration-service-api', core_app) # Removed trailing '/' for cleaner routing
+
+# 5. Handle Root Paths (The Fix for the /health 404):
+# A. Explicitly add the /health endpoint to the ROOT router. This bypasses any subtle routing conflicts 
+#    and guarantees the Docker/ALB health check works on the root path.
+app.router.add_get('/health', health_check)
+
+# B. Add the core app's routes (crucially, the /socket.io/ routes) to the root router.
+#    This ensures WebSocket connections work at the root path (ws://host:port/).
+app.router.add_routes(core_app.router)  
+
+
+logger.info("Application configured to run at '/' and '/collaboration-service-api/'")
+
+
+# # Sub-app with prefix
+# api_app = web.Application()
+# sio.attach(api_app)
+# api_app.router.add_get('/health', health_check)
+
+# # Mount under prefix
+# app.add_subapp('/collaboration-service-api', api_app)
+
+# # Also mount same app at root
+# root_app = web.Application()
+# sio.attach(root_app)
+# root_app.router.add_get('/health', health_check)
+# app.add_subapp('/', root_app)
+
+# Add health check route directly to main app
+
 
 # Initialize Redis connection
 redis = None
 
-async def health_check(request):
-    """Health check endpoint for ALB"""
-    return web.json_response({"status": "healthy"})
 
 async def init_redis():
     global redis
@@ -126,8 +172,6 @@ async def cursor(sid, data):
 
     logger.info(f"Cursor update from {sid} in room {room} at line {cursor_data.line}, ch {cursor_data.ch}")
 
-# Add health check route
-app.router.add_get('/health', health_check)
 
 # Run the server
 if __name__ == "__main__":

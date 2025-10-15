@@ -13,17 +13,38 @@ logger = logging.getLogger(__name__)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 EXPIRY_TIME = 1800  # 30 minutes - matching collaboration service
 
-# Create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins="*")
-app = web.Application()
-sio.attach(app)
-
 # Initialize Redis connection
 redis_client = None
 
 async def health_check(request):
     """Health check endpoint for ALB"""
     return web.json_response({"status": "healthy"})
+
+
+# 1. Create the CORE application that contains all routes and logic.
+core_app = web.Application()
+sio = socketio.AsyncServer(cors_allowed_origins="*")
+
+# 2. Add HTTP routes AND attach Socket.IO to the CORE app.
+#    This defines /health and /socket.io/ within the CORE app's routing table (implicitly includes HEAD).
+core_app.router.add_get('/health', health_check)
+sio.attach(core_app)
+
+# 3. Create the MAIN application that will be run.
+app = web.Application()
+
+# 4. Mount the fully configured core_app under the desired prefix.
+#    This handles requests to /collaboration-service-api/health and /collaboration-service-api/socket.io/
+app.add_subapp('/chat-service-api', core_app) # Removed trailing '/' for cleaner routing
+
+# 5. Handle Root Paths (The Fix for the /health 404 and the HEAD conflict):
+# A. Explicitly add the /health endpoint to the ROOT router using only the GET method.
+#    This fixes the root 404 issue and prevents the automatic duplicate registration of HEAD.
+app.router.add_route('GET', '/health', health_check)
+
+# B. Add the core app's routes (crucially, the /socket.io/ routes and the remaining HEAD route) to the root router.
+#    This ensures WebSocket connections work at the root path (ws://host:port/) without conflict.
+app.router.add_routes(core_app.router)  
 
 async def init_redis():
     """Initialize Redis connection."""
@@ -144,8 +165,6 @@ async def startup_sequence(app):
     await init_redis()
     await cleanup_on_startup()
 
-# Add health check route
-app.router.add_get('/health', health_check)
 
 # Run the server
 if __name__ == "__main__":

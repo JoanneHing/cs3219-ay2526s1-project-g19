@@ -11,22 +11,41 @@ from schemas.matching import MatchUserRequestSchema
 from service.matching import matching_service
 from service.websocket import websocket_service
 from uuid import UUID
+from middleware.fixed_prefix import FixedPrefixMiddleware
 
 with open("log_config.json", "r") as f:
     config = json.load(f)
 logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
 
-router = APIRouter(
-    prefix="/api"
-)
+SERVICE_PREFIX = os.getenv("SERVICE_PREFIX", "/matching-service-api")
+if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
+    SERVICE_PREFIX = "/" + SERVICE_PREFIX
+SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
+
+router = APIRouter(prefix="/api")
 app = FastAPI()
+if SERVICE_PREFIX:
+    app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
 
 
-@app.get("/health")
 async def health_check():
     """Health check endpoint for ALB"""
     return {"status": "healthy"}
+
+app.add_api_route(
+    "/health/",
+    endpoint=health_check,
+    methods=["GET"],
+    include_in_schema=False,
+)
+
+router.add_api_route(
+    "/health",
+    endpoint=health_check,
+    methods=["GET"],
+    include_in_schema=False,
+)
 
 
 @app.get("/test_ws")
