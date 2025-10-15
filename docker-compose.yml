@@ -13,8 +13,7 @@
 #   (explicitly specify .env.prod)
 #
 # Prerequisites:
-# 1. Create shared network: docker network create peerprep_shared_network
-# 2. Development: Copy .env.sample to .env
+# 1. Development: Copy .env.sample to .env
 #    Production: Copy .env.prod.sample to .env.prod
 # =============================================================================
 
@@ -32,6 +31,3 @@ include:
 
 networks:
   shared_network:
-
-# Note: Networks are defined in individual service files
-# The shared_network is external and must be created before first run
