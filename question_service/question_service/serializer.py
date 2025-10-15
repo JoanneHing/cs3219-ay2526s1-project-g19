@@ -2,15 +2,6 @@
 from rest_framework import serializers
 from .models import Question, QuestionStats, QuestionScore
 
-class DynamicFieldsModelSerializer(serializers.ModelSerializer):
-    def __init__(self, *args, **kwargs):
-        fields = kwargs.pop("fields", None)
-        super().__init__(*args, **kwargs)
-        if fields is not None:
-            allowed = set(fields)
-            for name in set(self.fields) - allowed:
-                self.fields.pop(name)
-
 class QuestionStatsSerializer(serializers.ModelSerializer):
     percentage_solved = serializers.FloatField(read_only=True)
 
@@ -23,24 +14,19 @@ class QuestionScoreSerializer(serializers.ModelSerializer):
         model = QuestionScore
         fields = ["attainable_score", "model_version", "computed_at"]
 
-class QuestionListSerializer(DynamicFieldsModelSerializer):
-    percentage_solved = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Question
-        fields = ["question_id", "slug", "title", "difficulty", "topics", "percentage_solved"]
-
-    def get_percentage_solved(self, obj):
-        return obj.stats.percentage_solved if getattr(obj, "stats", None) else 0.0
-
-class QuestionDetailSerializer(serializers.ModelSerializer):
+class QuestionSerializer(serializers.ModelSerializer):
     stats = QuestionStatsSerializer(read_only=True)
     score = QuestionScoreSerializer(read_only=True)
+    question_id = serializers.UUIDField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Question
         fields = [
             "question_id","slug","title","statement_md","assets",
             "difficulty","topics","company_tags","is_active",
-            "created_by","created_at","updated_at","stats","score"
+            "created_by","created_at","updated_at","stats","score",
+            "examples","constraints"
         ]
+        read_only_fields = ["question_id", "created_at", "updated_at", "stats", "score"]

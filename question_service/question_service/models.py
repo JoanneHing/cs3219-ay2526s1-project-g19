@@ -24,6 +24,9 @@ class Question(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     search_tsv = SearchVectorField(null=True, blank=True)
+    # New fields for examples and constraints
+    examples = models.JSONField(default=list, help_text="List of input/output examples")
+    constraints = models.JSONField(default=list, help_text="List of problem constraints")
 
     class Meta:
         db_table = "questions"

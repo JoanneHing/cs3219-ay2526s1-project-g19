@@ -37,7 +37,7 @@ const validatePassword = (value, errors) => {
 const ErrorMessage = ({ errorsArray }) => {
     if (!errorsArray || errorsArray.length === 0) return null;
     return (
-        <div className="text-red-400 text-xs mt-1 space-y-0.5">
+        <div className="!text-red-400 text-xs mt-1 space-y-0.5">
             {errorsArray.map((err, idx) => (
                 <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1"/> {err}</p>
             ))}
