@@ -177,53 +177,45 @@ resource "aws_lb_listener" "http" {
 # Listener Rules (path-based routing with dynamic path rewrite for all services)
 # =============================================================================
 
-locals {
-  # Prefixes for all services that need path rewriting
-  service_prefixes = {
-    "user-service"          = "/user-service-api"
-    "question-service"      = "/question-service-api"
-    "matching-service"      = "/matching-service-api"
-    "history-service"       = "/history-service-api"
-    "collaboration-service" = "/collaboration-service-api"
-    "chat-service"          = "/chat-service-api"
-  }
-
-  # Compute lengths dynamically (+1 for trailing slash)
-  service_prefix_lengths = {
-    for k, v in local.service_prefixes :
-    k => length(v) + 1
-  }
-}
-
-# Function to generate a listener rule for a service
-# We use dynamic blocks to avoid repeating code
-# Unfortunately Terraform cannot create resources from loops directly, so we will write each manually
-
+=============================================================================
+# Listener Rules (path-based routing)
+# =============================================================================
 # Rule for user-service-api
 resource "aws_lb_listener_rule" "user_service" {
   listener_arn = aws_lb_listener.http.arn
   priority     = local.services["user-service"].priority
 
   action {
-    type = "redirect"
+    type = "forward"
 
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["user-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.services["user-service"].arn
+        weight = 1
+      }
+    }
+
+    # Rewrite the path
+    modify_path {
+      enable  = true
+      type    = "replace"
+      source  = "/user-service-api"
+      target  = ""
     }
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["user-service"]}/*"]
+      values = [local.services["user-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "user-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "user-service-routing"
+    }
+  )
 }
 
 # Rule for question-service-api
@@ -232,25 +224,22 @@ resource "aws_lb_listener_rule" "question_service" {
   priority     = local.services["question-service"].priority
 
   action {
-    type = "redirect"
-
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["question-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["question-service"].arn
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["question-service"]}/*"]
+      values = [local.services["question-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "question-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "question-service-routing"
+    }
+  )
 }
 
 # Rule for matching-service-api
@@ -259,25 +248,22 @@ resource "aws_lb_listener_rule" "matching_service" {
   priority     = local.services["matching-service"].priority
 
   action {
-    type = "redirect"
-
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["matching-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["matching-service"].arn
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["matching-service"]}/*"]
+      values = [local.services["matching-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "matching-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "matching-service-routing"
+    }
+  )
 }
 
 # Rule for history-service-api
@@ -286,81 +272,71 @@ resource "aws_lb_listener_rule" "history_service" {
   priority     = local.services["history-service"].priority
 
   action {
-    type = "redirect"
-
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["history-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["history-service"].arn
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["history-service"]}/*"]
+      values = [local.services["history-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "history-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "history-service-routing"
+    }
+  )
 }
 
-# Rule for collaboration-service-api
+# Rule for collaboration-service-api (WebSocket support)
 resource "aws_lb_listener_rule" "collaboration_service" {
   listener_arn = aws_lb_listener.http.arn
   priority     = local.services["collaboration-service"].priority
 
   action {
-    type = "redirect"
-
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["collaboration-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["collaboration-service"].arn
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["collaboration-service"]}/*"]
+      values = [local.services["collaboration-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "collaboration-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "collaboration-service-routing"
+    }
+  )
 }
 
-# Rule for chat-service-api
+# Rule for chat-service-api (WebSocket support)
 resource "aws_lb_listener_rule" "chat_service" {
   listener_arn = aws_lb_listener.http.arn
   priority     = local.services["chat-service"].priority
 
   action {
-    type = "redirect"
-
-    redirect {
-      protocol    = "HTTP"
-      port        = "80"
-      host        = "#{host}"
-      path        = "/${substr("#{path}", local.service_prefix_lengths["chat-service"], 1024)}"
-      query       = "#{query}"
-      status_code = "HTTP_302"
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.services["chat-service"].arn
   }
 
   condition {
     path_pattern {
-      values = ["${local.service_prefixes["chat-service"]}/*"]
+      values = [local.services["chat-service"].path_pattern]
     }
   }
 
-  tags = merge(var.tags, { Name = "chat-service-routing" })
+  tags = merge(
+    var.tags,
+    {
+      Name = "chat-service-routing"
+    }
+  )
 }
-
 # =============================================================================
 # HTTPS Listener (port 443) - Optional, commented out
 # =============================================================================
