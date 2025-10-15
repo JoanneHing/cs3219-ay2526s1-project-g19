@@ -56,5 +56,3 @@ services:
 
 networks:
   shared_network:
-    external: true
-    name: peerprep_shared_network

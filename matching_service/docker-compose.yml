@@ -55,8 +55,6 @@ volumes:
 
 networks:
   shared_network:
-    external: true
-    name: peerprep_shared_network
   matching_network:
     driver: bridge
     name: peerprep_matching_network
