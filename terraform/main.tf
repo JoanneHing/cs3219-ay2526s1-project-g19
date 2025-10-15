@@ -494,7 +494,7 @@ module "ecs_service_user" {
   environment_variables = {
     DEBUG        = "false"
     SECRET_KEY   = var.secret_key
-    ALLOWED_HOSTS = "${module.alb.alb_dns_name},user-service,user-service.${module.service_discovery.namespace_name}"
+    ALLOWED_HOSTS = "*"  # Allow all hosts since service is behind ALB in private VPC
 
     # Database Connection
     DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_user.db_endpoint}/user_db"
@@ -561,7 +561,7 @@ module "ecs_service_question" {
   environment_variables = {
     DEBUG             = "false"
     SECRET_KEY        = var.secret_key
-    ALLOWED_HOSTS     = "${module.alb.alb_dns_name},question-service,question-service.${module.service_discovery.namespace_name}"
+    ALLOWED_HOSTS     = "*"  # Allow all hosts since service is behind ALB in private VPC
     DJANGO_USE_SQLITE = "0"
 
     # Database Connection
@@ -626,7 +626,7 @@ module "ecs_service_matching" {
   # Environment Variables
   environment_variables = {
     DEBUG         = "false"
-    ALLOWED_HOSTS = "${module.alb.alb_dns_name},matching-service,matching-service.${module.service_discovery.namespace_name}"
+    ALLOWED_HOSTS = "*"  # Allow all hosts since service is behind ALB in private VPC
 
     # Database Connection
     DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_matching.db_endpoint}/matching_db"
@@ -695,7 +695,7 @@ module "ecs_service_history" {
   environment_variables = {
     DEBUG         = "false"
     SECRET_KEY    = var.secret_key
-    ALLOWED_HOSTS = "${module.alb.alb_dns_name},history-service,history-service.${module.service_discovery.namespace_name}"
+    ALLOWED_HOSTS = "*"  # Allow all hosts since service is behind ALB in private VPC
 
     # Database Connection
     DATABASE_URL = "postgresql://${var.db_username}:${var.db_password}@${module.rds_history.db_endpoint}/history_db"

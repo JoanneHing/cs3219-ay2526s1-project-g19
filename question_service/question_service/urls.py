@@ -16,9 +16,15 @@ Including another URLconf
 """
 # question_service/question_service/urls.py
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from .view import QuestionViewSet, TopicsView
+
+
+def health_check(request):
+    """Health check endpoint for ALB"""
+    return JsonResponse({"status": "healthy"}, status=200)
 
 
 class ProxyAwareSwaggerView(SpectacularSwaggerView):
@@ -44,6 +50,7 @@ router = DefaultRouter()
 router.register(r"questions", QuestionViewSet, basename="questions")
 
 urlpatterns = [
+    path("health", health_check, name="health"),  # Health check for ALB
     path("api/", include(router.urls)),
     path("api/topics", TopicsView.as_view(), name="topics"),
 

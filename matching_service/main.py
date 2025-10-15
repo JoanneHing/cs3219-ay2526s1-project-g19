@@ -23,6 +23,12 @@ router = APIRouter(
 app = FastAPI()
 
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for ALB"""
+    return {"status": "healthy"}
+
+
 @app.get("/test_ws")
 async def get():
     html_file = Path("ws_test/ws_test_screen.html")

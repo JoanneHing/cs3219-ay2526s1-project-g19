@@ -21,6 +21,10 @@ sio.attach(app)
 # Initialize Redis connection
 redis_client = None
 
+async def health_check(request):
+    """Health check endpoint for ALB"""
+    return web.json_response({"status": "healthy"})
+
 async def init_redis():
     """Initialize Redis connection."""
     global redis_client
@@ -139,6 +143,9 @@ async def startup_sequence(app):
     """Run startup sequence."""
     await init_redis()
     await cleanup_on_startup()
+
+# Add health check route
+app.router.add_get('/health', health_check)
 
 # Run the server
 if __name__ == "__main__":

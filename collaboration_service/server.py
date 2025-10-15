@@ -17,6 +17,10 @@ sio.attach(app)
 # Initialize Redis connection
 redis = None
 
+async def health_check(request):
+    """Health check endpoint for ALB"""
+    return web.json_response({"status": "healthy"})
+
 async def init_redis():
     global redis
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -121,6 +125,9 @@ async def cursor(sid, data):
     await sio.emit("cursor", cursor_data.to_dict(), room=room, skip_sid=sid)
 
     logger.info(f"Cursor update from {sid} in room {room} at line {cursor_data.line}, ch {cursor_data.ch}")
+
+# Add health check route
+app.router.add_get('/health', health_check)
 
 # Run the server
 if __name__ == "__main__":
