@@ -24,16 +24,14 @@ include:
 
   # Backend Services
   - path: ./question_service/docker-compose.yml
-
   - path: ./matching_service/docker-compose.yml
-
   - path: ./history_service/docker-compose.yml
-
   - path: ./user_service/docker-compose.yml
-
   - path: ./collaboration_service/docker-compose.yml
-
   - path: ./chat_service/docker-compose.yml
+
+networks:
+  shared_network:
 
 # Note: Networks are defined in individual service files
 # The shared_network is external and must be created before first run

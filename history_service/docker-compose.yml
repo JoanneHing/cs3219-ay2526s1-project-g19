@@ -63,8 +63,6 @@ volumes:
 
 networks:
   shared_network:
-    external: true
-    name: peerprep_shared_network
   history_network:
     driver: bridge
     name: peerprep_history_network
