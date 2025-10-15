@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+import os
 import uvicorn
 import logging
 from service.django_question_service import django_question_service
