@@ -25,6 +25,15 @@ services:
       - HISTORY_SERVICE_URL=${HISTORY_SERVICE_URL:-http://history-service:8000}
       - COLLABORATION_SERVICE_URL=${COLLABORATION_SERVICE_URL:-http://collaboration-service:8000}
       - CHAT_SERVICE_URL=${CHAT_SERVICE_URL:-http://chat-service:8000}
+      # Email configuration
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      - EMAIL_HOST=${EMAIL_HOST:-smtp.gmail.com}
+      - EMAIL_PORT=${EMAIL_PORT:-587}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS:-false}
+      - EMAIL_USE_SSL=${EMAIL_USE_SSL:-false}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@peerprep.com}
     volumes:
       - ./:/app:rw
     networks:
