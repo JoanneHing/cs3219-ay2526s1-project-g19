@@ -2,17 +2,52 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import io from "socket.io-client"
 import CodeMirror from "@uiw/react-codemirror"
 import { python } from "@codemirror/lang-python"
+import { java } from "@codemirror/lang-java"
+import { javascript } from "@codemirror/lang-javascript"
+import { cpp } from "@codemirror/lang-cpp"
 import { sublime } from "@uiw/codemirror-theme-sublime"
-import { EditorView, Decoration, WidgetType } from "@codemirror/view"
-import { StateField } from "@codemirror/state"
+import { EditorView } from "@codemirror/view"
+import { createLinter } from "./codeeditor/utils/Linter"
+import { createCursorsField, posToLineChar, getUserColor } from "./codeeditor/utils/CursorWidget"
 import EditorHeader from "./codeeditor/EditorHeader"
 import EditorStatsBar from "./codeeditor/EditorCursorBar"
 import EditorRunButton from "./codeeditor/EditorRunButton"
 import EditorOutputTerminal from "./codeeditor/EditorOutputTerminal"
 
-const CodeEditor = ({ room, currentUsername }) => {
+const CodeEditor = ({ room, currentUsername, language }) => {
+    const getDefaultCode = (lang) => {
+        switch (lang) {
+            case "Python":
+                return "print('Hello, World!')"
+            case "Javascript":
+                return "console.log('Hello, World!');"
+            case "Java":
+                return `public class Main {
+  public static void main(String[] args) {
+    System.out.println("Hello, World!");
+  }
+}`
+            case "C++":
+                return `#include <iostream>
+using namespace std;
+
+int main() {
+  cout << "Hello, World!" << endl;
+  return 0;
+}`
+            case "C":
+                return `#include <stdio.h>
+
+int main() {
+  printf("Hello, World!\\n");
+  return 0;
+}`
+            default:
+                return "print('Hello, World!')"
+        }
+    }
     const [code, setCode] = useState({
-        value: "print('hello world')",
+        value: getDefaultCode(language),
         isReceived: false,
     })
     const [output, setOutput] = useState("")
@@ -25,11 +60,38 @@ const CodeEditor = ({ room, currentUsername }) => {
     const cursorsRef = useRef({})
     const lastEmitTime = useRef(0)
 
+    const getLanguageExtension = (lang) => {
+        switch (lang) {
+            case "python":
+                return python()
+            case "javascript":
+                return javascript()
+            case "java":
+                return java()
+            case "c":
+            case "C":
+                return cpp() // C uses cpp extension
+            case "cpp":
+            case "C++":
+                return cpp()
+            default:
+                return python()
+        }
+    }
+
+    const getLinter = (lang) => {
+        return createLinter(lang)
+    }
+
+    // Create cursors field using the abstracted function
+    const cursorsField = createCursorsField(cursorsRef)
+
     const handleBeforeUnload = useCallback(() => {
         if (collabSocketRef.current) {
+            collabSocketRef.current.emit("leave", { room: room })
             collabSocketRef.current.disconnect()
         }
-    }, [])
+    }, [room])
 
     useEffect(() => {
         // Initialize collaboration socket
@@ -46,7 +108,9 @@ const CodeEditor = ({ room, currentUsername }) => {
         })
 
         collabSocketRef.current.on("disconnect", () => {
+            console.log("Disconnected from collaboration server")
             setIsConnected(false)
+            setRemoteCursors({}) // Clear all cursors on disconnect
         })
 
         window.addEventListener("beforeunload", handleBeforeUnload)
@@ -63,151 +127,10 @@ const CodeEditor = ({ room, currentUsername }) => {
         cursorsRef.current = remoteCursors
     }, [remoteCursors])
 
-    const lineCharToPos = (doc, lineChar) => {
-        try {
-            if (lineChar.line > doc.lines) return doc.length
-            const line = doc.line(lineChar.line)
-            return line.from + Math.min(lineChar.ch, line.length)
-        } catch {
-            return 0
-        }
-    }
-
-    const posToLineChar = (doc, pos) => {
-        const line = doc.lineAt(pos)
-        return {
-            line: line.number,
-            ch: pos - line.from
-        }
-    }
-
-    class CursorWidget extends WidgetType {
-        constructor(userId, color, username) {
-            super()
-            this.userId = userId
-            this.color = color
-            this.username = username
-        }
-
-        toDOM() {
-            const wrapper = document.createElement("span")
-            wrapper.className = "remote-cursor-wrapper"
-            wrapper.style.cssText = `
-                position: relative;
-                display: inline-block;
-                pointer-events: auto;
-            `
-            
-            const cursor = document.createElement("span")
-            cursor.className = "remote-cursor"
-            cursor.style.cssText = `
-                border-left: 2px solid ${this.color};
-                height: 1.2em;
-                display: inline-block;
-                position: relative;
-                margin-left: -1px;
-            `
-            
-            const label = document.createElement("div")
-            label.textContent = this.username
-            label.className = "cursor-label"
-            label.style.cssText = `
-                position: absolute;
-                bottom: 100%;
-                left: 0;
-                background: ${this.color};
-                color: white;
-                padding: 4px 8px;
-                border-radius: 4px;
-                font-size: 12px;
-                font-weight: 500;
-                white-space: nowrap;
-                z-index: 10000;
-                opacity: 0;
-                transition: opacity 0.2s ease;
-                pointer-events: none;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                margin-bottom: 4px;
-            `
-            
-            wrapper.appendChild(cursor)
-            wrapper.appendChild(label)
-            
-            wrapper.addEventListener('mouseenter', () => {
-                label.style.opacity = '1'
-            })
-            wrapper.addEventListener('mouseleave', () => {
-                label.style.opacity = '0'
-            })
-            
-            // Also show on click/touch for better mobile support
-            wrapper.addEventListener('click', () => {
-                label.style.opacity = '1'
-                setTimeout(() => {
-                    label.style.opacity = '0'
-                }, 2000)
-            })
-            
-            return wrapper
-        }
-
-        eq(other) {
-            return other instanceof CursorWidget && 
-                   this.userId === other.userId && 
-                   this.color === other.color &&
-                   this.username === other.username
-        }
-
-        updateDOM() {
-            return false
-        }
-
-        get estimatedHeight() {
-            return 0
-        }
-
-        ignoreEvent() {
-            return false
-        }
-    }
-
-    const cursorsField = StateField.define({
-        create() {
-            return Decoration.none
-        },
-        update(cursors, tr) {
-            const decorations = []
-            const currentCursors = cursorsRef.current
-            
-            Object.entries(currentCursors).forEach(([userId, cursor]) => {
-                const pos = lineCharToPos(tr.state.doc, { line: cursor.line, ch: cursor.ch })
-                if (pos >= 0 && pos <= tr.state.doc.length) {
-                    const decoration = Decoration.widget({
-                        widget: new CursorWidget(userId, cursor.color, cursor.username),
-                        side: 1
-                    })
-                    decorations.push(decoration.range(pos))
-                }
-            })
-            
-            return Decoration.set(decorations, true)
-        },
-        provide: f => EditorView.decorations.from(f)
-    })
-
-    const getUserColor = (userId) => {
-        const colors = ['#FF4136', '#2ECC40', '#0074D9', '#B10DC9', '#FF851B', '#FFDC00']
-        let hash = 0
-        for (let i = 0; i < userId.length; i++) {
-            hash = ((hash << 5) - hash + userId.charCodeAt(i)) & 0xffffffff
-        }
-        return colors[Math.abs(hash) % colors.length]
-    }
-
     const emitCursorPosition = (lineChar) => {
         const now = Date.now()
         if (now - lastEmitTime.current < 100) return
-        
+
         lastEmitTime.current = now
         if (collabSocketRef.current && collabSocketRef.current.connected) {
             collabSocketRef.current.emit("cursor", {
@@ -236,7 +159,7 @@ const CodeEditor = ({ room, currentUsername }) => {
 
         collabSocketRef.current.on("cursor", (data) => {
             console.log("Received cursor update:", data)
-            
+
             if (data.userId !== collabSocketRef.current.id) {
                 setRemoteCursors(prev => ({
                     ...prev,
@@ -244,7 +167,7 @@ const CodeEditor = ({ room, currentUsername }) => {
                         line: data.line,
                         ch: data.ch,
                         color: getUserColor(data.userId),
-                        username: currentUsername,
+                        username: data.username,
                         timestamp: Date.now()
                     }
                 }))
@@ -252,6 +175,7 @@ const CodeEditor = ({ room, currentUsername }) => {
         })
 
         collabSocketRef.current.on("user_left", (data) => {
+            console.log("User left:", data)
             setRemoteCursors(prev => {
                 const newCursors = { ...prev }
                 delete newCursors[data.userId]
@@ -272,7 +196,7 @@ const CodeEditor = ({ room, currentUsername }) => {
             setRemoteCursors(prev => {
                 const filtered = {}
                 let hasChanges = false
-                
+
                 Object.entries(prev).forEach(([userId, cursor]) => {
                     if (now - cursor.timestamp < 60000) {
                         filtered[userId] = cursor
@@ -280,7 +204,7 @@ const CodeEditor = ({ room, currentUsername }) => {
                         hasChanges = true
                     }
                 })
-                
+
                 return hasChanges ? filtered : prev
             })
         }, 10000)
@@ -300,16 +224,19 @@ const CodeEditor = ({ room, currentUsername }) => {
     const runCode = async () => {
         setIsRunning(true)
         setOutput("Running...")
-        
+
         try {
             const response = await fetch(`${import.meta.env.VITE_EXECUTION_API}/run`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ code: code.value }),
+                body: JSON.stringify({
+                    code: code.value,
+                    language: language // Send language to execution service
+                }),
             })
-            
+
             const data = await response.json()
             setOutput(data.output || data.error)
         } catch (error) {
@@ -319,8 +246,11 @@ const CodeEditor = ({ room, currentUsername }) => {
         }
     }
 
+    const currentLinter = getLinter(language)
+
     const cursorExtension = [
         cursorsField,
+        ...(currentLinter ? [currentLinter] : []),
         EditorView.updateListener.of((update) => {
             if (update.selectionSet) {
                 const pos = update.state.selection.main.head
@@ -348,13 +278,15 @@ const CodeEditor = ({ room, currentUsername }) => {
         <div className="w-full max-w-6xl mx-auto p-6 space-y-4">
             <EditorStatsBar cursorPosition={cursorPosition} remoteCursors={remoteCursors} />
             <div className="rounded-xl overflow-hidden shadow-2xl border border-slate-700">
-                <EditorHeader filename="editor.py" />
+                <EditorHeader
+                    language={language}
+                />
                 <CodeMirror
                     value={code.value}
                     height="50vh"
                     maxHeight="50vh"
                     onChange={(value) => updateCode(room, value)}
-                    extensions={[python(), ...cursorExtension]}
+                    extensions={[getLanguageExtension(language), ...cursorExtension]}
                     theme={sublime}
                     onCreateEditor={(view) => {
                         editorViewRef.current = view

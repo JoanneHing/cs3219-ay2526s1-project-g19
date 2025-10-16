@@ -11,7 +11,7 @@ const EditorCursorBar = ({ cursorPosition, remoteCursors }) => (
           <div>
             <div className="text-white font-semibold">Your Position</div>
             <div className="text-slate-300 text-sm font-mono">
-              Line {cursorPosition.line}, Col {cursorPosition.ch + 1}
+              Line {cursorPosition.line}, Character {cursorPosition.ch + 1}
             </div>
           </div>
         </div>
@@ -37,7 +37,7 @@ const EditorCursorBar = ({ cursorPosition, remoteCursors }) => (
               style={{ backgroundColor: cursor.color }}
             />
             <span className="text-slate-200 text-sm font-mono">
-              User {userId.slice(-4)}: L{cursor.line}:C{cursor.ch + 1}
+              {cursor.username}: L{cursor.line}:C{cursor.ch + 1}
             </span>
           </div>
         ))}

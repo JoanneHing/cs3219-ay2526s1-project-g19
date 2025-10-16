@@ -118,7 +118,10 @@ def register_handlers(sio: socketio.AsyncServer):
         cache_key = f"chat_history_{room}"
         try:
             await redis_client.rpush(cache_key, json.dumps(message_data.to_dict()))
-            await redis_client.ltrim(cache_key, -100, -1)  # keep last 100
+            # Keep only last 100 messages
+            await redis_client.ltrim(cache_key, -100, -1)
+            # Set expiry time (refreshes on every message)
+            await redis_client.expire(cache_key, EXPIRY_TIME)
         except Exception:
             logger.exception("Redis write failed for %s", cache_key)
 
