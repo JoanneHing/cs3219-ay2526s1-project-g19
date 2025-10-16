@@ -760,6 +760,7 @@ module "ecs_service_collaboration" {
   environment_variables = {
     DEBUG = "false"
     PORT  = "8000"
+    SERVICE_PREFIX = "/collaboration-service-api"
 
     # Redis Connection (for WebSocket session management)
     REDIS_URL  = "redis://${module.elasticache_collaboration.redis_endpoint}:6379/0"
@@ -821,6 +822,7 @@ module "ecs_service_chat" {
   environment_variables = {
     DEBUG = "false"
     PORT  = "8000"
+    SERVICE_PREFIX = "/chat-service-api"
 
     # Redis Connection (for WebSocket session management)
     REDIS_URL  = "redis://${module.elasticache_chat.redis_endpoint}:6379/0"

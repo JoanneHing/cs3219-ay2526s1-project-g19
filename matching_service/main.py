@@ -54,6 +54,12 @@ app.add_api_route(
     include_in_schema=False,
 )
 
+
+@app.get("/", include_in_schema=False)
+async def root_status():
+    """Legacy landing endpoint that previously returned 404."""
+    return {"ok": True}
+
 router.add_api_route(
     "/health",
     endpoint=health_check,

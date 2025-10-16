@@ -1,9 +1,16 @@
 import logging
 import os
 import socketio
+from socketio import AsyncRedisManager  # NEW: cluster manager
 from aiohttp import web
 import redis.asyncio as aioredis
 from schemas import CodeChangeData, CursorData, ErrorData, RoomJoinData
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,22 +21,39 @@ if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
     SERVICE_PREFIX = "/" + SERVICE_PREFIX
 SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")  # centralize
+
 
 @web.middleware
 async def fixed_prefix_middleware(request, handler):
     """
     Strip a configured prefix so the service can respond on both the root path
     and the prefixed path (e.g. behind nginx /collaboration-service-api).
+    Also re-prefix Location headers on redirects.
     """
+    target_request = request
     if SERVICE_PREFIX and request.path.startswith(SERVICE_PREFIX):
         stripped_path = request.path[len(SERVICE_PREFIX):] or "/"
-        new_request = request.clone(rel_url=request.rel_url.with_path(stripped_path))
-        response = await handler(new_request)
+        rel_url = request.rel_url.with_path(stripped_path)
+        clone_kwargs = {"rel_url": rel_url, "headers": request.headers.copy()}
+        target_request = request.clone(**clone_kwargs)
+        logging.info("prefix rewrite: %s -> %s", request.path_qs, target_request.path_qs)
+
+    response = await handler(target_request)
+
+    logging.info(
+        "REQ %s %s -> %s",
+        request.method,
+        target_request.path_qs if target_request is not request else request.path_qs,
+        response.status,
+    )
+
+    if SERVICE_PREFIX:
         location = response.headers.get("Location")
         if location and location.startswith("/") and not location.startswith(SERVICE_PREFIX):
             response.headers["Location"] = f"{SERVICE_PREFIX}{location}"
-        return response
-    return await handler(request)
+
+    return response
 
 
 async def health_check(request):
@@ -37,42 +61,46 @@ async def health_check(request):
     return web.json_response({"status": "healthy"})
 
 
-sio = socketio.AsyncServer(cors_allowed_origins="*")
-app = web.Application(middlewares=[fixed_prefix_middleware])
-sio.attach(app)
+# --- Socket.IO server clustered with Redis ---
+sio = socketio.AsyncServer(
+    cors_allowed_origins="*",
+    logger=True,
+    engineio_logger=True,
+    client_manager=AsyncRedisManager(REDIS_URL),  # <--- KEY LINE: cross-pod fanout
+    ping_interval=25,
+    ping_timeout=60,
+)
 
+# Create main app and ATTACH ONCE. Register middleware.
+app = web.Application()
+sio.attach(app, socketio_path="socket.io")
+
+# Health routes (work at both /health and /{prefix}/health thanks to middleware)
 app.router.add_get("/health", health_check)
 app.router.add_get("/health/", health_check)
 
-logger.info("Application configured to run at '/' and '%s/'", SERVICE_PREFIX or "/")
+# Create prefixed subapp, attach socket.io again (so /prefix/socket.io works)
+prefixed_app = web.Application()
+sio.attach(prefixed_app, socketio_path="socket.io")
+prefixed_app.router.add_get("/health", health_check)
+prefixed_app.router.add_get("/health/", health_check)
+app.add_subapp(SERVICE_PREFIX, prefixed_app)
 
 
-# # Sub-app with prefix
-# api_app = web.Application()
-# sio.attach(api_app)
-# api_app.router.add_get('/health', health_check)
 
-# # Mount under prefix
-# app.add_subapp('/collaboration-service-api', api_app)
-
-# # Also mount same app at root
-# root_app = web.Application()
-# sio.attach(root_app)
-# root_app.router.add_get('/health', health_check)
-# app.add_subapp('/', root_app)
-
-# Add health check route directly to main app
-
-
-# Initialize Redis connection
+# Initialize Redis connection (for cached code snapshots)
 redis = None
 
-
-async def init_redis():
+async def init_redis(app):
     global redis
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-    redis = await aioredis.from_url(redis_url, decode_responses=True)
-    logger.info(f"Connected to Redis at {redis_url}")
+    try:
+        redis = await aioredis.from_url(REDIS_URL, decode_responses=True)
+        logger.info(f"Connected to Redis at {REDIS_URL}")
+    except Exception as e:
+        logger.exception("Failed to connect to Redis")
+        # Fail fast so the container restarts rather than running half-broken
+        raise
+
 
 @sio.event
 async def connect(sid, environ):
@@ -101,17 +129,20 @@ async def join(sid, data):
 
     # Send cached code if it exists
     cache_key = f"room:{join_data.room}:code"
-    cached_code = await redis.get(cache_key)
+    try:
+        cached_code = await redis.get(cache_key)
+    except Exception:
+        cached_code = None
+        logger.exception("Redis GET failed for %s", cache_key)
+
     if cached_code:
         print(f"Found cached code for room {join_data.room}, sending to SID {sid}")
         code_data = CodeChangeData(code=cached_code)
         await sio.emit("receive", code_data.to_dict(), to=sid)
 
+
 @sio.event
 async def change(sid, data):
-    """
-    Handle code changes and broadcast them to the room.
-    """
     room = data.get("room")
     code = data.get("code")
 
@@ -122,22 +153,22 @@ async def change(sid, data):
         await sio.emit("error", error.to_dict(), to=sid)
         return
 
-    # Create structured code change data
     code_change = CodeChangeData(code=code)
 
-    # Cache the new code in Redis
+    # Cache the new code in Redis for late joiners
     cache_key = f"room:{room}:code"
-    await redis.setex(cache_key, EXPIRY_TIME, code)
+    try:
+        await redis.setex(cache_key, EXPIRY_TIME, code)
+    except Exception:
+        logger.exception("Redis SETEX failed for %s", cache_key)
 
-    # Broadcast the code change to others in the room, except the sender
+    # Broadcast the code change to others in the room, across pods
     await sio.emit("receive", code_change.to_dict(), room=room, skip_sid=sid)
     logger.info(f"Code change broadcasted to room {room} by SID {sid}")
 
+
 @sio.event
 async def leave(sid, data):
-    """
-    Handle a user leaving a room.
-    """
     room = data.get("room")
     if not room:
         error = ErrorData("room is required")
@@ -148,13 +179,12 @@ async def leave(sid, data):
     logger.info(f"SID {sid} left room {room}")
     print(f"SID {sid} left room {room}")
 
+
 @sio.event
 async def disconnect(sid):
-    """
-    Handle WebSocket disconnection.
-    """
     logger.info(f"WebSocket: disconnect called for SID {sid}")
     print(f"WebSocket: disconnect called for SID {sid}")
+
 
 @sio.event
 async def cursor(sid, data):
@@ -165,17 +195,16 @@ async def cursor(sid, data):
         await sio.emit("error", error.to_dict(), to=sid)
         return
 
-    # Create structured cursor data
     cursor_data = CursorData.from_dict(data, sid)
 
-    # Broadcast cursor position to all other users in the room
+    # Volatile broadcast; no persistence
     await sio.emit("cursor", cursor_data.to_dict(), room=room, skip_sid=sid)
-
     logger.info(f"Cursor update from {sid} in room {room} at line {cursor_data.line}, ch {cursor_data.ch}")
 
 
 # Run the server
 if __name__ == "__main__":
-    app.on_startup.append(lambda app: init_redis())  # Initialize Redis on startup
-    port = int(os.environ.get("PORT", 8005))  # Read from env or default to 8005
+    # Ensure Redis connection is ready before serving
+    app.on_startup.append(init_redis)
+    port = int(os.environ.get("PORT", 8005))
     web.run_app(app, port=port)

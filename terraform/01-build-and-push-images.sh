@@ -88,10 +88,26 @@ for i in "${!SERVICE_NAMES[@]}"; do
     fi
 
     # Build for linux/amd64 platform (required for ECS)
+    build_args=(
+        --platform linux/amd64
+        -t "$IMAGE_NAME:latest"
+        -t "$FULL_IMAGE_NAME"
+    )
+
+    if [ "$SERVICE_NAME" = "frontend" ]; then
+        build_args+=(
+            --build-arg "VITE_QUESTION_SERVICE_URL=${VITE_QUESTION_SERVICE_URL:-/question-service-api}"
+            --build-arg "VITE_MATCHING_SERVICE_URL=${VITE_MATCHING_SERVICE_URL:-/matching-service-api}"
+            --build-arg "VITE_HISTORY_SERVICE_URL=${VITE_HISTORY_SERVICE_URL:-/history-service-api}"
+            --build-arg "VITE_USER_SERVICE_URL=${VITE_USER_SERVICE_URL:-/user-service-api}"
+            --build-arg "VITE_COLLABORATION_SERVICE_URL=${VITE_COLLABORATION_SERVICE_URL:-/collaboration-service-api}"
+            --build-arg "VITE_CHAT_SERVICE_URL=${VITE_CHAT_SERVICE_URL:-/chat-service-api}"
+            --build-arg "VITE_EXECUTION_API=${VITE_EXECUTION_API:-}"
+        )
+    fi
+
     docker build \
-        --platform linux/amd64 \
-        -t "$IMAGE_NAME:latest" \
-        -t "$FULL_IMAGE_NAME" \
+        "${build_args[@]}" \
         "$SERVICE_DIR"
 
     echo -e "${GREEN}✓ Built $SERVICE_NAME${NC}"
