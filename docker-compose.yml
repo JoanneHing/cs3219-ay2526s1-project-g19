@@ -44,6 +44,8 @@ services:
     image: apache/kafka:4.0.1
     depends_on:
       - kafka
+    env_file:
+      - .env
     networks:
       - shared_network
     environment:

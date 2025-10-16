@@ -12,7 +12,7 @@ done
 echo "Kafka ready, creating topics..."
 
 # Loop through all topics from env
-for TOPIC_VAR in TOPIC_MATCH_FOUND TOPIC_USER_ACTIVITY; do
+for TOPIC_VAR in TOPIC_MATCH_FOUND TOPIC_QUESTION_FOUND; do
   TOPIC_NAME="${!TOPIC_VAR}"
   echo "Creating topic: $TOPIC_NAME"
   /opt/kafka/bin/kafka-topics.sh --create \
