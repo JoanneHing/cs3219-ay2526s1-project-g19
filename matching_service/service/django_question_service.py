@@ -15,7 +15,7 @@ class DjangoQuestionService:
         self.get_difficulty_path = "/api/difficulty"
 
     async def shutdown(self):
-        self.client.aclose()
+        await self.client.aclose()
         return
 
     async def get_topics(self) -> list[str]:

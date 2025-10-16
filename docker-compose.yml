@@ -17,6 +17,42 @@
 #    Production: Copy .env.prod.sample to .env.prod
 # =============================================================================
 
+services:
+  kafka:
+    image: apache/kafka:4.0.1
+    container_name: peerprep_kafka
+    ports:
+      - 9092:9092
+    volumes:
+      - peerprep_kafka:/kafka/logs
+    networks:
+      - shared_network
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://peerprep_kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+  init-topics:
+    image: apache/kafka:4.0.1
+    depends_on:
+      - kafka
+    networks:
+      - shared_network
+    environment:
+      KAFKA_HOST: peerprep_kafka
+      KAFKA_PORT: 9092
+    volumes:
+      - ./scripts:/scripts
+    command: /scripts/init-kafka-topics.sh
+
 include:
   # Frontend
   - path: ./frontend/docker-compose.yml
@@ -31,3 +67,6 @@ include:
 
 networks:
   shared_network:
+
+volumes:
+  peerprep_kafka:
