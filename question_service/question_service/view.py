@@ -43,7 +43,8 @@ class QuestionFilter(FilterSet):
         values = self.request.query_params.getlist("topic") or [value]
         q = Q()
         for v in values:
-            q |= Q(topics__icontains=v)  # JSON contains; swap for ArrayField with overlap if you change type
+            # Use JSON contains to match list values reliably on Postgres/SQLite
+            q |= Q(topics__contains=[v])
         return qs.filter(q)
 
     def filter_popularity_min(self, qs, name, value):
@@ -135,7 +136,7 @@ class QuestionFilter(FilterSet):
                 location=OpenApiParameter.QUERY,
                 description="Sort field",
                 required=False,
-                enum=["newest", "created_at", "difficulty", "percentage_solved", "popularity", "topic", "category"],
+                enum=["newest", "created_at", "difficulty", "percentage_solved", "popularity", "topic", "category", "random"],
             ),
             OpenApiParameter(
                 name="order",
@@ -144,6 +145,13 @@ class QuestionFilter(FilterSet):
                 description="Sort order",
                 required=False,
                 enum=["asc", "desc"],
+            ),
+            OpenApiParameter(
+                name="random",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Return random items after filters (alias of sort=random). Defaults to 1 item unless limit is set.",
+                required=False,
             ),
         ],
         responses={200: QuestionSerializer(many=True)},
@@ -216,20 +224,31 @@ class QuestionViewSet(mixins.ListModelMixin,
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
 
-        # sorting
+        # random selection support
+        random_flag = (request.query_params.get("random", "").strip().lower())
         sort = request.query_params.get("sort", "created_at")
-        order = request.query_params.get("order", "desc")
-        prefix = "-" if order == "desc" else ""
-        sort_map = {
-            "newest": f"{prefix}created_at",
-            "created_at": f"{prefix}created_at",
-            "difficulty": f"{prefix}difficulty",
-            "percentage_solved": f"{prefix}percentage_solved_annot",
-            "popularity": f"{prefix}popularity",
-            "topic": f"{prefix}title",
-            "category": f"{prefix}title",
-        }
-        qs = qs.order_by(sort_map.get(sort, f"-created_at"))
+        is_random = random_flag in ("1", "true", "yes") or sort == "random"
+
+        if is_random:
+            # Random order across DBs (Postgres/SQLite)
+            qs = qs.order_by("?")
+            # By default limit to 1 for matching service unless a limit is provided
+            if request.query_params.get("limit") is None and request.query_params.get("page_size") is None:
+                qs = qs[:1]
+        else:
+            # sorting
+            order = request.query_params.get("order", "desc")
+            prefix = "-" if order == "desc" else ""
+            sort_map = {
+                "newest": f"{prefix}created_at",
+                "created_at": f"{prefix}created_at",
+                "difficulty": f"{prefix}difficulty",
+                "percentage_solved": f"{prefix}percentage_solved_annot",
+                "popularity": f"{prefix}popularity",
+                "topic": f"{prefix}title",
+                "category": f"{prefix}title",
+            }
+            qs = qs.order_by(sort_map.get(sort, f"-created_at"))
 
         # Always return full detail serializer for list responses
         page = self.paginate_queryset(qs)
