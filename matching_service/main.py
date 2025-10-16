@@ -28,8 +28,17 @@ if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
     SERVICE_PREFIX = "/" + SERVICE_PREFIX
 SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Running events on start...")
+    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
+    yield
+    logger.info("Cleaning up events on shutdown...")
+    expiry_event_listener.cancel()
+    await django_question_service.shutdown()
+
 router = APIRouter(prefix="/api", redirect_slashes=False)
-app = FastAPI(redirect_slashes=False)
+app = FastAPI(redirect_slashes=False, lifespan=lifespan)
 allowed_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
 
 app.add_middleware(
@@ -66,16 +75,6 @@ router.add_api_route(
     methods=["GET"],
     include_in_schema=False,
 )
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Running events on start...")
-    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
-    yield
-    logger.info("Cleaning up events on shutdown...")
-    expiry_event_listener.cancel()
-    await django_question_service.shutdown()
-
 
 @app.get("/test_ws")
 async def get():
