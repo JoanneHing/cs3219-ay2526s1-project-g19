@@ -48,6 +48,7 @@ graph LR
 Operators follow scripted steps today: validate prerequisites, deploy infrastructure, build and push ECR images, run migrations, verify the stack, and optionally force ECS to refresh tasks. `DEPLOY.sh` chains those scripts; the next increment is to encode the same stages inside GitHub Actions so build » test » scan » push is gated automatically before a Terraform apply and production deploy.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 flowchart TD
   start([Kick off DEPLOY.sh]) --> checklist["00-pre-deployment-checklist.sh<br/>Tools & creds OK?"]
   checklist -->|pass| tf["02-deploy-infrastructure.sh<br/>terraform init/plan/apply"]
@@ -58,6 +59,9 @@ flowchart TD
   refresh --> done([Deployment complete])
   checklist -->|fail| stop1([Fix issues, rerun])
   tf -->|plan rejected| stop2([Abort until reviewed])
+
+  classDef wider padding:10px
+  class checklist,tf,build,migrate,verify,refresh wider
 ```
 
 ## Alignment with Scalability and Production Readiness
@@ -65,6 +69,7 @@ flowchart TD
 Terraform provisions an ECS Fargate cluster, Cloud Map service discovery, an ALB with path-based routing, and autoscaling policies anchored on CPU, memory, and ALB request counts. Each must-have service defaults to two tasks, leaves 50% of capacity healthy during deploys (max 200%), and uses ECS’ deployment circuit breaker so failed rollouts revert automatically. Managed RDS/Redis back the stateful pieces, while compose parity ensures dev/prod behavior matches.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 graph TD
   ALB["Application Load Balancer<br/>path-based routing"] --> UserTG["user-service TG"]
   ALB --> QuestionTG["question-service TG"]
@@ -110,6 +115,9 @@ graph TD
   CloudMap --> CollabECS
   CloudMap --> ChatECS
   CloudMap --> FrontendECS
+
+  classDef wider padding:10px
+  class ALB,UserTG,QuestionTG,MatchingTG,HistoryTG,CollabTG,ChatTG,FrontendTG,UserECS,QuestionECS,MatchingECS,HistoryECS,CollabECS,ChatECS,FrontendECS,RDSUser,RDSQuestion,RDSMatching,RDSHistory,RedisMatching,RedisCollab,RedisChat,CloudMap wider
 ```
 
 ## Implementation Tech Stack
@@ -117,6 +125,7 @@ graph TD
 Backends run Django (user/question/history) or FastAPI/Socket.IO (matching/collaboration/chat) on slim Python images and install dependencies via `pip`; the frontend builds with Vite under Node 22, then serves static assets through Nginx with runtime `envsubst`. `01-build-and-push-images.sh` enforces `--platform linux/amd64`, clears caches, and tags both local and ECR images. Image/security scanning is currently manual—adding Trivy or ECR scans plus Git SHA tags is the next increment.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 graph LR
   subgraph FrontendStack["Frontend"]
     FEStack["Vite + React<br/>node:22-slim → nginx:alpine"]
@@ -148,6 +157,9 @@ graph LR
   FastAPIEntrypoint --> ImageBuild
   ImageBuild --> ECRTag["ECR tag :latest<br/>+ planned Git SHA"]
   ECRTag -. future .-> Trivy["Security scan gate"]
+
+  classDef wider padding:10px
+  class FEStack,npmci,UserSvc,QuestionSvc,HistorySvc,DjangoEntrypoint,MatchingSvc,CollabSvc,ChatSvc,FastAPIEntrypoint,ImageBuild,ECRTag,Trivy wider
 ```
 
 ## Configuration and Secrets
@@ -155,6 +167,7 @@ graph LR
 Local developers copy `.env.sample`/`.env.prod.sample` into `.env`/`.env.prod`, which docker-compose reads. Terraform consumes `terraform.tfvars` (holding non-committed values like `db_password`, `secret_key`) and injects them into ECS task definitions as environment variables. `ENVIRONMENT_VARIABLES.md` documents the full matrix. Secrets live in Terraform variables for now; the ECS execution role already has `secretsmanager:GetSecretValue`, so we can later migrate to AWS Secrets Manager/SSM via the module’s `secrets` field.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 graph TD
   Samples[".env.sample<br/>.env.prod.sample"] --> LocalEnv[".env / .env.prod"]
   LocalEnv --> ComposeEnv["docker-compose dev/prod"]
@@ -167,6 +180,9 @@ graph TD
   Services --> Usage["Load env vars & service discovery"]
 
   SecretsMgr["AWS Secrets Manager / SSM"] -. planned migration .-> TaskDefs
+
+  classDef wider padding:10px
+  class Samples,LocalEnv,ComposeEnv,TFVars,TerraformApply,TaskDefs,FargateTasks,Services,Usage,SecretsMgr wider
 ```
 
 ## Networking and Ingress
@@ -174,6 +190,7 @@ graph TD
 Compose attaches every container to a shared bridge network plus service-specific networks for their databases/Redis (only necessary ports exposed). In AWS, Terraform builds VPC subnets, an ALB with path-based listener rules, and Cloud Map DNS so backend services call each other via `<service>.peerprep-prod.local`. The frontend Nginx template proxies the `/something-service-api` paths to the internal hostnames, and WebSocket workloads use ALB cookie stickiness.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 graph LR
   subgraph LocalCompose["Local Compose"]
     FrontendC["frontend :80/:5173"] --> SharedNet["shared_network"]
@@ -210,6 +227,9 @@ graph LR
   CloudMap --> CollabTask
   CloudMap --> ChatTask
   CloudMap --> FrontendTask
+
+  classDef wider padding:10px
+  class FrontendC,UserC,QuestionC,MatchingC,HistoryC,CollabC,ChatC,SharedNet,ALB2,UserTG,QuestionTG,MatchingTG,HistoryTG,CollabTG,ChatTG,FrontendTG,UserTask,QuestionTask,MatchingTask,HistoryTask,CollabTask,ChatTask,FrontendTask,CloudMap wider
 ```
 
 ## CI/CD and Rollout Strategy
@@ -217,6 +237,7 @@ graph LR
 The documented flow covers build → migrate → verify. When scripts run manually, Terraform plan/apply pauses for approval, then ECS performs rolling updates (min healthy 50%, max 200%) with the circuit breaker enabled. `05-force-service-update.sh` can trigger a new deployment after fresh images land. Automating the same sequence inside CI/CD will let us gate dev → staging → prod promotions behind automated tests and change approvals.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 stateDiagram-v2
   [*] --> DevBranch
   DevBranch --> CI_Build: PR push
@@ -251,6 +272,7 @@ stateDiagram-v2
 `ADD_HEALTH_ENDPOINTS.md` describes the `/health` endpoints every service should expose. Those endpoints power docker-compose health checks, ALB target group probes, and ECS task health commands. Logs flow into CloudWatch (`/ecs/peerprep-prod`) with Container Insights enabled. `04-verify-deployment.sh` performs post-deploy smoke tests; operators can tail logs or curl `/health` through the ALB. Next steps are to harden automated health dashboards and alerting on CPU/memory/request metrics, and layer in structured logging or tracing once service-level objectives are defined.
 
 ```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'fontSize':'14px'}}}%%
 graph LR
   HealthEP["/health endpoints"] --> ComposeHC["docker-compose health checks"]
   HealthEP --> ALBHC["ALB target health"]
@@ -267,4 +289,7 @@ graph LR
 
   Operator["Operator"] -->|"aws logs tail"| Logs
   Operator -->|"curl /health"| HealthEP
+
+  classDef wider padding:10px
+  class HealthEP,ComposeHC,ALBHC,ECSHC,ECS,Logs,Metrics,Alerts,VerifyScript,Operator wider
 ```
