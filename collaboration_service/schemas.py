@@ -27,6 +27,7 @@ class CodeChangeData:
 class CursorData:
     """Schema for cursor position updates."""
     user_id: str
+    username: str
     line: int = 1
     ch: int = 0
     room: Optional[str] = None
@@ -35,6 +36,7 @@ class CursorData:
         """Convert to dictionary for JSON serialization."""
         return {
             "userId": self.user_id,
+            "username": self.username,
             "line": self.line,
             "ch": self.ch
         }
@@ -44,6 +46,7 @@ class CursorData:
         """Create CursorData from dictionary."""
         return cls(
             user_id=user_id,
+            username=data.get("username", f"User-{user_id[-4:]}"),
             line=data.get("line", 1),
             ch=data.get("ch", 0),
             room=data.get("room")
@@ -67,6 +70,7 @@ class RoomJoinData:
     """Schema for room join events."""
     room: str
     user_id: str
+    username: Optional[str] = None
     cached_code: Optional[str] = None
 
     @classmethod
@@ -75,5 +79,6 @@ class RoomJoinData:
         return cls(
             room=data.get("room", ""),
             user_id=user_id,
+            username=data.get("username", f"User-{user_id[-4:]}"),
             cached_code=None
         )

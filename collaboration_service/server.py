@@ -18,10 +18,33 @@ sio.attach(app)
 redis = None
 
 async def init_redis():
+    """Initialize Redis connection."""
     global redis
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     redis = await aioredis.from_url(redis_url, decode_responses=True)
     logger.info(f"Connected to Redis at {redis_url}")
+
+async def cleanup_on_startup():
+    """Clean up all collaboration-related data on server startup."""
+    try:
+        # Get all room code keys
+        room_keys = await redis.keys("room:*:code")
+        if room_keys:
+            await redis.delete(*room_keys)
+            logger.info(f"Cleaned up {len(room_keys)} room code entries on startup")
+
+        # Get all other room-related keys (if any)
+        other_room_keys = await redis.keys("room:*")
+        if other_room_keys:
+            # Filter out already deleted keys
+            remaining_keys = [key for key in other_room_keys if key not in room_keys]
+            if remaining_keys:
+                await redis.delete(*remaining_keys)
+                logger.info(f"Cleaned up {len(remaining_keys)} other room entries on startup")
+
+        logger.info("Startup cleanup completed")
+    except Exception as e:
+        logger.error(f"Error during startup cleanup: {e}")
 
 @sio.event
 async def connect(sid, environ):
@@ -93,6 +116,9 @@ async def leave(sid, data):
         await sio.emit("error", error.to_dict(), to=sid)
         return
 
+    # Notify other users in the room that this user left
+    await sio.emit("user_left", {"userId": sid}, room=room, skip_sid=sid)
+
     await sio.leave_room(sid, room)
     logger.info(f"SID {sid} left room {room}")
     print(f"SID {sid} left room {room}")
@@ -102,6 +128,12 @@ async def disconnect(sid):
     """
     Handle WebSocket disconnection.
     """
+    # Notify all rooms that this user disconnected
+    rooms = sio.manager.get_rooms(sid, namespace='/')
+    for room in rooms:
+        if room != sid:  # Skip the user's own room
+            await sio.emit("user_left", {"userId": sid}, room=room, skip_sid=sid)
+
     logger.info(f"WebSocket: disconnect called for SID {sid}")
     print(f"WebSocket: disconnect called for SID {sid}")
 
@@ -122,8 +154,13 @@ async def cursor(sid, data):
 
     logger.info(f"Cursor update from {sid} in room {room} at line {cursor_data.line}, ch {cursor_data.ch}")
 
+async def startup_sequence(app):
+    """Run startup sequence."""
+    await init_redis()
+    await cleanup_on_startup()
+
 # Run the server
 if __name__ == "__main__":
-    app.on_startup.append(lambda app: init_redis())  # Initialize Redis on startup
+    app.on_startup.append(startup_sequence)
     port = int(os.environ.get("PORT", 8005))  # Read from env or default to 8005
     web.run_app(app, port=port)
