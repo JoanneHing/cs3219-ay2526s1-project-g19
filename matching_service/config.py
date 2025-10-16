@@ -7,8 +7,7 @@ class Settings(BaseSettings):
     redis_port: str
     user_service_url: str
     question_service_url: str
-
-    model_config = SettingsConfigDict(env_file=".env")
+    topic_match_found: str
 
 
 settings = Settings()
