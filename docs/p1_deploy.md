@@ -1,87 +1,243 @@
 # Service Containerization (Implementation & Deployment Decisions)
-Some of these decisions would depend on choice of nice-to have category(ies)
 
-# Chosen approach to containerize must have services.
-- All seven must-have services (frontend plus user, question, matching, history, collaboration, and chat) ship dedicated Dockerfiles and docker-compose file within their service folders and are orchestrated through the root `docker-compose.yml` include tree. 
+Some of these decisions depend on the chosen nice-to-have categories, but the current plan already covers the must-have scope below.
 
-- Local development keeps hot-reload volume mounts, while production builds rely on the multi-stage images 
-    (
-        `frontend/Dockerfile` compiles with `node:22-slim` before serving from `nginx:alpine`; 
-        backend images use slim Python bases with entrypoints that run migrations and expose `/health`
-    ). 
-    Each service compose file declares its own Postgres or Redis dependency and attaches to the shared network; the production overlay (`docker-compose.prod.yml`) removes those sidecars so Terraform-provisioned RDS and ElastiCache instances can be used instead.
+## Chosen Approach to Containerize Must-Have Services
 
-# Deployment workflow and CI/CD considerations.
-The deployment flow is scripted end-to-end: 
+All seven must-have services (frontend, user, question, matching, history, collaboration, chat) keep a dedicated Dockerfile and standalone `docker-compose.yml`. The root-level `docker-compose.yml` simply includes each sub-service so local developers can spin up the entire stack, while `docker-compose.prod.yml` removes the local Postgres/Redis sidecars and expects Terraform-managed RDS/ElastiCache instead. Backends use slim Python bases with an entrypoint that blocks on dependencies, runs migrations, and exposes `/health`. The frontend builds under Node 22 and serves static assets out of an Nginx stage.
 
-- `00-pre-deployment-checklist.sh` validates tooling, 
-- `02-deploy-infrastructure.sh` plans/applies Terraform, 
-- `01-build-and-push-images.sh` forces linux/amd64 image builds and tags them for ECR, 
-- `03-run-migrations.sh` applies Django migrations via the freshly provisioned endpoints, 
-- `04-verify-deployment.sh` runs post-deploy smoke checks, and 
-- `05-force-service-update.sh` triggers rolling updates after new images land. 
-- `DEPLOY.sh` stitches the steps for operators today; 
+```mermaid
+graph LR
+  subgraph Service Repos
+    FE[frontend/Dockerfile]
+    US[user_service/Dockerfile]
+    QS[question_service/Dockerfile]
+    MS[matching_service/Dockerfile]
+    HS[history_service/Dockerfile]
+    CS[collaboration_service/Dockerfile]
+    CH[chat_service/Dockerfile]
+  end
 
-The next refinement is to mirror those stages in GitHub Actions 
---> so build » test » scan » push gates on a reviewed Terraform plan before promoting to staging/production.
+  FE --> FE_IMG[Frontend image<br/>node:22-slim ➜ nginx:alpine]
+  US --> US_IMG[User image<br/>python:3.10-slim]
+  QS --> QS_IMG[Question image<br/>python:3.10-slim]
+  MS --> MS_IMG[Matching image<br/>python:3.13-slim]
+  HS --> HS_IMG[History image<br/>python:3.10-slim]
+  CS --> CS_IMG[Collab image<br/>python:3.10-slim]
+  CH --> CH_IMG[Chat image<br/>python:3.10-slim]
 
-# Alignment with scalability and production readiness.
-Terraform provisions an ECS Fargate cluster with 
-- Cloud Map service discovery, 
-- path-based routing through an Application Load Balancer,and 
-- auto-scaling policies based on CPU, memory, and ALB request count. 
-    - Default desired counts are two tasks per must-have service, deployment settings (50% minimum healthy, 200% max) 
-- plus the circuit breaker provide safe rolling updates, 
-- and Redis/Postgres dependencies live on managed ElastiCache and RDS instances. 
-
-
-
-# Implementation tech stack: 
-language/runtime versions, package manager, framework; base image choice; Dockerfile strategy, dependency/security scanning, image tagging/versioning.
-
-## Language
-- Backend services (user, question, history) run Django on `python:3.10-slim`, 
-- matching runs FastAPI/uvicorn on `python:3.13-slim`, and 
-- collaboration/chat expose Socket.IO and aiohttp workers on `python:3.10-slim`; 
-
-## Package Manager
-- all install dependencies through `pip` with `requirements.txt`. 
-- The frontend builds with Vite under `node:22-slim` 
-- and serves static assets via `nginx:alpine` with runtime `envsubst`. 
-- `01-build-and-push-images.sh` enforces `--platform linux/amd64` for ECS compatibility, the entrypoint scripts wait for databases and run migrations, and caches are cleared to shrink layers. 
-- Image/security scanning is still manual—next action is to wire in `trivy`/ECR scanning during the build step 
--- and adopt commit SHA tags alongside the existing `latest` tag to improve traceability.
-
-## Configuration & secrets: env vars, secret management (e.g., SSM/Secrets Manager/K8s Secrets)
-- Local docker-compose runs from `.env` / `.env.prod` files copied from the provided samples, 
-- while Terraform injects runtime configuration (database URLs, service discovery endpoints, `SECRET_KEY`, Redis hosts) into each ECS task definition using variables sourced from `terraform.tfvars`. `ENVIRONMENT_VARIABLES.md` tracks the full matrix. 
-- Sensitive values currently live in Terraform variables (kept out of git); 
-
-- the ECS execution role already has `secretsmanager:GetSecretValue`, 
-- so the plan is to move database passwords and the Django secret key into AWS Secrets Manager/SSM and map them through the module’s `secrets` block once provisioned.
-
-## Networking & ingress: service-to-service comms, ingress/controller choice, ports, API gateway/ingress rules.
-- Docker-compose attaches every container to `shared_network` plus a service-specific network for its Postgres/Redis sidecars, exposing only the required host ports (frontend on 80/5173, backends on 8000-series). 
-- In AWS, Terraform builds a VPC with public subnets for the ALB, private subnets for ECS tasks, Cloud Map DNS (`<service>.peerprep-prod.local`) for east-west traffic, and listener rules that map `/user-service-api/*` and similar paths to the correct target groups. 
-- The frontend nginx template proxies those prefixes to the internal hostnames, and WebSocket services benefit from ALB cookie stickiness.
-
-## Cl/CD & rollout: pipeline stages (build »test>scan>push>deploy),promotion flow (dev»staging→prod), rollout strategy (rolling/blue green/canary), rollback plan.
-
-- The scripted flow (see `DEPLOYMENT_GUIDE.md`) covers build → migrate → verify: 
-run the pre-checks, terraform plan/apply (with a manual confirmation), build and push images, execute migrations against RDS, then verify ALB/target health. 
-
-- ECS services use rolling deployments with min/max healthy settings plus a deployment circuit breaker for fast rollback, and `05-force-service-update.sh` offers a controlled redeploy trigger after publishing new images. 
-
-```
-• In our context the “circuit breaker” is the ECS deployment safeguard configured in modules/ecs-service/main.tf:143. When deployment_circuit_breaker { enable = true, rollback = true } is set, ECS watches each rolling deployment; if the new task set can’t reach steady state (for example, health checks fail or tasks crash) it automatically stops the rollout and reverts to the previous healthy task definition instead of leaving the service in a broken or partial state.
+  FE_IMG & US_IMG & QS_IMG & MS_IMG & HS_IMG & CS_IMG & CH_IMG --> Compose[docker-compose.yml include tree]
+  Compose --> DevStack[Local dev stack<br/>with hot-reload volumes]
+  Compose --> ProdOverlay[docker-compose.prod.yml overrides]
+  ProdOverlay --> Terraform[ECS task definitions<br/>generated by Terraform]
+  Terraform --> Fargate[ECS Fargate services<br/>wired to RDS/ElastiCache]
 ```
 
--  Rollbacks today are handled by redeploying the prior task definition or scaling down the new revision; 
--  codifying these scripts in CI will let us gate dev → staging → prod promotions behind automated tests and change approvals.
+## Deployment Workflow and CI/CD Considerations
 
-## 5. Observability: logs/metrics/traces, health checks (liveness/readiness),
-dashboards & alerts.
-- Container health expectations are documented in `ADD_HEALTH_ENDPOINTS.md` (each service should expose `/health`), and those endpoints back the docker-compose health checks, ALB target probes, and ECS task health configuration. 
-- Terraform enables CloudWatch Container Insights and ships logs to `/ecs/peerprep-prod`, while `04-verify-deployment.sh` performs smoke tests after each release and operators can tail `aws logs tail /ecs/peerprep-prod --follow`. 
-- Follow-up work is to pin CloudWatch alarms/dashboards on the existing CPU, memory, and request metrics and, longer-term, introduce structured logging or tracing once service-level objectives are defined.
+Operators follow scripted steps today: validate prerequisites, deploy infrastructure, build and push ECR images, run migrations, verify the stack, and optionally force ECS to refresh tasks. `DEPLOY.sh` chains those scripts; the next increment is to encode the same stages inside GitHub Actions so build » test » scan » push is gated automatically before a Terraform apply and production deploy.
 
+```mermaid
+flowchart TD
+  start([Kick off DEPLOY.sh]) --> checklist[00-pre-deployment-checklist.sh<br/>Tools & creds OK?]
+  checklist -->|pass| tf[02-deploy-infrastructure.sh<br/>terraform init/plan/apply]
+  tf --> build[01-build-and-push-images.sh<br/>docker build (linux/amd64) ➜ ECR push]
+  build --> migrate[03-run-migrations.sh<br/>Apply Django migrations]
+  migrate --> verify[04-verify-deployment.sh<br/>Smoke tests: VPC/ALB/health]
+  verify --> refresh[05-force-service-update.sh<br/>Force new ECS deployment]
+  refresh --> done([Deployment complete])
+  checklist -->|fail| stop1([Fix issues, rerun])
+  tf -->|plan rejected| stop2([Abort until reviewed])
+```
+
+## Alignment with Scalability and Production Readiness
+
+Terraform provisions an ECS Fargate cluster, Cloud Map service discovery, an ALB with path-based routing, and autoscaling policies anchored on CPU, memory, and ALB request counts. Each must-have service defaults to two tasks, leaves 50% of capacity healthy during deploys (max 200%), and uses ECS’ deployment circuit breaker so failed rollouts revert automatically. Managed RDS/Redis back the stateful pieces, while compose parity ensures dev/prod behavior matches.
+
+```mermaid
+graph TD
+  ALB[Application Load Balancer<br/>/path-based routing] --> UserTG[user-service TG]
+  ALB --> QuestionTG[question-service TG]
+  ALB --> MatchingTG[matching-service TG]
+  ALB --> HistoryTG[history-service TG]
+  ALB --> CollabTG[collaboration-service TG]
+  ALB --> ChatTG[chat-service TG]
+  ALB --> FrontendTG[frontend TG]
+
+  UserTG --> UserECS[ECS user-service<br/>2 tasks, circuit breaker]
+  QuestionTG --> QuestionECS[ECS question-service]
+  MatchingTG --> MatchingECS[ECS matching-service]
+  HistoryTG --> HistoryECS[ECS history-service]
+  CollabTG --> CollabECS[ECS collaboration-service]
+  ChatTG --> ChatECS[ECS chat-service]
+  FrontendTG --> FrontendECS[ECS frontend]
+
+  UserECS --> RDSUser[RDS PostgreSQL<br/>user_db]
+  QuestionECS --> RDSQuestion[RDS PostgreSQL<br/>question_db]
+  MatchingECS --> RDSMatching[RDS PostgreSQL<br/>matching_db]
+  HistoryECS --> RDSHistory[RDS PostgreSQL<br/>history_db]
+  MatchingECS --> RedisMatching[ElastiCache Redis<br/>matching]
+  CollabECS --> RedisCollab[ElastiCache Redis<br/>collaboration]
+  ChatECS --> RedisChat[ElastiCache Redis<br/>chat]
+
+  subgraph Autoscaling
+    CPU[CPU target]
+    MEM[Memory target]
+    REQ[ALB request/target]
+  end
+  Autoscaling --> UserECS
+  Autoscaling --> QuestionECS
+  Autoscaling --> MatchingECS
+  Autoscaling --> HistoryECS
+  Autoscaling --> CollabECS
+  Autoscaling --> ChatECS
+  Autoscaling --> FrontendECS
+
+  CloudMap[Cloud Map DNS<br/>(* .peerprep-prod.local)] --> UserECS
+  CloudMap --> QuestionECS
+  CloudMap --> MatchingECS
+  CloudMap --> HistoryECS
+  CloudMap --> CollabECS
+  CloudMap --> ChatECS
+  CloudMap --> FrontendECS
+```
+
+## Implementation Tech Stack
+
+Backends run Django (user/question/history) or FastAPI/Socket.IO (matching/collaboration/chat) on slim Python images and install dependencies via `pip`; the frontend builds with Vite under Node 22, then serves static assets through Nginx with runtime `envsubst`. `01-build-and-push-images.sh` enforces `--platform linux/amd64`, clears caches, and tags both local and ECR images. Image/security scanning is currently manual—adding Trivy or ECR scans plus Git SHA tags is the next increment.
+
+```mermaid
+graph LR
+  subgraph Frontend
+    FEStack[Vite + React<br/>node:22-slim ➜ nginx:alpine]
+    npmci[npm ci]
+  end
+
+  subgraph Django Services
+    UserSvc[user_service<br/>python:3.10-slim]
+    QuestionSvc[question_service<br/>python:3.10-slim]
+    HistorySvc[history_service<br/>python:3.10-slim]
+    DjangoEntrypoint[migrate + collectstatic<br/>entrypoint]
+  end
+
+  subgraph FastAPI & Socket
+    MatchingSvc[matching_service<br/>python:3.13-slim]
+    CollabSvc[collaboration_service<br/>python:3.10-slim]
+    ChatSvc[chat_service<br/>python:3.10-slim]
+    FastAPIEntrypoint[uvicorn/socket.io start]
+  end
+
+  npmci --> FEStack --> ImageBuild[Multi-stage build<br/>cache clean]
+  UserSvc & QuestionSvc & HistorySvc --> DjangoEntrypoint --> ImageBuild
+  MatchingSvc & CollabSvc & ChatSvc --> FastAPIEntrypoint --> ImageBuild
+  ImageBuild --> ECRTag[ECR tag :latest<br/>+ planned Git SHA]
+  ECRTag -. future .-> Trivy[Security scan gate]
+```
+
+## Configuration and Secrets
+
+Local developers copy `.env.sample`/`.env.prod.sample` into `.env`/`.env.prod`, which docker-compose reads. Terraform consumes `terraform.tfvars` (holding non-committed values like `db_password`, `secret_key`) and injects them into ECS task definitions as environment variables. `ENVIRONMENT_VARIABLES.md` documents the full matrix. Secrets live in Terraform variables for now; the ECS execution role already has `secretsmanager:GetSecretValue`, so we can later migrate to AWS Secrets Manager/SSM via the module’s `secrets` field.
+
+```mermaid
+graph TD
+  Samples[.env.sample<br/>.env.prod.sample] --> LocalEnv[.env / .env.prod]
+  LocalEnv --> ComposeEnv[docker-compose (dev/prod)]
+
+  TFVars[terraform.tfvars<br/>(db_password, secret_key)] --> TerraformApply[terraform apply]
+  TerraformApply --> TaskDefs[ECS task definitions<br/>environment variables]
+  TaskDefs --> FargateTasks[Fargate tasks]
+
+  FargateTasks --> Services[Running services]
+  Services --> Usage[Load env vars & service discovery]
+
+  SecretsMgr[AWS Secrets Manager / SSM] -. planned migration .-> TaskDefs
+```
+
+## Networking and Ingress
+
+Compose attaches every container to a shared bridge network plus service-specific networks for their databases/Redis (only necessary ports exposed). In AWS, Terraform builds VPC subnets, an ALB with path-based listener rules, and Cloud Map DNS so backend services call each other via `<service>.peerprep-prod.local`. The frontend Nginx template proxies the `/something-service-api` paths to the internal hostnames, and WebSocket workloads use ALB cookie stickiness.
+
+```mermaid
+graph LR
+  subgraph Local Compose
+    FrontendC[frontend :80/:5173] --> SharedNet[shared_network]
+    UserC[user-service :8001→8000] --> SharedNet
+    QuestionC[question-service :8002→8000] --> SharedNet
+    MatchingC[matching-service :8003→8000] --> SharedNet
+    HistoryC[history-service :8004→8000] --> SharedNet
+    CollabC[collaboration-service :8005→8000] --> SharedNet
+    ChatC[chat-service :8006→8000] --> SharedNet
+  end
+
+  subgraph AWS VPC
+    ALB2[ALB<br/>public subnets] -->|/user-service-api/*| UserTG
+    ALB2 -->|/question-service-api/*| QuestionTG
+    ALB2 -->|/matching-service-api/*| MatchingTG
+    ALB2 -->|/history-service-api/*| HistoryTG
+    ALB2 -->|/collaboration-service-api/*| CollabTG
+    ALB2 -->|/chat-service-api/*| ChatTG
+    ALB2 -->|/| FrontendTG
+
+    UserTG --> UserTask[ECS user-service<br/>private subnet]
+    QuestionTG --> QuestionTask[ECS question-service]
+    MatchingTG --> MatchingTask[ECS matching-service]
+    HistoryTG --> HistoryTask[ECS history-service]
+    CollabTG --> CollabTask[ECS collaboration-service<br/>ALB cookie stickiness]
+    ChatTG --> ChatTask[ECS chat-service<br/>ALB cookie stickiness]
+    FrontendTG --> FrontendTask[ECS frontend]
+  end
+
+  CloudMap[Cloud Map DNS<br/>service.peerprep-prod.local] --> UserTask
+  CloudMap --> QuestionTask
+  CloudMap --> MatchingTask
+  CloudMap --> HistoryTask
+  CloudMap --> CollabTask
+  CloudMap --> ChatTask
+  CloudMap --> FrontendTask
+```
+
+## CI/CD and Rollout Strategy
+
+The documented flow covers build → migrate → verify. When scripts run manually, Terraform plan/apply pauses for approval, then ECS performs rolling updates (min healthy 50%, max 200%) with the circuit breaker enabled. `05-force-service-update.sh` can trigger a new deployment after fresh images land. Automating the same sequence inside CI/CD will let us gate dev → staging → prod promotions behind automated tests and change approvals.
+
+```mermaid
+stateDiagram-v2
+  [*] --> DevBranch
+  DevBranch --> CI_Build: PR push
+  CI_Build --> CI_Test
+  CI_Test --> CI_Scan
+  CI_Scan --> MainMerge: Merge to main
+  MainMerge --> ECR_Push: Build & push images
+  ECR_Push --> TerraformPlan: Manual approval
+  TerraformPlan --> TerraformApply
+  TerraformApply --> Migrations
+  Migrations --> ECSRolling[ECS rolling deploy<br/>minHealthy=50%, max=200%, circuit breaker]
+  ECSRolling --> SmokeTests[04-verify-deployment.sh]
+  SmokeTests --> ProdLive
+  ProdLive --> [*]
+  ECSRolling --> Rollback: Failure detected
+  Rollback --> ProdLive
+```
+
+## Observability, Health Checks, and Alerts
+
+`ADD_HEALTH_ENDPOINTS.md` describes the `/health` endpoints every service should expose. Those endpoints power docker-compose health checks, ALB target group probes, and ECS task health commands. Logs flow into CloudWatch (`/ecs/peerprep-prod`) with Container Insights enabled. `04-verify-deployment.sh` performs post-deploy smoke tests; operators can tail logs or curl `/health` through the ALB. Next steps are to harden automated health dashboards and alerting on CPU/memory/request metrics, and layer in structured logging or tracing once service-level objectives are defined.
+
+```mermaid
+graph LR
+  HealthEP[/health endpoints] --> ComposeHC[docker-compose health checks]
+  HealthEP --> ALBHC[ALB target health]
+  HealthEP --> ECSHC[ECS task health command]
+
+  ECSHC --> ECS[ECS services]
+  ECS --> Logs[CloudWatch Logs<br/></ecs/peerprep-prod]
+  ECS --> Metrics[CloudWatch metrics<br/>CPU/Mem/Request]
+  Metrics -. roadmap .-> Alerts[Dashboards & alarms]
+
+  VerifyScript[04-verify-deployment.sh] --> ALBHC
+  VerifyScript --> Metrics
+  VerifyScript --> Logs
+
+  Operator[Operator] -->|aws logs tail| Logs
+  Operator -->|curl /health| HealthEP
+```
