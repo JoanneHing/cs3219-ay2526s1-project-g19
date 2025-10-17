@@ -25,7 +25,6 @@ class MatchingService:
             user_id=user_id,
             criteria=criteria
         )
-        logger.info(f"{await self.redis_controller.debug_show()}")
         # find eligible matches
         await self.redis_controller.find_match(
             user_id=user_id,

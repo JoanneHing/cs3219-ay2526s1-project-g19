@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
+from kafka.kafka_controller import kafka_controller
 from schemas.matching import MatchingCriteriaSchema
 from schemas.message import MatchedCriteriaSchema
 from service.websocket import websocket_service
@@ -72,7 +73,6 @@ class RedisController:
                 user_id=user_id,
                 matched_user_id=matched_user_id
             )
-        logger.info(f"{await self.debug_show()}")
         return
 
     async def remove_from_queue(self, user_id: UUID):
@@ -213,13 +213,11 @@ class RedisController:
             matched_user_id=matched_user_id
         )
         logger.info(f"User {user_id} matched with user {matched_user_id}. Criteria: {matched_criteria}")
-        await self.websocket_service.send_match_success(
-            user_a=user_id,
-            user_b=matched_user_id,
+        kafka_controller.pub_match_found(
+            user_id_list=[user_id, matched_user_id],
             criteria=matched_criteria
         )
-        await self.websocket_service.close_ws_connection(user_id=user_id)
-        await self.websocket_service.close_ws_connection(user_id=matched_user_id)
+        return
 
     ## Add operations
 

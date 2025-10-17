@@ -7,7 +7,6 @@ from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisco
 from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
-from schemas.message import MatchedCriteriaSchema
 from kafka.kafka_controller import kafka_controller
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
@@ -31,6 +30,7 @@ async def lifespan(app: FastAPI):
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
     await django_question_service.shutdown()
+    kafka_controller.shutdown()
 
 
 router = APIRouter(
@@ -104,15 +104,6 @@ async def websocket_endpoint(user_id: UUID, websocket: WebSocket):
 
 @router.post("/flush")
 async def flush():
-    kafka_controller.pub_match_found(
-        user1="111",
-        user2="222",
-        criteria=MatchedCriteriaSchema(
-            topic="topic",
-            difficulty="difficulty",
-            language="language"
-        )
-    )
     return await matching_service.clear_redis()
 
 
