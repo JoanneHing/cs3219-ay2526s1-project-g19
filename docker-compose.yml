@@ -16,6 +16,7 @@
 # 1. Development: Copy .env.sample to .env
 #    Production: Copy .env.prod.sample to .env.prod
 # =============================================================================
+
 include:
   # Frontend
   - path: ./frontend/docker-compose.yml
@@ -30,6 +31,3 @@ include:
 
 networks:
   shared_network:
-
-volumes:
-  peerprep_kafka:
