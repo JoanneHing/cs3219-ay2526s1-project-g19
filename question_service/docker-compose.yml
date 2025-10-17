@@ -5,7 +5,7 @@ services:
   question-service:
     build:
       context: .
-      dockerfile: Dockerfile.web
+      dockerfile: Dockerfile
     container_name: peerprep_question_service
     ports:
       - "${QUESTION_SERVICE_PORT:-8001}:8000"
@@ -62,11 +62,16 @@ services:
   consumer:
     build:
       context: .
-      dockerfile: Dockerfile.consumer
+      dockerfile: Dockerfile
     container_name: peerprep_question_kafka
+    command: python manage.py run_question_consumer
     networks:
       - shared_network
+    env_file:
+      - .env
+      - ../.env
     environment:
+      SKIP_DB_SETUP: true
       KAFKA_BOOTSTRAP_SERVERS: peerprep_kafka:9092
       GROUP_ID: question-service-group
 
