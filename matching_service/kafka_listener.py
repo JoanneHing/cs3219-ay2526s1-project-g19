@@ -4,8 +4,8 @@ from confluent_kafka import Consumer
 if __name__=="__main__":
     config = {
         "bootstrap.servers": "peerprep_kafka:9092",
-        'group.id': 'foo',
-        'auto.offset.reset': 'smallest'
+        "group.id": "foo",
+        "auto.offset.reset": "earliest"
     }
     consumer = Consumer(config)
 

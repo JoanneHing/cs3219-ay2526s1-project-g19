@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 import logging
 from schemas.message import MatchedCriteriaSchema
-from service.kafka_controller import kafka_controller
+from kafka.kafka_controller import kafka_controller
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller

@@ -1,0 +1,9 @@
+{
+    "type": "record",
+    "name": "MatchFound",
+    "fields": [
+        {"name": "user_id_list", "type": {"type": "array", "items": "string"}},
+        {"name": "topic", "type": "string"},
+        {"name": "difficulty", "type": "string"}
+    ]
+}

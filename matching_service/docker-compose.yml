@@ -15,7 +15,6 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,matching-service}
-      # - REDIS_URL=${MATCHING_REDIS_URL}
       - REDIS_HOST=${MATCHING_REDIS_HOST:-matching_redis}
       - REDIS_PORT=${MATCHING_REDIS_PORT:-6379}
       # Service-to-service communication URLs
