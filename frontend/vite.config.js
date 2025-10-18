@@ -34,6 +34,7 @@ export default defineConfig(({ mode }) => {
           target: `http://localhost:${env.MATCHING_SERVICE_PORT || 8002}`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/matching-service-api/, ''),
+          ws: true, // Enable WebSocket proxying for matching service
         },
         '/history-service-api': {
           target: `http://localhost:${env.HISTORY_SERVICE_PORT || 8003}`,

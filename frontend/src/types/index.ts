@@ -17,6 +17,16 @@ export type {
   RegisterResponse,
 } from './auth';
 
+// Matching types
+export type {
+  MatchingSelections,
+  MatchRequest,
+  MatchResponse,
+  MatchedSelections,
+  WebSocketMessage,
+  DeleteMatchRequest,
+} from './matching';
+
 // Common types
 export type {
   PaginationParams,

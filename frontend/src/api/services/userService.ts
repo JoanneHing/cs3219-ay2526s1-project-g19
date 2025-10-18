@@ -7,7 +7,7 @@ import type {
   VerifyTokenResponse,
   RegisterRequest,
   RegisterResponse
-} from '@/types';
+} from '../../types';
 
 export const userService = {
   register: (data: RegisterRequest) =>
