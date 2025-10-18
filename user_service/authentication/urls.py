@@ -16,6 +16,7 @@ from .views import (
     RefreshTokenView,
     EmailSSORequestView,
     EmailSSOVerifyView,
+    ResetPasswordView,
 )
 
 app_name = 'authentication'
@@ -28,9 +29,5 @@ urlpatterns = [
     path('refresh/', RefreshTokenView.as_view(), name='refresh'),
     path('email-sso/', EmailSSORequestView.as_view(), name='email-sso'),
     path('email-sso/verify/', EmailSSOVerifyView.as_view(), name='email-sso-verify'),
-    # Future endpoints:
-    # path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
-    # path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
-    # path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-    # path('resend-verification/', ResendVerificationView.as_view(), name='resend-verification'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
 ]

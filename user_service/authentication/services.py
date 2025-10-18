@@ -801,3 +801,31 @@ class UserLogoutService:
             raise ValidationError(f"Database error during logout: {str(e)}")
         except Exception as e:
             raise ValidationError(f"Logout failed: {str(e)}")
+
+
+class PasswordResetService:
+    """Business logic for password reset."""
+
+    @staticmethod
+    def reset_password(user: AbstractUser, new_password: str) -> None:
+        """
+        Reset user password with validation.
+
+        User is already authenticated via Bearer token.
+
+        Args:
+            user: User instance (already authenticated)
+            new_password: New password to set
+
+        Raises:
+            ValidationError: If new password is invalid
+        """
+        # Validate new password strength
+        ValidationService.validate_password_strength(new_password, raise_error=True)
+
+        # Set new password
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+
+        # Invalidate all existing sessions to force re-login
+        SessionService.invalidate_user_sessions(user)

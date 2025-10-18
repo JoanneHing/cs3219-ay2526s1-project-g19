@@ -213,3 +213,19 @@ class EmailSSOOutputSerializer(serializers.Serializer):
         else:
             super().__init__(**kwargs)
 
+
+class ResetPasswordInputSerializer(serializers.Serializer):
+    """
+    Input serializer for password reset.
+
+    Performs basic field validation only.
+    Business logic validation is handled in services.
+    User is already authenticated via Bearer token.
+    """
+    new_password = serializers.CharField(
+        required=True,
+        min_length=1,
+        write_only=True,
+        help_text="New password"
+    )
+

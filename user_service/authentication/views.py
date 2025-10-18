@@ -23,7 +23,8 @@ from .serializers import (
     RefreshTokenOutputSerializer,
     EmailSSORequestSerializer,
     EmailSSOOutputSerializer,
-    EmailSSOVerifySerializer
+    EmailSSOVerifySerializer,
+    ResetPasswordInputSerializer
 )
 from .services import (
     UserRegistrationService,
@@ -31,7 +32,8 @@ from .services import (
     UserLogoutService,
     TokenService,
     ValidationError,
-    EmailSSOService
+    EmailSSOService,
+    PasswordResetService
 )
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -435,7 +437,7 @@ class EmailSSOVerifyView(APIView):
 
             # Verify token and login through service layer
             validated_data = input_serializer.validated_data
-            
+
 
             user, tokens, session_profile = EmailSSOService.verify_and_login(
                 request=request,
@@ -484,3 +486,66 @@ class EmailSSOVerifyView(APIView):
         else:
             ip = request.META.get('REMOTE_ADDR', '')
         return ip
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ResetPasswordView(APIView):
+    """
+    API view for password reset.
+
+    Handles PUT requests to reset user password.
+    Requires Bearer authentication.
+    """
+    permission_classes = []  # Requires authentication but handled manually
+
+    @extend_schema(
+        summary="Reset password",
+        description=(
+            "Reset user password (requires Bearer authentication). "
+            "**IMPORTANT:** All active sessions will be invalidated for security purposes. "
+            "You will need to login again with your new password to get new tokens."
+        ),
+        request=ResetPasswordInputSerializer,
+        responses={
+            200: OpenApiResponse(description="Password reset successful. All sessions invalidated."),
+            400: OpenApiResponse(description="Invalid input data or validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+        },
+        tags=["Authentication"]
+    )
+    def put(self, request: Request) -> Response:
+        """
+        Reset user password.
+
+        Args:
+            request: HTTP request containing new password
+
+        Returns:
+            Response: Standardized API response
+        """
+        # Check if user is authenticated
+        if not request.user or not request.user.is_authenticated:
+            return APIResponse.unauthorized("Authentication required")
+
+        # Validate input
+        input_serializer = ResetPasswordInputSerializer(data=request.data)
+        if not input_serializer.is_valid():
+            return APIResponse.validation_error(
+                "Invalid input data",
+                details=input_serializer.errors
+            )
+
+        try:
+            # Process password reset through service layer
+            validated_data = input_serializer.validated_data
+            PasswordResetService.reset_password(
+                user=request.user,
+                new_password=validated_data['new_password']
+            )
+
+            return APIResponse.success(
+                message="Password reset successful. All active sessions have been invalidated. Please login again with your new password."
+            )
+
+        except ValidationError as e:
+            return APIResponse.bad_request(str(e))
