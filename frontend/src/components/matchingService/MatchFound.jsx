@@ -1,9 +1,9 @@
 import { UserCircle2, Loader2 } from "lucide-react";
 
 const DIFFICULTIES_COLORS = {
-    "e": "text-green-500 border-green-500",
-    "m": "text-yellow-500 border-yellow-500",
-    "h": "text-red-500 border-red-500"
+    "easy": "text-green-500 border-green-500",
+    "medium": "text-yellow-500 border-yellow-500",
+    "hard": "text-red-500 border-red-500"
 };
 
 const getDifficultyColor = (difficulty) => {
@@ -12,14 +12,14 @@ const getDifficultyColor = (difficulty) => {
 
 const getDifficulties = (difficultyStr) => {
     switch (difficultyStr) {
-        case "e":
+        case "easy":
             return "Easy";
-        case "m":
+        case "medium":
             return "Medium";
-        case "h":
+        case "hard":
             return "Hard";
         default:
-            return "";
+            return "Any";
     }
 }
 
@@ -51,14 +51,14 @@ const MatchFound = ({ user1, user2, matchedSelections, onQuit}) => {
                         </div>
                     </div>
 
-                    <div className="flex justify-around text-sm font-semibold mt-5 mb-8">
-                        <span className="px-3 py-1 rounded-full text-green-500 bg-bg-secondary border border-green-500">
+                    <div className="flex flex-col gap-3 text-sm font-semibold mt-5 mb-8 items-center">
+                        <span className="px-3 py-1 rounded-full text-green-500 bg-bg-secondary border border-green-500 inline-block">
                             Topic: {matchedSelections.topic}
                         </span>
-                        <span className={`px-3 py-1 rounded-full bg-bg-secondary border ${getDifficultyColor(matchedSelections.difficulty)}`}>
+                        <span className={`px-3 py-1 rounded-full bg-bg-secondary border ${getDifficultyColor(matchedSelections.difficulty)} inline-block`}>
                             Difficulty: {getDifficulties(matchedSelections.difficulty)}
                         </span>
-                        <span className="px-3 py-1 rounded-full text-green-500 bg-bg-secondary border border-green-500">
+                        <span className="px-3 py-1 rounded-full text-green-500 bg-bg-secondary border border-green-500 inline-block">
                             Language: {matchedSelections.language}
                         </span>
                     </div>

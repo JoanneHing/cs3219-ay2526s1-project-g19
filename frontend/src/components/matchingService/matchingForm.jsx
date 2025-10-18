@@ -47,7 +47,7 @@ const DEFAULT_LANGUAGES = [
     "Default" // See if backend retrieve from api or default
 ];
 
-const ANY_DIFFICULTY_OPTION = "__any__";
+const ANY_DIFFICULTY_OPTION = "Any";
 
 const capitalize = (value) => {
     if (!value) return value;
@@ -252,10 +252,16 @@ const MatchingForm = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Convert "Any" difficulty to all available difficulties
+        let submittedDifficulties = selections.difficulties;
+        if (selections.difficulties.includes(ANY_DIFFICULTY_OPTION)) {
+            submittedDifficulties = difficultyOptions;
+        }
+
         // Prepare matching criteria for the backend (match backend schema)
         const criteria = {
             topics: selections.topics.length > 0 ? selections.topics : [],
-            difficulty: selections.difficulties.length > 0 ? selections.difficulties : [],
+            difficulty: submittedDifficulties.length > 0 ? submittedDifficulties : [],
             primary_lang: selections.preferredLanguage || null,
             secondary_lang: selections.backupLanguages.length > 0 ? selections.backupLanguages : [],
             proficiency: 0 // Default proficiency level
@@ -300,9 +306,15 @@ const MatchingForm = () => {
 
     // Handle rematch (Use same criteria)
     const handleRematch = async () => {
+        // Convert "Any" difficulty to all available difficulties
+        let submittedDifficulties = selections.difficulties;
+        if (selections.difficulties.includes(ANY_DIFFICULTY_OPTION)) {
+            submittedDifficulties = difficultyOptions;
+        }
+
         const criteria = {
             topics: selections.topics.length > 0 ? selections.topics : [],
-            difficulty: selections.difficulties.length > 0 ? selections.difficulties : [],
+            difficulty: submittedDifficulties.length > 0 ? submittedDifficulties : [],
             primary_lang: selections.preferredLanguage || null,
             secondary_lang: selections.backupLanguages.length > 0 ? selections.backupLanguages : [],
             proficiency: 0 // Set as 0 as haven't implement this yet
@@ -350,8 +362,8 @@ const MatchingForm = () => {
         return (
             <>
                 <MatchFound 
-                    user={user?.display_name || "You"}
-                    partner="Your Partner"
+                    user1={user?.display_name || "You"}
+                    user2="Matched User" // Need API to get name
                     matchedSelections={{
                         topic: matchCriteria.topic || 'Any',
                         difficulty: matchCriteria.difficulty || 'Any',
@@ -371,9 +383,20 @@ const MatchingForm = () => {
         );
     }
 
-    if (error && error.includes('No match found')) {
+    if (error && (error.includes('No match found') || error.includes('Partner quit'))) {
+        const isPartnerQuit = error.includes('Partner quit');
+        
         return (
             <MatchNotFound 
+                title={isPartnerQuit ? "Partner Left" : "No Match Found"}
+                message={isPartnerQuit 
+                    ? "Your partner has left the match." 
+                    : "We couldn't find a suitable match based on your preferences."
+                }
+                subtitle={isPartnerQuit 
+                    ? "Don't worry! You can try finding a new match."
+                    : "You can try adjusting your preferences or match again."
+                }
                 onRematch={handleRematch}
                 onReturn={handleReturnToForm}
             />
@@ -491,6 +514,7 @@ const MatchingForm = () => {
                     <button
                         type="submit"
                         onClick={handleSubmit}
+                        disabled={!selections.preferredLanguage}
                         className="bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-6 rounded-lg transition duration-200 w-full disabled:bg-gray-600 disabled:cursor-not-allowed"
                     >
                         Find Match
