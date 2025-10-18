@@ -28,11 +28,11 @@ export const matchingService = {
     // Get the configured base URL or use default proxy path
     const apiBaseUrl = baseUrl || matchingClient.defaults.baseURL || '/matching-service-api';
     
-    // If using a proxy path (starts with /), construct WebSocket URL using current window location
+    // If using a proxy path , construct WebSocket URL using current window location
     if (apiBaseUrl.startsWith('/')) {
       // Use the current window location to build WebSocket URL
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host; // includes port (e.g., localhost:5173)
+      const host = window.location.host; 
       wsUrl = `${protocol}//${host}${apiBaseUrl}/api/ws?user_id=${userId}`;
     } else {
       // Direct URL, convert http to ws

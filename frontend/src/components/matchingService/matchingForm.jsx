@@ -1,6 +1,7 @@
 import { Children, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useMatchingSocket } from "../../hooks/useMatchingSocket";
+import { useAuth } from "../../contexts/AuthContext";
 import CancelConfirmation from "./CancelConfirmation";
 import FindingMatch from "./FindingMatch";
 import MatchFound from "./MatchFound";
@@ -35,14 +36,15 @@ const DEFAULT_TOPICS = [
     "Multi-D DP"
 ];
 
-const DEFAULT_DIFFICULTIES = ["easy", "medium", "hard"];
+const DEFAULT_DIFFICULTIES = ["easy", "medium","hard"];
 
 const DEFAULT_LANGUAGES = [
     "Python",
     "Java",
     "Javascript",
     "C",
-    "C++"
+    "C++",
+    "Default" // See if backend retrieve from api or default
 ];
 
 const ANY_DIFFICULTY_OPTION = "__any__";
@@ -68,16 +70,9 @@ const BubbleLabels = ({ label, isSelected, onClick}) => {
     );
 };
 
-// Overylay for pop up windows
-const Overlay = ({ Children }) => {
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-        <div className = "rounded-lg shadow-lg p-8 max-w-lg w-full relative bg-background-secondary border border-gray-700">
-            {Children}
-        </div>
-    </div>
-};
 
 const MatchingForm = () => {
+    const { user } = useAuth();
     const [topicOptions, setTopicOptions] = useState(DEFAULT_TOPICS);
     const [difficultyOptions, setDifficultyOptions] = useState(DEFAULT_DIFFICULTIES);
     const [languageOptions, setLanguageOptions] = useState(DEFAULT_LANGUAGES);
@@ -329,30 +324,50 @@ const MatchingForm = () => {
     // Show different components based on current state
     if (isMatching) {
         return (
-            <FindingMatch 
-                selections={{
-                    topic: selections.topics.join(', ') || 'Any',
-                    difficulty: selections.difficulties.join(', ') || 'Any',
-                    preferredLanguage: selections.preferredLanguage,
-                    backupLanguages: selections.backupLanguages
-                }}
-                onCancel={handleCancelClick}
-            />
+            <>
+                <FindingMatch 
+                    selections={{
+                        topic: selections.topics.join(', ') || 'Any',
+                        difficulty: selections.difficulties.join(', ') || 'Any',
+                        preferredLanguage: selections.preferredLanguage || 'Any',
+                        backupLanguages: selections.backupLanguages || 'None'
+                    }}
+                    onCancel={handleCancelClick}
+                />
+                {/* Confirmation Dialog */}
+                {showCancelConfirm && (
+                    <CancelConfirmation 
+                        actionType={confirmAction}
+                        onConfirm={handleConfirmAction}
+                        onCancel={handleCancelConfirmation}
+                    />
+                )}
+            </>
         );
     }
 
     if (matchFound && matchCriteria) {
         return (
-            <MatchFound 
-                user="You" // TODO: Replace with actual user name
-                partner={matchedUser || "Partner"} // TODO: Replace with actual partner name
-                matchedSelections={{
-                    topic: matchCriteria.topics?.[0] || 'Any',
-                    difficulty: matchCriteria.difficulty?.[0] || 'Any',
-                    language: matchCriteria.programming_language || 'JavaScript'
-                }}
-                onQuit={handleQuitClick}
-            />
+            <>
+                <MatchFound 
+                    user={user?.display_name || "You"}
+                    partner="Your Partner"
+                    matchedSelections={{
+                        topic: matchCriteria.topic || 'Any',
+                        difficulty: matchCriteria.difficulty || 'Any',
+                        language: matchCriteria.language || 'JavaScript'
+                    }}
+                    onQuit={handleQuitClick}
+                />
+                {/* Confirmation Dialog */}
+                {showCancelConfirm && (
+                    <CancelConfirmation 
+                        actionType={confirmAction}
+                        onConfirm={handleConfirmAction}
+                        onCancel={handleCancelConfirmation}
+                    />
+                )}
+            </>
         );
     }
 
@@ -476,7 +491,6 @@ const MatchingForm = () => {
                     <button
                         type="submit"
                         onClick={handleSubmit}
-                        disabled={!selections.preferredLanguage}
                         className="bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-6 rounded-lg transition duration-200 w-full disabled:bg-gray-600 disabled:cursor-not-allowed"
                     >
                         Find Match
