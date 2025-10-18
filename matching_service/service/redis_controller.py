@@ -381,7 +381,7 @@ class RedisController:
             aggregate="SUM"
         )
         assert await self.redis.zcard(temp_set_key) > 0
-        earliest_user = await self.redis.zpopmin(temp_set_key, 1)[0][0]
+        earliest_user = (await self.redis.zpopmin(temp_set_key, 1))[0][0]
         await self.redis.delete(intersection_key, temp_set_key)
         return UUID(earliest_user)
 
