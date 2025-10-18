@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from user_service.utils import APIResponse
+from authentication.services import TokenService
 from .serializers import (
     PublicProfileInputSerializer,
     PublicProfileOutputSerializer,
@@ -25,17 +26,18 @@ class PublicProfileView(APIView):
     API view for fetching public user profiles.
 
     Handles GET requests to retrieve basic public profile information
-    for a given user_id. This endpoint is publicly accessible.
+    for a given user_id. This endpoint requires authentication.
     """
-    permission_classes = [AllowAny]
+    permission_classes = []  # Requires authentication but handled manually
 
     @extend_schema(
         summary="Get public user profile",
-        description="Retrieve basic public profile information (display name, etc.) for a given user ID",
+        description="Retrieve basic public profile information (display name, etc.) for a given user ID. Requires authentication.",
         parameters=[PublicProfileInputSerializer],
         responses={
             200: OpenApiResponse(response=PublicProfileOutputSerializer, description="Profile retrieved successfully"),
             400: OpenApiResponse(description="Invalid input data"),
+            401: OpenApiResponse(description="Authentication required"),
             404: OpenApiResponse(description="User not found"),
         },
         tags=["Users"]
@@ -50,6 +52,15 @@ class PublicProfileView(APIView):
         Returns:
             Response: Standardized API response with public user data
         """
+        # Verify authentication - this endpoint is protected
+        try:
+            accessing_user, accessing_session = TokenService.verify_token_and_get_user_data(request)
+            # Track: accessing_user.id is viewing profile of user_id
+            # You can log this access for audit/analytics
+        except ValidationError as e:
+            # Authentication required - return 401 if token is invalid/missing
+            return APIResponse.unauthorized(str(e))
+
         # Validate input from query parameters
         input_serializer = PublicProfileInputSerializer(data=request.query_params)
         if not input_serializer.is_valid():
