@@ -23,4 +23,4 @@ consumer_config = {
     }
 
 REQUEST_TOPIC = os.getenv("TOPIC_MATCH_FOUND", "match.found")
-RESPONSE_TOPIC = os.getenv("TOPIC_QUESTION_FOUND", "question.found")
+RESPONSE_TOPIC = os.getenv("TOPIC_QUESTION_CHOSEN", "question.chosen")

@@ -24,7 +24,6 @@ class KafkaController:
             match_found_schema
         )
 
-
     def delivery_report(self, err: Exception | None, msg: Message):
         if err is not None:
             logger.error(f"Delivery failed for record {msg.key().decode()}: {err}")
