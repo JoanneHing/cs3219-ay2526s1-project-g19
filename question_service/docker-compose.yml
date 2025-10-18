@@ -65,6 +65,8 @@ services:
       dockerfile: Dockerfile
     container_name: peerprep_question_kafka
     command: python manage.py run_question_consumer
+    volumes:
+      - ./:/app:rw
     networks:
       - shared_network
     env_file:
@@ -72,7 +74,6 @@ services:
       - ../.env
     environment:
       SKIP_DB_SETUP: true
-      KAFKA_BOOTSTRAP_SERVERS: peerprep_kafka:9092
       GROUP_ID: question-service-group
 
 volumes:
