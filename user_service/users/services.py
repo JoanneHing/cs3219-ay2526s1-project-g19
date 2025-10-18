@@ -3,7 +3,6 @@ Users service layer.
 
 Contains reusable business logic for user operations.
 """
-from typing import Optional
 from django.contrib.auth import get_user_model
 from uuid import UUID
 

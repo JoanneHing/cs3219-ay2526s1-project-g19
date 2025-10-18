@@ -74,7 +74,7 @@ ROOT_URLCONF = 'user_service.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Custom templates directory
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -263,8 +263,9 @@ EMAIL_SSO_TOKEN_TTL_MINUTES = config('EMAIL_SSO_TOKEN_TTL_MINUTES', default=15, 
 EMAIL_SSO_SUBJECT = config('EMAIL_SSO_SUBJECT', default='[PeerPrep] Sign in link')
 
 # After login or email confirmation, send user here:
-LOGIN_REDIRECT_URL = 'http://localhost:3000/dashboard'
-LOGOUT_REDIRECT_URL = 'http://localhost:3000/'
+LOGIN_REDIRECT_URL = FRONTEND_BASE_URL + '/login'
+LOGOUT_REDIRECT_URL = FRONTEND_BASE_URL
 
-ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'
+# Redirect with verification success parameter after email confirmation
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = FRONTEND_BASE_URL + '/login?verified=true'
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = FRONTEND_BASE_URL + '/login?verified=true'

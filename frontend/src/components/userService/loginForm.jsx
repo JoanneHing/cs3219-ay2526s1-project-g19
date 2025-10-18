@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, MessageSquareWarning, Mail} from "lucide-react";
 import { userService } from "../../api/services/userService";
 import { useAuth } from "../../contexts/AuthContext";
@@ -48,6 +48,7 @@ const ErrorMessage = ({ errorsArray }) => {
 const LoginForm = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [formData, setFormData] = useState({
         email: "",
@@ -64,6 +65,17 @@ const LoginForm = () => {
     const [loginError, setLoginError] = useState("");
     const [ssoLoading, setSsoLoading] = useState(false);
     const [ssoMessage, setSsoMessage] = useState("");
+    const [showVerificationModal, setShowVerificationModal] = useState(false);
+
+    // Check for verification success on component mount
+    useEffect(() => {
+        if (searchParams.get('verified') === 'true') {
+            setShowVerificationModal(true);
+            // Remove the query parameter from URL
+            searchParams.delete('verified');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams]);
     
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -206,10 +218,43 @@ const LoginForm = () => {
     }
 
     return (
-        <div className="flex flex-col items-center border border-gray-700 p-8 rounded-lg gap-5 w-150 min-w-[300px] max-w-[500px] bg-background-secondary shadow-lg">
-            <img src="./src/assets/PeerPrepLogoLight.png" alt="Peerprep Logo" className="w-40"/>
-            <h2 className="font-bold">Welcome Back</h2>
-            <p className="text-gray-300">Sign in to continue your peer collaboration journey</p>
+        <>
+            {/* Verification Success Modal */}
+            {showVerificationModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    {/* Backdrop with blur */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setShowVerificationModal(false)}
+                    ></div>
+
+                    {/* Modal Content */}
+                    <div className="relative z-10 bg-background-secondary border border-green-500 rounded-lg p-8 max-w-md mx-4 shadow-2xl">
+                        <div className="flex flex-col items-center gap-4">
+                            <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <svg className="w-8 h-8 text-green-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-green-400">Email Verified!</h3>
+                            <p className="text-gray-300 text-center">
+                                Your email has been successfully verified. You can now sign in to your account.
+                            </p>
+                            <button
+                                onClick={() => setShowVerificationModal(false)}
+                                className="mt-4 px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                            >
+                                Continue to Sign In
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col items-center border border-gray-700 p-8 rounded-lg gap-5 w-150 min-w-[300px] max-w-[500px] bg-background-secondary shadow-lg">
+                <img src="./src/assets/PeerPrepLogoLight.png" alt="Peerprep Logo" className="w-40"/>
+                <h2 className="font-bold">Welcome Back</h2>
+                <p className="text-gray-300">Sign in to continue your peer collaboration journey</p>
             <div className="w-full">
                 <form className="flex flex-col gap-4 text-gray-300" onSubmit={handleSubmit}>
 
@@ -305,6 +350,7 @@ const LoginForm = () => {
                 <p className="text-gray-300">Don't have an account? <a href="/register">Create one</a></p>
             </div>
         </div>
+        </>
     )
 }
 
