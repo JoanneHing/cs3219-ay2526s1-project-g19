@@ -177,3 +177,39 @@ class RefreshTokenOutputSerializer(serializers.Serializer):
             super().__init__(**kwargs)
 
 
+class EmailSSORequestSerializer(serializers.Serializer):
+    """Input serializer for requesting an email-based single sign-on link."""
+    email = serializers.EmailField(required=True, help_text="Registered user email")
+    redirect_path = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional frontend-relative path to continue after sign-in"
+    )
+
+
+class EmailSSOVerifySerializer(serializers.Serializer):
+    """Input serializer for verifying an email SSO token."""
+    token = serializers.CharField(required=True, help_text="Signed token from email link")
+
+
+class EmailSSOOutputSerializer(serializers.Serializer):
+    """Output serializer describing the SSO email dispatch result."""
+    email = serializers.EmailField(read_only=True)
+    account_exists = serializers.BooleanField(read_only=True)
+    delivered = serializers.BooleanField(read_only=True)
+    expires_in = serializers.IntegerField(read_only=True)
+    login_url = serializers.URLField(read_only=True, allow_null=True)
+
+    def __init__(self, result=None, **kwargs):
+        if result is not None:
+            instance = {
+                'email': result.email,
+                'account_exists': result.account_exists,
+                'delivered': result.delivered,
+                'expires_in': result.expires_in,
+                'login_url': result.login_url,
+            }
+            super().__init__(instance, **kwargs)
+        else:
+            super().__init__(**kwargs)
+

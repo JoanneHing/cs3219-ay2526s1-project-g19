@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, MessageSquareWarning} from "lucide-react";
+import { Eye, EyeOff, MessageSquareWarning, Mail} from "lucide-react";
 import { userService } from "../../api/services/userService";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -62,6 +62,8 @@ const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [loginError, setLoginError] = useState("");
+    const [ssoLoading, setSsoLoading] = useState(false);
+    const [ssoMessage, setSsoMessage] = useState("");
     
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
@@ -162,8 +164,45 @@ const LoginForm = () => {
         if (!fieldErrors) return "border-gray-500";
 
         const hasError = Array.isArray(fieldErrors) && fieldErrors.length > 0;
-        
+
         return hasError ? "border-red-400" : "border-gray-500";
+    }
+
+    const handleEmailSSO = async () => {
+        // Validate email first
+        const emailErrors = validateEmail(formData.email, []);
+
+        if (emailErrors.length > 0) {
+            setError(prev => ({ ...prev, email: emailErrors }));
+            return;
+        }
+
+        setSsoLoading(true);
+        setSsoMessage("");
+        setLoginError("");
+
+        try {
+            const response = await userService.requestEmailSSO({
+                email: formData.email,
+                redirect_path: '/home'
+            });
+
+            const { account_exists, delivered } = response.data;
+
+            if (account_exists && delivered) {
+                setSsoMessage("✓ Sign-in link sent! Check your email.");
+            } else if (!account_exists) {
+                setSsoMessage("✗ No account found with this email.");
+            } else {
+                setSsoMessage("✗ Failed to send email. Please try again.");
+            }
+
+        } catch (err) {
+            console.error("Email SSO request failed:", err);
+            setSsoMessage("✗ Failed to send sign-in link. Please try again.");
+        } finally {
+            setSsoLoading(false);
+        }
     }
 
     return (
@@ -230,9 +269,39 @@ const LoginForm = () => {
                         {isLoading ? "Signing In..." : "Sign In"}
                     </button>
                 </form>
+
+                {/* Email SSO Section */}
+                <div className="w-full mt-4">
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-600"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-background-secondary text-gray-400">Or</span>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleEmailSSO}
+                        disabled={ssoLoading}
+                        className="w-full mt-4 flex items-center justify-center gap-2 border border-gray-600 text-gray-300 hover:bg-gray-800 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Mail className="w-4 h-4"/>
+                        {ssoLoading ? "Sending link..." : "Sign in with Email Link"}
+                    </button>
+
+                    {/* SSO Message */}
+                    {ssoMessage && (
+                        <div className={`text-sm text-center mt-2 p-2 rounded ${
+                            ssoMessage.includes("✓") ? "text-green-400 bg-green-900/20" : "text-red-400 bg-red-900/20"
+                        }`}>
+                            {ssoMessage}
+                        </div>
+                    )}
+                </div>
             </div>
             <div className="flex flex-col items-center gap-2 text-sm ">
-                <p><a href="/reset-password">Forgot your password?</a></p>
                 <p className="text-gray-300">Don't have an account? <a href="/register">Create one</a></p>
             </div>
         </div>

@@ -34,6 +34,11 @@ services:
       - EMAIL_HOST_USER=${EMAIL_HOST_USER}
       - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
       - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-noreply@peerprep.com}
+      # Email SSO configuration
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:5173}
+      - EMAIL_SSO_CALLBACK_PATH=${EMAIL_SSO_CALLBACK_PATH:-/auth/email-sso}
+      - EMAIL_SSO_TOKEN_TTL_MINUTES=${EMAIL_SSO_TOKEN_TTL_MINUTES:-15}
+      - EMAIL_SSO_SUBJECT=${EMAIL_SSO_SUBJECT:-[PeerPrep] Sign in link}
     volumes:
       - ./:/app:rw
     networks:
