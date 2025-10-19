@@ -2,9 +2,7 @@ import logging
 from confluent_kafka import Producer, Consumer, KafkaError, Message
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
-import json
-from question_service.kafka.config import RESPONSE_TOPIC, \
-    consumer_config, producer_admin_config, schema_registry_conf
+from question_service.kafka.config import consumer_config, producer_admin_config, schema_registry_conf
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +14,6 @@ class KafkaClient:
         )
         self.producer = Producer(producer_admin_config)
         self.consumer = Consumer(consumer_config)
-
-    def send_response_message(self, message: dict):
-        self.producer.produce(RESPONSE_TOPIC, json.dumps(message).encode("utf-8"))
 
     def consumer_listen(self, topic, handler):
         self.consumer.subscribe([topic])

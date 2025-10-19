@@ -1,6 +1,19 @@
 #!/bin/bash
 set -e
 
+# Register kafka schema registry schemas
+if [ -f "question_service/kafka/scripts/register_schemas.py" ]; then
+  echo "Registering Kafka schemas..."
+  python -m question_service.kafka.scripts.register_schemas || echo "Schema registration failed or already done."
+else
+  echo "No schema registration script found. Skipping..."
+fi
+
+# Start main service
+echo "Starting main application..."
+exec "$@"
+
+
 if [ "$SKIP_DB_SETUP" != "true" ]; then
   DB_HOST=${DB_HOST:-localhost}
   DB_PORT=${DB_PORT:-5432}
