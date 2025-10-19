@@ -16,7 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, reverse
+from django.http import JsonResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+
+
+def health_check(request):
+    """Health check endpoint for ALB"""
+    return JsonResponse({"status": "healthy"}, status=200)
 
 
 class ProxyAwareSwaggerView(SpectacularSwaggerView):
@@ -41,6 +47,7 @@ class ProxyAwareSwaggerView(SpectacularSwaggerView):
 
 
 urlpatterns = [
+    path('health', health_check, name='health'),  # Health check for ALB
     path('admin/', admin.site.urls),
     path('api/auth/', include('authentication.urls')),
     path('api/users/', include('users.urls')),

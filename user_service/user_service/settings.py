@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'user_service.middleware.ForwardedPrefixMiddleware',  # Handle X-Forwarded-Prefix from nginx
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'user_service.middleware.FixedPrefixMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

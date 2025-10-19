@@ -80,3 +80,65 @@ class ForwardedPrefixMiddleware:
                 response['Location'] = new_location
 
         return response
+
+"""
+Middleware to strip a fixed prefix from incoming requests
+and fix redirect Location headers accordingly.
+"""
+
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+class FixedPrefixMiddleware:
+    """
+    Strips a fixed prefix from incoming paths and rewrites
+    redirect Location headers so Django works behind a prefix.
+
+    Example:
+      /question-service-api/admin/ -> /admin/
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.prefix = '/history-service-api'.rstrip('/')
+
+    def __call__(self, request):
+        if request.path.startswith(self.prefix):
+            request.path_info = request.path[len(self.prefix):] or '/'
+            request.META['SCRIPT_NAME'] = self.prefix
+
+        response = self.get_response(request)
+
+        # Fix redirect Location headers
+        if 'Location' in response:
+            location = response['Location']
+
+            if location.startswith('/') and not location.startswith(self.prefix):
+                parsed = urlparse(location)
+                new_path = self.prefix + parsed.path
+
+                # Fix query parameters for next/redirect URLs
+                if parsed.query:
+                    query_params = parse_qs(parsed.query)
+                    for key, values in query_params.items():
+                        if key in ['next', 'redirect', 'return_url', 'return_to']:
+                            fixed_values = [
+                                self.prefix + v if v.startswith('/') and not v.startswith(self.prefix) else v
+                                for v in values
+                            ]
+                            query_params[key] = fixed_values
+                    new_query = urlencode(query_params, doseq=True)
+                else:
+                    new_query = parsed.query
+
+                new_location = urlunparse((
+                    parsed.scheme,
+                    parsed.netloc,
+                    new_path,
+                    parsed.params,
+                    new_query,
+                    parsed.fragment
+                ))
+
+                response['Location'] = new_location
+
+        return response

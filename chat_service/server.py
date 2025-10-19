@@ -1,42 +1,43 @@
-import os
-import time
-import socketio
-import logging
 import json
+import logging
+import os
+import socketio
+from socketio import AsyncRedisManager
 from aiohttp import web
 import redis.asyncio as redis
 from schemas import MessageData
 
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 logger = logging.getLogger(__name__)
 
-# Constants
+# --- Config / constants ---
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 EXPIRY_TIME = 1800  # 30 minutes - matching collaboration service
+SERVICE_PREFIX = os.getenv("SERVICE_PREFIX", "/chat-service-api")
+if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
+    SERVICE_PREFIX = "/" + SERVICE_PREFIX
+SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 
-# Create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins="*")
-app = web.Application()
-sio.attach(app)
-
-# Initialize Redis connection
+# --- Redis connection (for chat history) ---
 redis_client = None
 
 async def init_redis():
-    """Initialize Redis connection."""
     global redis_client
     redis_client = await redis.from_url(REDIS_URL, decode_responses=True)
     logger.info(f"Connected to Redis at {REDIS_URL}")
 
 async def cleanup_on_startup():
-    """Clean up all chat-related data on server startup."""
+    """Clean up chat-related data on server startup."""
     try:
-        # Get all chat history keys
         chat_keys = await redis_client.keys("chat_history_*")
         if chat_keys:
             await redis_client.delete(*chat_keys)
             logger.info(f"Cleaned up {len(chat_keys)} chat history entries on startup")
 
-        # Get all room users keys
         user_keys = await redis_client.keys("room_users_*")
         if user_keys:
             await redis_client.delete(*user_keys)
@@ -46,104 +47,137 @@ async def cleanup_on_startup():
     except Exception as e:
         logger.error(f"Error during startup cleanup: {e}")
 
-@sio.event
-async def connect(sid, environ):
-    """Handle new WebSocket connection."""
-    logger.info(f"User connected to socket {sid}")
-    print(f"User connected to socket {sid}")
+async def health_check(request):
+    return web.json_response({"status": "healthy"})
 
-@sio.event
-async def join(sid, data):
-    """Handle a user joining a chat room."""
-    username = data.get("username")
-    room = data.get("room")
+# --- Socket.IO: create TWO servers that share the SAME Redis manager ---
+def make_sio() -> socketio.AsyncServer:
+    return socketio.AsyncServer(
+        cors_allowed_origins="*",
+        logger=True,
+        engineio_logger=True,
+        client_manager=AsyncRedisManager(REDIS_URL),  # <-- cross-pod + cross-app fanout
+        ping_interval=25,
+        ping_timeout=60,
+    )
 
-    if not room or not username:
-        await sio.emit("error", {"message": "username and room are required"}, to=sid)
-        return
+sio_root = make_sio()      # serves at /socket.io
+sio_prefixed = make_sio()  # serves at /{SERVICE_PREFIX}/socket.io
 
-    await sio.enter_room(sid, room)
-    logger.info(f"User {username} joined room: {room}")
+# --- Register identical event handlers on BOTH Socket.IO servers ---
+def register_handlers(sio: socketio.AsyncServer):
 
-    # Send chat history to the joining user
-    cache_key = f"chat_history_{room}"
-    history = await redis_client.lrange(cache_key, 0, -1)
-    if history:
-        for msg_str in history:
+    @sio.event
+    async def connect(sid, environ):
+        logger.info(f"[{id(sio)}] User connected: {sid}")
+        print(f"[{id(sio)}] User connected: {sid}")
+
+    @sio.event
+    async def join(sid, data):
+        username = (data or {}).get("username")
+        room = (data or {}).get("room")
+        if not room or not username:
+            await sio.emit("error", {"message": "username and room are required"}, to=sid)
+            return
+
+        await sio.enter_room(sid, room)
+        logger.info(f"[{id(sio)}] {username} joined room: {room}")
+
+        # Replay last messages
+        cache_key = f"chat_history_{room}"
+        try:
+            history = await redis_client.lrange(cache_key, 0, -1)
+        except Exception:
+            history = []
+            logger.exception("Redis LRANGE failed for %s", cache_key)
+
+        for msg_str in history or []:
             msg_dict = json.loads(msg_str)
             msg_data = MessageData.from_dict(msg_dict)
             await sio.emit("receive", msg_data.to_dict(), to=sid)
 
-    # Send notification of new user joining using MessageData
-    join_notification = MessageData(
-        message=f"{username} has joined the interview",
-        username="ChatBot"
-    )
-    await sio.emit("receive", join_notification.to_dict(), room=room)
+        # Notify room
+        join_notification = MessageData(
+            message=f"{username} has joined the interview",
+            username="ChatBot"
+        )
+        await sio.emit("receive", join_notification.to_dict(), room=room)
 
-@sio.event
-async def send(sid, data):
-    """Handle sending messages."""
-    room = data.get("room")
-    username = data.get("username")
-    message = data.get("message")
+    @sio.event
+    async def send(sid, data):
+        room = (data or {}).get("room")
+        username = (data or {}).get("username")
+        message = (data or {}).get("message")
 
-    if not all([room, username, message]):
-        await sio.emit("error", {"message": "room, username and message are required"}, to=sid)
-        return
+        if not all([room, username, message]):
+            await sio.emit("error", {"message": "room, username and message are required"}, to=sid)
+            return
 
-    # Create MessageData instance
-    message_data = MessageData(
-        message=message,
-        username=username
-    )
+        message_data = MessageData(message=message, username=username)
 
-    # Store message in Redis as JSON string
-    cache_key = f"chat_history_{room}"
-    await redis_client.rpush(cache_key, json.dumps(message_data.to_dict()))
-    # Keep only last 100 messages
-    await redis_client.ltrim(cache_key, -100, -1)
-    # Set expiry time (refreshes on every message)
-    await redis_client.expire(cache_key, EXPIRY_TIME)
+        cache_key = f"chat_history_{room}"
+        try:
+            await redis_client.rpush(cache_key, json.dumps(message_data.to_dict()))
+            # Keep only last 100 messages
+            await redis_client.ltrim(cache_key, -100, -1)
+            # Set expiry time (refreshes on every message)
+            await redis_client.expire(cache_key, EXPIRY_TIME)
+        except Exception:
+            logger.exception("Redis write failed for %s", cache_key)
 
-    # Broadcast message to room using MessageData
-    await sio.emit("receive", message_data.to_dict(), room=room)
-    logger.info(f"Message from {username} in room {room}: {message}")
+        await sio.emit("receive", message_data.to_dict(), room=room)
+        logger.info(f"[{id(sio)}] {username} @ {room}: {message}")
 
-@sio.event
-async def leave(sid, data):
-    """Handle a user leaving a chat room."""
-    username = data.get("username")
-    room = data.get("room")
+    @sio.event
+    async def leave(sid, data):
+        username = (data or {}).get("username")
+        room = (data or {}).get("room")
+        if not room or not username:
+            await sio.emit("error", {"message": "username and room are required"}, to=sid)
+            return
 
-    if not room or not username:
-        await sio.emit("error", {"message": "username and room are required"}, to=sid)
-        return
+        await sio.leave_room(sid, room)
+        leave_notification = MessageData(
+            message=f"{username} has left the interview",
+            username="ChatBot"
+        )
+        await sio.emit("receive", leave_notification.to_dict(), room=room)
+        logger.info(f"[{id(sio)}] {username} left room: {room}")
 
-    await sio.leave_room(sid, room)
+    @sio.event
+    async def disconnect(sid):
+        logger.info(f"[{id(sio)}] User disconnected: {sid}")
+        print(f"[{id(sio)}] User disconnected: {sid}")
 
-    # Send leave notification using MessageData
-    leave_notification = MessageData(
-        message=f"{username} has left the interview",
-        username="ChatBot"
-    )
-    await sio.emit("receive", leave_notification.to_dict(), room=room)
+# Register handlers on both servers
+register_handlers(sio_root)
+register_handlers(sio_prefixed)
 
-    logger.info(f"User {username} left room: {room}")
+# --- Aiohttp apps: root app + prefixed subapp (NO middleware) ---
+root_app = web.Application()
+prefixed_app = web.Application()
 
-@sio.event
-async def disconnect(sid):
-    """Handle client disconnection."""
-    logger.info(f"User disconnected: {sid}")
-    print(f"User disconnected: {sid}")
+# Attach Socket.IO servers (note: different server objects; same Redis manager)
+sio_root.attach(root_app, socketio_path="socket.io")
+sio_prefixed.attach(prefixed_app, socketio_path="socket.io")
 
-async def startup_sequence(app):
-    """Run startup sequence."""
+# Health on both
+root_app.router.add_get("/health", health_check)
+root_app.router.add_get("/health/", health_check)
+prefixed_app.router.add_get("/health", health_check)
+prefixed_app.router.add_get("/health/", health_check)
+
+# Mount the prefixed subapp
+if SERVICE_PREFIX:
+    root_app.add_subapp(SERVICE_PREFIX, prefixed_app)
+
+# Startup sequence
+async def startup_sequence(app: web.Application):
     await init_redis()
     await cleanup_on_startup()
 
-# Run the server
+root_app.on_startup.append(startup_sequence)
+
 if __name__ == "__main__":
-    app.on_startup.append(startup_sequence)
-    port = int(os.environ.get("PORT", 8006))  # Read from env or default to 8006
-    web.run_app(app, port=port)
+    port = int(os.environ.get("PORT", 8006))
+    web.run_app(root_app, port=port)
