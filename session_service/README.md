@@ -16,7 +16,7 @@
 ### Session Table
 ```sql
 CREATE TABLE sessions (
-    session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     is_active BOOLEAN DEFAULT TRUE,
     language VARCHAR(10) NOT NULL
