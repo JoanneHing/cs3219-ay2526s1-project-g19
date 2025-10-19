@@ -11,8 +11,8 @@ class Session(SQLModel, table=True):
 
 
 class SessionUser(SQLModel, table=True):
-    session_id: UUID = Field(foreign_key="session.id")
-    user_id: UUID = Field(nullable=False)
+    session_id: UUID = Field(foreign_key="session.id", primary_key=True)
+    user_id: UUID = Field(nullable=False, primary_key=True)
 
 
 class SessionMetadata(SQLModel, table=True):

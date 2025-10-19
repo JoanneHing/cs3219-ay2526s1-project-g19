@@ -1,9 +1,13 @@
+import json
 import logging
 from fastapi import APIRouter, FastAPI
 import uvicorn
 from config import settings
 
 
+with open("log_config.json", "r") as f:
+    config = json.load(f)
+logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -14,6 +18,7 @@ app = FastAPI(redirect_slashes=False)
 
 @router.get("/test")
 async def test(msg: str):
+    logger.info(settings.pg_url)
     return f"hi {msg}"
 
 app.include_router(router=router)
