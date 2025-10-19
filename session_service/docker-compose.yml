@@ -1,0 +1,32 @@
+# Session Service - Standalone Configuration
+# Run independently: cd session_service && docker-compose up
+
+services:
+  session-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_session_service
+    ports:
+      - "${SESSION_SERVICE_PORT:-8003}:8000"
+    environment:
+      - DEBUG=${DEBUG:-true}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,session-service}
+    volumes:
+      - ./:/app:rw
+    networks:
+      - shared_network
+      - session_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  shared_network:
+  session_network:
+    driver: bridge
+    name: peerprep_session_network
