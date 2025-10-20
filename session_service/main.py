@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.config
 from fastapi import APIRouter, FastAPI
 import uvicorn
 from config import settings

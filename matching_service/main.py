@@ -91,8 +91,8 @@ async def get():
 })
 async def match_users(data: MatchUserRequestSchema):
     # check if ws connection is set up
-    if not websocket_service.check_ws_connection(user_id=data.user_id):
-        return "Error: connect to websocket first"
+    # if not websocket_service.check_ws_connection(user_id=data.user_id):
+    #     return "Error: connect to websocket first"
     res = await matching_service.match_user(
         user_id=data.user_id,
         criteria=data.criteria

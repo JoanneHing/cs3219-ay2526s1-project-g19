@@ -9,6 +9,16 @@ class Settings(BaseSettings):
     session_db_user: str
     session_db_password: str
 
+    # Kafka variables
+    topic_question_chosen: str
+    topic_session_created: str
+    schema_registry_url: str
+    schema_registry_key: str
+    schema_registry_secret: str
+    kafka_bootstrap_servers: str
+    sasl_username: str
+    sasl_password: str
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @property
