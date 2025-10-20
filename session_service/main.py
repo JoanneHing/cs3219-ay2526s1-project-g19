@@ -37,7 +37,6 @@ if SERVICE_PREFIX:
     app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
 
 
-
 @router.get("/test")
 async def test(msg: str):
     logger.info(settings.pg_url)

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     session_db_password: str
 
     # Kafka variables
+    group_id: str
     topic_question_chosen: str
     topic_session_created: str
     schema_registry_url: str

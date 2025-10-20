@@ -13,7 +13,7 @@ producer_config = {
 }
 consumer_config = {
     "bootstrap.servers": settings.kafka_bootstrap_servers,
-    'group.id': 'session-service-group',
+    'group.id': settings.group_id,
     'session.timeout.ms': 6000,
     'auto.offset.reset': 'earliest',
     "security.protocol": "SASL_SSL",

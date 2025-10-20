@@ -15,11 +15,6 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,session-service}
-      - DB_HOST=${SESSION_DB_HOST:-session_db}
-      - DB_PORT=${SESSION_DB_PORT:-5432}
-      - DB_NAME=${SESSION_DB_NAME:-session_db}
-      - DB_USER=${SESSION_DB_USER:-peerprep}
-      - DB_PASSWORD=${SESSION_DB_PASSWORD:-peerprep_dev_password}
     volumes:
       - ./:/app:rw
     networks:
@@ -72,14 +67,6 @@ services:
     env_file:
       - .env
       - ../.env
-    environment:
-      - SKIP_DB_SETUP=true
-      - GROUP_ID=session-service-group
-      - DB_HOST=${SESSION_DB_HOST:-session_db}
-      - DB_PORT=${SESSION_DB_PORT:-5432}
-      - DB_NAME=${SESSION_DB_NAME:-session_db}
-      - DB_USER=${SESSION_DB_USER:-peerprep}
-      - DB_PASSWORD=${SESSION_DB_PASSWORD:-peerprep_dev_password}
     depends_on:
       session_db:
         condition: service_healthy
