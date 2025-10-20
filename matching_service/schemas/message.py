@@ -13,30 +13,24 @@ class MatchingStatus(StrEnum):
     RELAX_LANGUAGE = "relax"
 
 
-class MatchedCriteriaSchema(BaseModel):
-    topic: str
-    difficulty: str
-    language: str
-
-
-class SessionCreatedEventMessage(BaseModel):
+class MatchingEventMessage(BaseModel):
     status: MatchingStatus
     session: SessionCreatedSchema | None = None
 
     @model_validator(mode="after")
-    def check_success(cls, values) -> Self:
-        if values.status == MatchingStatus.SUCCESS:
-            if values.session is None:
+    def check_success(self) -> Self:
+        if self.status == MatchingStatus.SUCCESS:
+            if self.session is None:
                 raise ValueError(
                     "Success status message must include a session object"
                 )
-        return values
+        return self
 
     @model_validator(mode="after")
-    def check_non_success(cls, values) -> Self:
-        if values.status != MatchingStatus.SUCCESS:
-            if values.session is not None:
+    def check_non_success(self) -> Self:
+        if self.status != MatchingStatus.SUCCESS:
+            if self.session is not None:
                 raise ValueError(
                     "Non-success status message cannot include a session object"
                 )
-        return values
+        return self

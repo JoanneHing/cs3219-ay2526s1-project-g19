@@ -12,7 +12,7 @@ from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
 from kafka.kafka_client import kafka_client
 from schemas.events import SessionCreatedSchema
 from schemas.matching import MatchingCriteriaSchema
-from schemas.message import MatchedCriteriaSchema
+from schemas.matching import MatchedCriteriaSchema
 from service.websocket import websocket_service
 from config import settings
 
@@ -186,7 +186,6 @@ class RedisController:
         logger.info(settings.redis_host)
 
         async for msg in pubsub.listen():
-            logger.info(f"received {msg}")
             if msg["type"] == "message":
                 data = json.loads(msg["data"])
                 logger.info(msg["data"])
@@ -239,6 +238,8 @@ class RedisController:
             matched_user_id=matched_user_id
         )
         logger.info(f"User {user_id} matched with user {matched_user_id}. Criteria: {matched_criteria}")
+        await redis_controller.remove_from_queue(user_id=user_id)
+        await redis_controller.remove_from_queue(user_id=matched_user_id)
         kafka_client.pub_match_found(
             user_id_list=[user_id, matched_user_id],
             criteria=matched_criteria
@@ -386,6 +387,9 @@ class RedisController:
         user_id: UUID
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
+        raw = await self.redis.hget(name=meta_key, key=criteria.value)
+        if not raw:
+            return []
         criteria_list = json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
         if criteria_list is None:
             criteria_list = []

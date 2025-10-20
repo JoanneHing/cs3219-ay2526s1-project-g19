@@ -6,7 +6,7 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.serialization import SerializationContext, MessageField
 from config import settings
 from schemas.events import MatchFoundSchema
-from schemas.message import MatchedCriteriaSchema
+from schemas.matching import MatchedCriteriaSchema
 from confluent_kafka.schema_registry.avro import AvroSerializer, AvroDeserializer
 from kafka.kafka_config import schema_registry_conf, producer_config, consumer_config
 
