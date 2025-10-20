@@ -13,7 +13,6 @@ with open("log_config.json", "r") as f:
     config = json.load(f)
 logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
 
 
 class QuestionChosenConsumer:
@@ -57,4 +56,4 @@ class QuestionChosenConsumer:
 if __name__=="__main__":
     consumer = QuestionChosenConsumer()
     consumer.listen()
-    
+    kafka_client.shutdown()

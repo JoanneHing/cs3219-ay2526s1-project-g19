@@ -2,13 +2,15 @@ import asyncio
 import json
 import logging
 import redis.asyncio as redis
+from redis.asyncio.client import PubSub
 from constants.matching import RELAX_LANGUAGE_DURATION, MatchingCriteriaEnum
 from uuid import UUID
 from fastapi import HTTPException, status
 import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
-from kafka.kafka_controller import kafka_controller
+from kafka.kafka_client import kafka_client
+from schemas.events import SessionCreatedSchema
 from schemas.matching import MatchingCriteriaSchema
 from schemas.message import MatchedCriteriaSchema
 from service.websocket import websocket_service
@@ -24,10 +26,9 @@ class RedisController:
             host=settings.redis_host,
             port=settings.redis_port,
             db=0,
-            decode_responses=True
+            decode_responses=True,
         )
         self.general_queue_key="gen_queue:"
-        self.pubsub = self.redis.pubsub()
         self.websocket_service = websocket_service
 
         ## Add operations
@@ -153,12 +154,13 @@ class RedisController:
         )
 
     async def start_expiry_listener(self):
-        await self.pubsub.psubscribe("__keyevent@0__:expired")
+        pubsub = self.get_pubsub()
+        await pubsub.psubscribe("__keyevent@0__:expired")
         logger.info("Subscribed to key expiry events")
 
         try:
             while True:
-                message = await self.pubsub.get_message(
+                message = await pubsub.get_message(
                     ignore_subscribe_messages=True,
                     timeout=None
                 )
@@ -174,8 +176,32 @@ class RedisController:
         except asyncio.CancelledError:
             logger.info("Expiry event listener cancelled — shutting down")
         finally:
-            await self.pubsub.close()
+            await pubsub.close()
             await self.redis.close()
+
+    async def start_session_created_listener(self):
+        pubsub = self.get_pubsub()
+        await pubsub.subscribe(settings.topic_session_created)
+        logger.info(f"Subscribed to session created events on {settings.topic_session_created}")
+        logger.info(settings.redis_host)
+
+        async for msg in pubsub.listen():
+            logger.info(f"received {msg}")
+            if msg["type"] == "message":
+                data = json.loads(msg["data"])
+                logger.info(msg["data"])
+                session_created = SessionCreatedSchema(**data)
+                await self.websocket_service.send_session_created(session_created=session_created)
+
+    def get_pubsub(self) -> PubSub:
+        r = redis.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=0,
+            decode_responses=True,
+        )
+        pubsub = r.pubsub()
+        return pubsub
 
     async def handle_timeout(self, expiry_key: str):
         user_id = UUID(expiry_key.split(":")[1])
@@ -213,7 +239,7 @@ class RedisController:
             matched_user_id=matched_user_id
         )
         logger.info(f"User {user_id} matched with user {matched_user_id}. Criteria: {matched_criteria}")
-        kafka_controller.pub_match_found(
+        kafka_client.pub_match_found(
             user_id_list=[user_id, matched_user_id],
             criteria=matched_criteria
         )

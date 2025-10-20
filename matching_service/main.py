@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import uvicorn
 import logging
-from kafka.kafka_controller import kafka_controller
+from kafka.kafka_client import kafka_client
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller
@@ -32,12 +32,14 @@ SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Running events on start...")
-    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
+    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())
+    session_created_listener = asyncio.create_task(redis_controller.start_session_created_listener())
     yield
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
+    session_created_listener.cancel()
     await django_question_service.shutdown()
-    kafka_controller.shutdown()
+    kafka_client.shutdown()
 
 router = APIRouter(prefix="/api", redirect_slashes=False)
 app = FastAPI(redirect_slashes=False, lifespan=lifespan)
@@ -91,8 +93,8 @@ async def get():
 })
 async def match_users(data: MatchUserRequestSchema):
     # check if ws connection is set up
-    # if not websocket_service.check_ws_connection(user_id=data.user_id):
-    #     return "Error: connect to websocket first"
+    if not websocket_service.check_ws_connection(user_id=data.user_id):
+        return "Error: connect to websocket first"
     res = await matching_service.match_user(
         user_id=data.user_id,
         criteria=data.criteria

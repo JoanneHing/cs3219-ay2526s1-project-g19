@@ -12,15 +12,15 @@ producer_admin_config = {
     "sasl.mechanisms": "PLAIN"
 }
 consumer_config = {
-        'bootstrap.servers': os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
-        'group.id': 'question-service-group',
-        'session.timeout.ms': 6000,
-        'auto.offset.reset': 'earliest',
-        "security.protocol": "SASL_SSL",
-        'sasl.mechanisms': 'PLAIN',
-        "sasl.username": os.getenv("SASL_USERNAME"),
-        "sasl.password": os.getenv("SASL_PASSWORD")
-    }
+    'bootstrap.servers': os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
+    'group.id': 'question-service-group',
+    'session.timeout.ms': 6000,
+    'auto.offset.reset': 'earliest',
+    "security.protocol": "SASL_SSL",
+    'sasl.mechanisms': 'PLAIN',
+    "sasl.username": os.getenv("SASL_USERNAME"),
+    "sasl.password": os.getenv("SASL_PASSWORD")
+}
 
 REQUEST_TOPIC = os.getenv("TOPIC_MATCH_FOUND", "match.found")
 RESPONSE_TOPIC = os.getenv("TOPIC_QUESTION_CHOSEN", "question.chosen")

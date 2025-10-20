@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, model_validator
 
+from schemas.events import SessionCreatedSchema
+
 
 class MatchingStatus(StrEnum):
     SUCCESS = "success"
@@ -17,21 +19,24 @@ class MatchedCriteriaSchema(BaseModel):
     language: str
 
 
-class MatchingEventMessage(BaseModel):
+class SessionCreatedEventMessage(BaseModel):
     status: MatchingStatus
-    matched_user_id: UUID | None = None
-    criteria: MatchedCriteriaSchema | None = None
+    session: SessionCreatedSchema | None = None
 
     @model_validator(mode="after")
-    def check_success(self) -> Self:
-        if self.status == MatchingStatus.SUCCESS:
-            if self.matched_user_id == None or self.criteria == None:
-                raise ValueError(f"Success status message must have matched user id and criteria")
-        return self
+    def check_success(cls, values) -> Self:
+        if values.status == MatchingStatus.SUCCESS:
+            if values.session is None:
+                raise ValueError(
+                    "Success status message must include a session object"
+                )
+        return values
 
     @model_validator(mode="after")
-    def check_non_success(self) -> Self:
-        if self.status != MatchingStatus.SUCCESS:
-            if self.matched_user_id or self.criteria:
-                raise ValueError(f"Non-success status message cannot have matched user id or criteria")
-        return self
+    def check_non_success(cls, values) -> Self:
+        if values.status != MatchingStatus.SUCCESS:
+            if values.session is not None:
+                raise ValueError(
+                    "Non-success status message cannot include a session object"
+                )
+        return values

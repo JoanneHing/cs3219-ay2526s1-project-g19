@@ -4,10 +4,12 @@ from uuid import UUID
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketState
 
-from schemas.message import MatchingStatus, MatchedCriteriaSchema, MatchingEventMessage
+from schemas.events import SessionCreatedSchema
+from schemas.message import MatchingStatus, MatchedCriteriaSchema, SessionCreatedEventMessage
 
 
 logger = logging.getLogger(__name__)
+
 
 class WebSocketService:
     def __init__(self):
@@ -47,7 +49,7 @@ class WebSocketService:
         criteria: MatchedCriteriaSchema
     ) -> None:
         # send to user a
-        message = MatchingEventMessage(
+        message = SessionCreatedEventMessage(
             status=MatchingStatus.SUCCESS,
             matched_user_id=user_b,
             criteria=criteria
@@ -55,7 +57,7 @@ class WebSocketService:
         if user_a in self.ws_connections:
             await self.ws_connections[user_a].send_json(json.loads(message.model_dump_json()))
         # send to user b
-        message = MatchingEventMessage(
+        message = SessionCreatedEventMessage(
             status=MatchingStatus.SUCCESS,
             matched_user_id=user_a,
             criteria=criteria
@@ -69,7 +71,7 @@ class WebSocketService:
         user_id: UUID
     ) -> None:
         logger.info(f"Sending timeout message to user {user_id} ")
-        message = MatchingEventMessage(status=MatchingStatus.TIMEOUT)
+        message = SessionCreatedEventMessage(status=MatchingStatus.TIMEOUT)
         if user_id in self.ws_connections:
             await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
         return
@@ -79,9 +81,25 @@ class WebSocketService:
         user_id: UUID
     ) -> None:
         logger.info(f"Sending relax language message to user {user_id}")
-        message = MatchingEventMessage(status=MatchingStatus.RELAX_LANGUAGE)
+        message = SessionCreatedEventMessage(status=MatchingStatus.RELAX_LANGUAGE)
         if user_id in self.ws_connections:
             await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
+        return
+
+    async def send_session_created(
+        self,
+        session_created: SessionCreatedSchema
+    ):
+        logger.info(f"Sending session created message to users {session_created.user_id_list}")
+        for user_id in session_created.user_id_list:
+            if user_id in self.ws_connections:
+                message = SessionCreatedEventMessage(
+                    status=MatchingStatus.SUCCESS,
+                    session=session_created
+                )
+                await self.ws_connections[user_id].send_json(
+                    json.loads(message.model_dump_json())
+                )
         return
 
 

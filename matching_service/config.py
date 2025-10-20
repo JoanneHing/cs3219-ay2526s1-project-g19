@@ -9,8 +9,10 @@ class Settings(BaseSettings):
     question_service_url: str
 
     # Kafka
+    group_id: str
     kafka_bootstrap_servers: str
     topic_match_found: str
+    topic_session_created: str
     schema_registry_url: str
     schema_registry_key: str
     schema_registry_secret: str
