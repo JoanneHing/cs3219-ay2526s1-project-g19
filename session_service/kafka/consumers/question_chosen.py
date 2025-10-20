@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime
 import json
 import logging
 import logging.config
@@ -7,6 +9,8 @@ from kafka.kafka_client import kafka_client
 from confluent_kafka import Message
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from schemas.events import QuestionChosen, SessionCreated
+from service.session import session_service
+from models.session import Session
 
 
 with open("log_config.json", "r") as f:
@@ -25,14 +29,14 @@ class QuestionChosenConsumer:
             session_created_schema
         )
 
-    def listen(self):
-        kafka_client.consumer_listen(
+    async def listen(self):
+        await kafka_client.consumer_listen(
             topics=self.topics,
             handler=self.handle_question_chosen
         )
         return
 
-    def handle_question_chosen(self, msg: Message):
+    async def handle_question_chosen(self, msg: Message):
         key = msg.key().decode()
         value = kafka_client.deserializer(msg.value())
         question_chosen = QuestionChosen(
@@ -50,10 +54,18 @@ class QuestionChosenConsumer:
             value=session_created.model_dump(mode="json"),
             serializer=self.session_created_serializer
         )
+        await session_service.start_new_session(
+            session=Session(
+                id=session_id,
+                started_at=datetime.now(),
+                language=session_created.language,
+                question_id=session_created.question_id
+            )
+        )
         return
 
 
 if __name__=="__main__":
     consumer = QuestionChosenConsumer()
-    consumer.listen()
+    asyncio.run(consumer.listen())
     kafka_client.shutdown()

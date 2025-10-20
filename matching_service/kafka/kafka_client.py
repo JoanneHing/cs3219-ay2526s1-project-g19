@@ -66,6 +66,7 @@ class KafkaClient:
             user_id_list=user_id_list,
             topic=criteria.topic,
             difficulty=criteria.difficulty,
+            language=criteria.language,
             timestamp=datetime.now()
         )
         serialized_value = self.match_found_serializer(

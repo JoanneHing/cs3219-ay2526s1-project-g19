@@ -43,7 +43,12 @@ class MatchFoundConsumer:
         logger.info(question)
         logger.info(question.__dict__)
 
-        value = self.question_to_avro(question, match_id=match.match_id, user_id_list=match.user_id_list)
+        value = self.question_to_avro(
+            question,
+            match_id=match.match_id,
+            user_id_list=match.user_id_list,
+            language=match.language
+        )
         kafka_client.producer.produce(
             topic=RESPONSE_TOPIC,
             key=str(match.match_id),
@@ -109,7 +114,8 @@ class MatchFoundConsumer:
         self,
         question: Question,
         match_id: UUID,
-        user_id_list: list[UUID]
+        user_id_list: list[UUID],
+        language: str
     ) -> dict:
         return {
             "match_id": str(match_id),
@@ -120,6 +126,7 @@ class MatchFoundConsumer:
             "assets": question.assets or [],
             "topics": question.topics,
             "difficulty": question.difficulty,
+            "language": language,
             "company_tags": question.company_tags or [],
             "examples": [str(e) for e in question.examples] if question.examples else [],
             "constraints": [str(c) for c in question.constraints] if question.constraints else [],

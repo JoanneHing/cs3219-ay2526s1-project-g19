@@ -8,4 +8,5 @@ class MatchFound(BaseModel):
     user_id_list: list[UUID]
     topic: str
     difficulty: str
+    language: str
     timestamp: datetime

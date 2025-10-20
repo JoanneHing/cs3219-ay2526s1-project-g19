@@ -12,6 +12,7 @@ class QuestionChosen(BaseModel):
     assets: list[str]
     topics: list[str]
     difficulty: str
+    language: str
     company_tags: list[str]
     examples: list[str]
     constraints: list[str]

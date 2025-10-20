@@ -11,6 +11,7 @@
         {"name": "assets", "type": {"items": "string", "type": "array"}},
         {"name": "topics", "type": {"items": "string", "type": "array"}},
         {"name": "difficulty", "type": "string"},
+        {"name": "language", "type": "string"},
         {"name": "company_tags", "type": {"items": "string", "type": "array"}},
         {"name": "examples", "type": {"items": "string", "type": "array"}},
         {"name": "constraints", "type": {"items": "string", "type": "array"}},

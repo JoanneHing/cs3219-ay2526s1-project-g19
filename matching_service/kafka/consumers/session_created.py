@@ -13,7 +13,6 @@ with open("log_config.json", "r") as f:
     config = json.load(f)
 logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
-logger.info(settings.redis_host)
 
 
 class SessionCreatedConsumer:

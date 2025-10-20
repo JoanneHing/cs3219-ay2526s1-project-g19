@@ -8,6 +8,7 @@ class MatchFoundSchema(BaseModel):
     user_id_list: list[UUID]
     topic: str
     difficulty: str
+    language: str
     timestamp: datetime
 
     class Config:
@@ -34,6 +35,7 @@ class SessionCreatedSchema(BaseModel):
     assets: list[str]
     topics: list[str]
     difficulty: str
+    language: str
     company_tags: list[str]
     examples: list[str]
     constraints: list[str]

@@ -7,6 +7,7 @@
         {"name": "user_id_list", "type": {"items": "string", "type": "array"}},
         {"name": "topic", "type": "string"},
         {"name": "difficulty", "type": "string"},
+        {"name": "language", "type": "string"},
         {"name": "timestamp", "type": "long"}
     ]
 }

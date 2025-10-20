@@ -16,7 +16,7 @@ class KafkaController:
         self.deserializer = AvroDeserializer(self.schema_registry_client)
         self.consumer = Consumer(consumer_config)
 
-    def consumer_listen(
+    async def consumer_listen(
         self,
         topics: list[str],
         handler
@@ -33,7 +33,7 @@ class KafkaController:
                     if msg.error().code() != KafkaError._PARTITION_EOF:
                         logger.error(f"Kafka error: {msg.error()}")
                     continue
-                handler(msg)
+                await handler(msg)
         except KeyboardInterrupt:
             logger.info("Stopping consumer...")
         finally:
