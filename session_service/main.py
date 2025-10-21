@@ -27,7 +27,7 @@ router = APIRouter(
     prefix="/api",
     redirect_slashes=False
 )
-app = FastAPI(redirect_slashes=False)
+app = FastAPI(redirect_slashes=False, docs_url="/api/docs")
 allowed_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
 
 app.add_middleware(
