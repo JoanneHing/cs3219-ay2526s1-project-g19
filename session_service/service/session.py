@@ -2,10 +2,13 @@ from datetime import datetime
 import logging
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from config import settings
+from kafka.kafka_client import kafka_client
 from pg_db.core import engine
 from crud.session import session_repo
 from models.session import Session, SessionUser
-from schemas.events import SessionCreated
+from schemas.events import SessionCreated, SessionEnd
+from confluent_kafka.schema_registry.avro import AvroSerializer
 
 
 logger = logging.getLogger(__name__)
@@ -65,10 +68,29 @@ class SessionService:
         session_id: UUID,
         db_session: AsyncSession
     ) -> None:
-        await session_repo.end_session(
+        session = await session_repo.end_session(
             session_id=session_id,
             db_session=db_session
         )
+        # publish session end event to kafka
+        with open("kafka/schemas/session_end.avsc") as f:
+            session_end_schema = f.read()
+        serializer = AvroSerializer(
+            kafka_client.schema_registry_client,
+            session_end_schema
+        )
+        session_end = SessionEnd(
+            session_id=session.id,
+            ended_at=session.ended_at,
+            timestamp=datetime.now()
+        )
+        kafka_client.produce(
+            topic=settings.topic_session_end,
+            key=str(session_id),
+            value=session_end.model_dump(mode="json"),
+            serializer=serializer
+        )
         return
+
 
 session_service = SessionService()

@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     group_id: str
     topic_question_chosen: str
     topic_session_created: str
+    topic_session_end: str
     schema_registry_url: str
     schema_registry_key: str
     schema_registry_secret: str

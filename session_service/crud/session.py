@@ -40,7 +40,7 @@ class SessionRepo:
         self,
         session_id: UUID,
         db_session: AsyncSession
-    ) -> None:
+    ) -> Session:
         query = select(
             self.model
         ).where(
@@ -57,7 +57,8 @@ class SessionRepo:
         session.ended_at = datetime.now()
         db_session.add(session)
         await db_session.commit()
-        return
+        await db_session.refresh(session)
+        return session
 
 
 session_repo = SessionRepo()

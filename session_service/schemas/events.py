@@ -24,5 +24,18 @@ class QuestionChosen(BaseModel):
             datetime: lambda v: int(v.timestamp() * 1000),  # milliseconds
         }
 
+
 class SessionCreated(QuestionChosen):
     session_id: UUID
+
+
+class SessionEnd(BaseModel):
+    session_id: UUID
+    ended_at: datetime
+    timestamp: datetime
+
+    class Config:
+        json_encoders = {
+            UUID: lambda v: str(v),
+            datetime: lambda v: int(v.timestamp() * 1000),  # milliseconds
+        }
