@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { matchingService } from '../api/services/matchingService';
 import { useAuth } from '../contexts/AuthContext';
-import type { MatchingSelections, WebSocketMessage } from '../types';
+import type { MatchingSelections, WebSocketMessage, SessionData } from '../types';
 
 /**
  * WebSocket hook for matching service
@@ -14,8 +14,7 @@ export const useMatchingSocket = () => {
   // Matching state
   const [isMatching, setIsMatching] = useState(false);
   const [matchFound, setMatchFound] = useState(false);
-  const [matchedUser, setMatchedUser] = useState<string | null>(null);
-  const [matchCriteria, setMatchCriteria] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Connect WebSocket and setup listeners
@@ -58,10 +57,9 @@ export const useMatchingSocket = () => {
           console.log('WebSocket message received:', event.data);
           const message: WebSocketMessage = JSON.parse(event.data);
 
-          if (message.status === 'success') {
+          if (message.status === 'success' && message.session) {
             setMatchFound(true);
-            setMatchedUser(message.matched_user_id);
-            setMatchCriteria(message.criteria);
+            setSessionData(message.session);
             setIsMatching(false);
           } else if (message.status === 'timeout') {
             setIsMatching(false);
@@ -183,8 +181,7 @@ export const useMatchingSocket = () => {
   // Reset state
   const resetMatch = useCallback(() => {
     setMatchFound(false);
-    setMatchedUser(null);
-    setMatchCriteria(null);
+    setSessionData(null);
     setError(null);
     setIsMatching(false);
   }, []);
@@ -201,8 +198,7 @@ export const useMatchingSocket = () => {
   return {
     isMatching,
     matchFound,
-    matchedUser,
-    matchCriteria,
+    sessionData,
     error,
     startMatching,
     cancelMatching,

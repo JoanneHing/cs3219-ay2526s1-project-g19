@@ -27,6 +27,7 @@ export type {
   MatchRequest,
   MatchResponse,
   MatchedSelections,
+  SessionData,
   WebSocketMessage,
   DeleteMatchRequest,
 } from './matching';

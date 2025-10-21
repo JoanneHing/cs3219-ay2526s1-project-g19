@@ -23,10 +23,25 @@ export interface MatchedSelections {
   language: string;
 }
 
+export interface SessionData {
+  session_id: string;
+  user_id_list: string[];
+  question_id: string;
+  title: string;
+  statement_md: string;
+  assets: string[];
+  topics: string[];
+  difficulty: string;
+  language: string;
+  company_tags: string[];
+  examples: string[];
+  constraints: string[];
+  timestamp: number;
+}
+
 export interface WebSocketMessage {
   status: 'success' | 'timeout' | 'relax';
-  matched_user_id: string | null;
-  criteria: MatchedSelections | null;
+  session: SessionData | null;
   message?: string; // Error messages
 }
 

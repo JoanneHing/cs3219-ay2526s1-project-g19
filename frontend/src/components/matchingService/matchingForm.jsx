@@ -17,7 +17,7 @@ const DEFAULT_TOPICS = [
     "Matrix",
     "Hashmap",
     "Intervals",
-    "Stack",
+    "stack",
     "Linked List",
     "Binary Tree General",
     "Binary Tree BFS",
@@ -157,8 +157,7 @@ const MatchingForm = () => {
         isConnected,
         isMatching, 
         matchFound,
-        matchedUser, 
-        matchCriteria,
+        sessionData,
         error, 
         startMatching, 
         cancelMatching,
@@ -358,16 +357,16 @@ const MatchingForm = () => {
         );
     }
 
-    if (matchFound && matchCriteria) {
+    if (matchFound && sessionData) {
         return (
             <>
                 <MatchFound 
                     user1={user?.display_name || "You"}
                     user2="Matched User" // Need API to get name
                     matchedSelections={{
-                        topic: matchCriteria.topic || 'Any',
-                        difficulty: matchCriteria.difficulty || 'Any',
-                        language: matchCriteria.language || 'JavaScript'
+                        topic: sessionData.topics?.[0] || 'Any',
+                        difficulty: sessionData.difficulty || 'Any',
+                        language: sessionData.language || 'JavaScript'
                     }}
                     onQuit={handleQuitClick}
                 />

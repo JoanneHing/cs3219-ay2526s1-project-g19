@@ -67,12 +67,13 @@ const MatchFound = ({ user1, user2, matchedSelections, onQuit}) => {
                         <Loader2 className="inline-block animate-spin mr-2" />
                         Please wait while we create the collaboration space...
                     </p>
-
+                    {/* 
                     <button
                         onClick={onQuit}
                         className="mt-8 w-full text-lg font-bold py-3 rounded-lg border-2 bg-red-500 hover:bg-red-600">
                         Quit Match
-                    </button>
+                    </button> 
+                    */}
                 </div>
             </div>
         </div>
