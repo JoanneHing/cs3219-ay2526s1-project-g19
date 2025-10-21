@@ -2,11 +2,15 @@ import json
 import logging
 import logging.config
 import os
-from fastapi import APIRouter, FastAPI
+from uuid import UUID
+from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
 import uvicorn
 from config import settings
 from middleware.fixed_prefix import FixedPrefixMiddleware
+from pg_db.core import get_session
+from service.session import session_service
 
 
 with open("log_config.json", "r") as f:
@@ -37,10 +41,16 @@ if SERVICE_PREFIX:
     app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
 
 
-@router.get("/test")
-async def test(msg: str):
-    logger.info(settings.pg_url)
-    return f"hi {msg}"
+@router.get("/session")
+async def get_session(
+    user_id: UUID,
+    db_session: AsyncSession = Depends(get_session)
+):
+    return await session_service.get_active_session(
+        user_id=user_id,
+        db_session=db_session
+    )
+
 
 app.include_router(router=router)
 

@@ -1,5 +1,4 @@
 import asyncio
-from datetime import datetime
 import json
 import logging
 import logging.config
@@ -10,7 +9,6 @@ from confluent_kafka import Message
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from schemas.events import QuestionChosen, SessionCreated
 from service.session import session_service
-from models.session import Session
 
 
 with open("log_config.json", "r") as f:
@@ -55,12 +53,8 @@ class QuestionChosenConsumer:
             serializer=self.session_created_serializer
         )
         await session_service.start_new_session(
-            session=Session(
-                id=session_id,
-                started_at=datetime.now(),
-                language=session_created.language,
-                question_id=session_created.question_id
-            )
+            session_id=session_id,
+            session_created=session_created
         )
         return
 
