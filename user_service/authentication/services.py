@@ -5,6 +5,7 @@ Contains reusable business logic for authentication operations.
 """
 import re
 import hashlib
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Optional, Tuple
 from django.contrib.auth import get_user_model, authenticate, login
@@ -12,6 +13,10 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.sessions.models import Session
 from django.db import IntegrityError, transaction
 from django.core.cache import cache
+from django.core import signing
+from django.core.mail import send_mail
+from django.conf import settings
+from urllib.parse import urlencode
 from rest_framework_simplejwt.tokens import RefreshToken, UntypedToken
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from users.models import UserSessionProfile
@@ -22,6 +27,16 @@ User = get_user_model()
 class ValidationError(Exception):
     """Custom validation error for business logic."""
     pass
+
+
+@dataclass
+class EmailSSOResult:
+    """Dataclass capturing the outcome of an SSO email dispatch."""
+    email: str
+    account_exists: bool
+    delivered: bool
+    expires_in: int
+    login_url: Optional[str]
 
 class ValidationService:
     """Reusable validation functions for user data."""
@@ -413,7 +428,7 @@ class SessionService:
         SessionService.invalidate_user_sessions(user)
 
         # Create Django session by logging in the user
-        login(request, user)
+        login(request, user, backend='django.contrib.auth.backends.ModelBackend')
         request.session.save()  # 👈 ensures session object is written
 
         # Set session expiry to 30 days
@@ -590,6 +605,165 @@ class UserLoginService:
         return user, tokens, session_profile
 
 
+class EmailSSOService:
+    """Business logic for sending email-based single sign-on links."""
+
+    _SIGNING_SALT = 'authentication.email_sso'
+
+    @classmethod
+    def send_sso_link(cls, email: str, redirect_path: Optional[str] = None) -> EmailSSOResult:
+        """Generate a signed magic link and dispatch it to the user via email."""
+        normalized_email = email.lower().strip()
+        ValidationService.validate_email_format(normalized_email, raise_error=True)
+
+        try:
+            user = User.objects.get(email__iexact=normalized_email)
+        except User.DoesNotExist:
+            # Return clear response indicating account does not exist
+            return EmailSSOResult(
+                email=normalized_email,
+                account_exists=False,
+                delivered=False,
+                expires_in=0,
+                login_url=None
+            )
+
+        token = cls._generate_token(user)
+        login_url = cls._build_login_url(token, redirect_path)
+        cls._dispatch_email(user.email, login_url)
+
+        return EmailSSOResult(
+            email=user.email,
+            account_exists=True,
+            delivered=True,
+            expires_in=cls._token_ttl_minutes() * 60,
+            login_url=None  # Do not expose magic link in response payload
+        )
+
+    @classmethod
+    def _generate_token(cls, user: AbstractUser) -> str:
+        payload = {
+            'user_id': str(user.id),
+            'email': user.email,
+        }
+        return signing.dumps(payload, salt=cls._SIGNING_SALT)
+
+    @classmethod
+    def _build_login_url(cls, token: str, redirect_path: Optional[str]) -> str:
+        base_url = getattr(settings, 'FRONTEND_BASE_URL', 'http://localhost:5173').rstrip('/')
+        callback_path = cls._normalize_path(
+            getattr(settings, 'EMAIL_SSO_CALLBACK_PATH', '/auth/email-sso')
+        )
+
+        query = {'token': token}
+        safe_redirect = cls._normalize_path(redirect_path)
+        if safe_redirect:
+            query['redirect'] = safe_redirect
+
+        query_string = urlencode(query)
+        return f"{base_url}{callback_path}?{query_string}"
+
+    @staticmethod
+    def _normalize_path(path: Optional[str]) -> Optional[str]:
+        if not path:
+            return None
+
+        trimmed = path.strip()
+        if trimmed.startswith('http://') or trimmed.startswith('https://'):
+            raise ValidationError('redirect_path must be a relative path')
+
+        if not trimmed.startswith('/'):
+            trimmed = f'/{trimmed}'
+
+        return trimmed
+
+    @classmethod
+    def _dispatch_email(cls, recipient: str, link: str) -> None:
+        subject = getattr(settings, 'EMAIL_SSO_SUBJECT', '[PeerPrep] Sign in link')
+        minutes = cls._token_ttl_minutes()
+        message = (
+            "Hi,\n\n"
+            f"Use this link to sign in: {link}\n"
+            f"This magic link expires in {minutes} minute(s).\n\n"
+            "If you did not request this email you can safely ignore it."
+        )
+
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None)
+
+        try:
+            send_mail(subject, message, from_email, [recipient], fail_silently=False)
+        except Exception as exc:  # Django wraps provider-specific errors
+            raise ValidationError(f'Failed to send magic link: {str(exc)}')
+
+    @staticmethod
+    def _token_ttl_minutes() -> int:
+        return getattr(settings, 'EMAIL_SSO_TOKEN_TTL_MINUTES', 15)
+
+    @classmethod
+    def verify_and_login(
+        cls,
+        request,
+        token: str,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> Tuple[AbstractUser, TokenPair, UserSessionProfile]:
+        """
+        Verify email SSO token and log the user in.
+
+        Args:
+            request: Django request object
+            token: Signed token from email link
+            ip_address: Client IP address
+            user_agent: Client user agent
+
+        Returns:
+            Tuple[AbstractUser, TokenPair, UserSessionProfile]: User, tokens, and session profile
+
+        Raises:
+            ValidationError: If token is invalid or expired
+        """
+        try:
+            # Verify token signature and extract payload
+            max_age = cls._token_ttl_minutes() * 60
+            payload = signing.loads(token, salt=cls._SIGNING_SALT, max_age=max_age)
+
+            user_id = payload.get('user_id')
+            email = payload.get('email')
+
+            if not user_id or not email:
+                raise ValidationError("Invalid token payload")
+
+            # Get user
+            try:
+                user = User.objects.get(id=user_id, email__iexact=email)
+            except User.DoesNotExist:
+                raise ValidationError("User not found")
+
+            # Check if user is active
+            if not user.is_active:
+                raise ValidationError("User account is disabled")
+
+            # Create session and generate JWT tokens (same as regular login)
+            session_profile, tokens = SessionService.create_session_with_profile(
+                request=request,
+                user=user,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+
+            # Update last login
+            user.update_last_login()
+
+            return user, tokens, session_profile
+
+        except signing.SignatureExpired:
+            raise ValidationError("Sign-in link has expired")
+        except signing.BadSignature:
+            raise ValidationError("Invalid sign-in link")
+        except Exception as e:
+            raise ValidationError(f"Token verification failed: {str(e)}")
+
+
 class UserLogoutService:
     """Business logic for user logout."""
 
@@ -627,3 +801,31 @@ class UserLogoutService:
             raise ValidationError(f"Database error during logout: {str(e)}")
         except Exception as e:
             raise ValidationError(f"Logout failed: {str(e)}")
+
+
+class PasswordResetService:
+    """Business logic for password reset."""
+
+    @staticmethod
+    def reset_password(user: AbstractUser, new_password: str) -> None:
+        """
+        Reset user password with validation.
+
+        User is already authenticated via Bearer token.
+
+        Args:
+            user: User instance (already authenticated)
+            new_password: New password to set
+
+        Raises:
+            ValidationError: If new password is invalid
+        """
+        # Validate new password strength
+        ValidationService.validate_password_strength(new_password, raise_error=True)
+
+        # Set new password
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+
+        # Invalidate all existing sessions to force re-login
+        SessionService.invalidate_user_sessions(user)

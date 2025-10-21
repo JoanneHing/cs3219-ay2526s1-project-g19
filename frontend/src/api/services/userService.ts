@@ -6,7 +6,11 @@ import type {
   RefreshTokenResponse,
   VerifyTokenResponse,
   RegisterRequest,
-  RegisterResponse
+  RegisterResponse,
+  EmailSSORequest,
+  EmailSSOResponse,
+  EmailSSOVerifyRequest,
+  EmailSSOVerifyResponse
 } from '@/types';
 
 export const userService = {
@@ -26,4 +30,12 @@ export const userService = {
   // Logout user and invalidate all sessions
   logout: () =>
     userClient.post('api/auth/logout/'),
+
+  // Email SSO - Request magic link
+  requestEmailSSO: (data: EmailSSORequest) =>
+    userClient.post<EmailSSOResponse>('api/auth/email-sso/', data),
+
+  // Email SSO - Verify token and login
+  verifyEmailSSO: (data: EmailSSOVerifyRequest) =>
+    userClient.post<EmailSSOVerifyResponse>('api/auth/email-sso/verify/', data),
 };
