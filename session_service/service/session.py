@@ -21,7 +21,8 @@ class SessionService:
     async def start_new_session(
         self,
         session_id: UUID,
-        session_created: SessionCreated
+        session_created: SessionCreated,
+        started_at: datetime
     ) -> None:
         async with AsyncSession(engine) as db_session:
             for user_id in session_created.user_id_list:
@@ -34,7 +35,7 @@ class SessionService:
                     return
             session=Session(
                 id=session_id,
-                started_at=datetime.now(),
+                started_at=started_at,
                 language=session_created.language,
                 question_id=session_created.question_id,
                 session_users=[

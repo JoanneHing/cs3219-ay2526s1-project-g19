@@ -72,7 +72,6 @@ services:
       - shared_network
       - question_network
     env_file:
-      - .env
       - ../.env
     environment:
       - SKIP_DB_SETUP=true

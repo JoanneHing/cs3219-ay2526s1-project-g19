@@ -27,6 +27,7 @@ class QuestionChosen(BaseModel):
 
 class SessionCreated(QuestionChosen):
     session_id: UUID
+    started_at: datetime
 
 
 class SessionEnd(BaseModel):
