@@ -27,7 +27,6 @@ class MatchFoundSchema(BaseModel):
 
 class SessionCreatedSchema(BaseModel):
     session_id: UUID
-    match_id: UUID
     user_id_list: list[UUID]
     question_id: UUID
     title: str

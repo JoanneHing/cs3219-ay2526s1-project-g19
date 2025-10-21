@@ -4,7 +4,6 @@
     "name": "SessionCreated",
     "fields": [
         {"name": "session_id", "type": "string"},
-        {"name": "match_id", "type": "string"},
         {"name": "user_id_list", "type": {"items": "string", "type": "array"}},
         {"name": "question_id", "type": "string"},
         {"name": "title", "type": "string"},

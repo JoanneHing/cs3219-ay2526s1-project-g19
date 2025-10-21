@@ -21,8 +21,7 @@ class SessionService:
     async def start_new_session(
         self,
         session_id: UUID,
-        session_created: SessionCreated,
-        db_session: AsyncSession
+        session_created: SessionCreated
     ) -> None:
         async with AsyncSession(engine) as db_session:
             for user_id in session_created.user_id_list:
@@ -46,7 +45,7 @@ class SessionService:
                     for user_id in session_created.user_id_list
                 ]
             )
-            logger.info(f"Creating new session {session_created.id}")
+            logger.info(f"Creating new session {session_created.session_id}")
             await session_repo.insert(
                 obj=session,
                 db_session=db_session
