@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 import json
 import logging
 import logging.config
@@ -42,9 +43,11 @@ class QuestionChosenConsumer:
         )
         logger.info(f"Received key {key}: value {value}")
         session_id = uuid4()
+        started_at = datetime.now()
         session_created = SessionCreated(
             **question_chosen.model_dump(),
-            session_id=session_id
+            session_id=session_id,
+            started_at=started_at
         )
         kafka_client.produce(
             topic=settings.topic_session_created,
@@ -54,7 +57,8 @@ class QuestionChosenConsumer:
         )
         await session_service.start_new_session(
             session_id=session_id,
-            session_created=session_created
+            session_created=session_created,
+            started_at=started_at
         )
         return
 
