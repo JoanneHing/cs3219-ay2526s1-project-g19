@@ -3,9 +3,18 @@
 ## API Endpoints Overview
 
 ### History Management
-- `GET /api/history` - Get all history entries for the authenticated user
-- `GET /api/history/{history_id}` - Get specific history entry details
-- `DELETE /api/history/{history_id}` - Delete a history entry (optional)
+- `GET /api/session` - Get current active session for user
+    - Input: `user_id: UUID`
+    - Output:
+        ```
+            class Session:
+                id: UUID
+                started_at: datetime
+                ended_at: datetime | None
+                question_id: UUID
+                language: str
+        ```
+- `POST /api/session/end` - Get specific history entry details
 
 ## Event Handling
 - QuestionChosen Event - Creates and stores session id, publishes SessionCreated event
