@@ -4,6 +4,6 @@ from config import settings
 
 engine = create_async_engine(settings.pg_url, echo=True)
 
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine) as session:
         yield session

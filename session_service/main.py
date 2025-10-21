@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import uvicorn
 from config import settings
 from middleware.fixed_prefix import FixedPrefixMiddleware
-from pg_db.core import get_session
+from pg_db.core import get_db_session
 from service.session import session_service
 
 
@@ -44,13 +44,23 @@ if SERVICE_PREFIX:
 @router.get("/session")
 async def get_session(
     user_id: UUID,
-    db_session: AsyncSession = Depends(get_session)
+    db_session: AsyncSession = Depends(get_db_session)
 ):
     return await session_service.get_active_session(
         user_id=user_id,
         db_session=db_session
     )
 
+
+@router.post("/session/end")
+async def end_session(
+    session_id: UUID,
+    db_session: AsyncSession = Depends(get_db_session)
+):
+    return await session_service.end_session(
+        session_id=session_id,
+        db_session=db_session
+    )
 
 app.include_router(router=router)
 

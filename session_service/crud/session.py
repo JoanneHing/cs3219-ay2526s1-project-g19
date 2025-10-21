@@ -1,4 +1,6 @@
+from datetime import datetime
 from uuid import UUID
+from fastapi import HTTPException, status
 from sqlmodel import select
 from models.session import Session, SessionUser
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +34,30 @@ class SessionRepo:
             self.model.ended_at.is_(None)
         )
         res = await db_session.execute(query)
-        return res.scalars().first()
+        return res.scalar_one_or_none()
+
+    async def end_session(
+        self,
+        session_id: UUID,
+        db_session: AsyncSession
+    ) -> None:
+        query = select(
+            self.model
+        ).where(
+            self.model.id == session_id,
+            self.model.ended_at.is_(None)
+        )
+        res = await db_session.execute(query)
+        session = res.scalar_one_or_none()
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Session {session_id} not found"
+            )
+        session.ended_at = datetime.now()
+        db_session.add(session)
+        await db_session.commit()
+        return
 
 
 session_repo = SessionRepo()

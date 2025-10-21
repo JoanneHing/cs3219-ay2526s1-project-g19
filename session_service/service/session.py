@@ -60,5 +60,15 @@ class SessionService:
             db_session=db_session
         )
 
+    async def end_session(
+        self,
+        session_id: UUID,
+        db_session: AsyncSession
+    ) -> None:
+        await session_repo.end_session(
+            session_id=session_id,
+            db_session=db_session
+        )
+        return
 
 session_service = SessionService()
