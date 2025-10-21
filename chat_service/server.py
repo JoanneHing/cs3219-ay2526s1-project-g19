@@ -138,10 +138,17 @@ def register_handlers(sio: socketio.AsyncServer):
 
         await sio.leave_room(sid, room)
         leave_notification = MessageData(
-            message=f"{username} has left the interview",
+            message=f"{username} has left the room",
             username="ChatBot"
         )
         await sio.emit("receive", leave_notification.to_dict(), room=room)
+        
+        # Also send partner-left event to trigger modal on partner's side
+        await sio.emit("partner-left", {
+            "username": username,
+            "message": f"{username} has left the collaboration room"
+        }, room=room, skip_sid=sid)
+        
         logger.info(f"[{id(sio)}] {username} left room: {room}")
 
     @sio.event

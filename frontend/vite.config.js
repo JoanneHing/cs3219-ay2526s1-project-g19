@@ -41,6 +41,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/history-service-api/, ''),
         },
+        '/session-service-api': {
+          target: `http://localhost:${env.SESSION_SERVICE_PORT || 8003}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/session-service-api/, ''),
+        },
         '/collaboration-service-api': {
           target: `http://localhost:${env.COLLABORATION_SERVICE_PORT || 8005}`,
           changeOrigin: true,

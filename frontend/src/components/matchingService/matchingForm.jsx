@@ -368,6 +368,7 @@ const MatchingForm = () => {
                         difficulty: sessionData.difficulty || 'Any',
                         language: sessionData.language || 'JavaScript'
                     }}
+                    sessionData={sessionData}
                     onQuit={handleQuitClick}
                 />
                 {/* Confirmation Dialog */}

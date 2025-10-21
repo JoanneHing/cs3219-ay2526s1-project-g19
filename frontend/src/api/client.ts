@@ -18,6 +18,11 @@ export const questionClient = axios.create({
   headers: COMMON_HEADERS,
 });
 
+export const sessionClient = axios.create({
+  ...API_CONFIGS.session,
+  headers: COMMON_HEADERS,
+});
+
 // export const authClient = axios.create({
 //   ...API_CONFIGS.auth,
 //   headers: COMMON_HEADERS,
@@ -27,4 +32,5 @@ export const questionClient = axios.create({
 setupInterceptors(userClient);
 setupInterceptors(matchingClient);
 setupInterceptors(questionClient);
+setupInterceptors(sessionClient);
 // setupInterceptors(authClient);

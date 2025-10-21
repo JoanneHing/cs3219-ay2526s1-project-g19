@@ -22,6 +22,10 @@ export const API_CONFIGS = {
     baseURL: import.meta.env.VITE_MATCHING_SERVICE_URL,
     timeout: 10000,
   },
+  session: {
+    baseURL: import.meta.env.VITE_SESSION_SERVICE_URL,
+    timeout: 10000,
+  },
   // order: {
   //   baseURL: ensureTrailingSlash(import.meta.env.VITE_ORDER_SERVICE_URL) || 'http://localhost:8002/',
   //   timeout: 10000,
