@@ -4,10 +4,12 @@ from uuid import UUID
 from fastapi import WebSocket
 from fastapi.websockets import WebSocketState
 
-from schemas.message import MatchingStatus, MatchedCriteriaSchema, MatchingEventMessage
+from schemas.events import SessionCreatedSchema
+from schemas.message import MatchingStatus, MatchingEventMessage
 
 
 logger = logging.getLogger(__name__)
+
 
 class WebSocketService:
     def __init__(self):
@@ -40,30 +42,6 @@ class WebSocketService:
             self.ws_connections.pop(user_id)
         return
 
-    async def send_match_success(
-        self,
-        user_a: UUID,
-        user_b: UUID,
-        criteria: MatchedCriteriaSchema
-    ) -> None:
-        # send to user a
-        message = MatchingEventMessage(
-            status=MatchingStatus.SUCCESS,
-            matched_user_id=user_b,
-            criteria=criteria
-        )
-        if user_a in self.ws_connections:
-            await self.ws_connections[user_a].send_json(json.loads(message.model_dump_json()))
-        # send to user b
-        message = MatchingEventMessage(
-            status=MatchingStatus.SUCCESS,
-            matched_user_id=user_a,
-            criteria=criteria
-        )
-        if user_b in self.ws_connections:
-            await self.ws_connections[user_b].send_json(json.loads(message.model_dump_json()))
-        return
-
     async def send_timeout(
         self,
         user_id: UUID
@@ -82,6 +60,23 @@ class WebSocketService:
         message = MatchingEventMessage(status=MatchingStatus.RELAX_LANGUAGE)
         if user_id in self.ws_connections:
             await self.ws_connections[user_id].send_json(json.loads(message.model_dump_json()))
+        return
+
+    async def send_session_created(
+        self,
+        session_created: SessionCreatedSchema
+    ):
+        logger.info(f"Sending session created message to users {session_created.user_id_list}")
+        for user_id in session_created.user_id_list:
+            if user_id in self.ws_connections:
+                message = MatchingEventMessage(
+                    status=MatchingStatus.SUCCESS,
+                    session=session_created
+                )
+                await self.ws_connections[user_id].send_json(
+                    json.loads(message.model_dump_json())
+                )
+                await self.close_ws_connection(user_id=user_id)
         return
 
 

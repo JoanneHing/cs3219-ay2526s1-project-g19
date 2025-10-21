@@ -113,7 +113,7 @@ class QuestionFilter(FilterSet):
                 location=OpenApiParameter.QUERY,
                 description="Filter by difficulty level",
                 required=False,
-                enum=["EASY", "MEDIUM", "HARD"],
+                enum=[choice[0] for choice in Difficulty.choices],
             ),
             OpenApiParameter(
                 name="status",

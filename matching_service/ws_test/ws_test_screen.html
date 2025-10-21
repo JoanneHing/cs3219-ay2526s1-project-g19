@@ -79,7 +79,7 @@
                 const topics = data.topics || [];
 
                 // Use hardcoded difficulties for now
-                const difficulties = ["Easy", "Medium", "Hard"];
+                const difficulties = ["easy", "medium", "hard"];
 
                 // Get select elements
                 const topicSelect = document.getElementById('topicSelect');
@@ -163,17 +163,45 @@
 
                 ws.onmessage = function(event) {
                     try {
-                        const data = JSON.parse(event.data);
-                        const formatted = `
-                            Status: ${data.status ?? "N/A"}
-                            Matched User ID: ${data.matched_user_id ?? "N/A"}
-                            Criteria: ${JSON.stringify(data.criteria ?? {}, null, 2)}
-                        `.trim();
-                        printMessage(formatted);
+                        const data = JSON.parse(event.data); // parse JSON first
+
+                        // Start with status
+                        let formatted = `Status: ${data.status ?? "N/A"}`;
+
+                        if (data.status?.toLowerCase() === "success" && data.session) {
+                            const session = data.session;
+
+                            formatted += `<br>
+                            Session ID: ${session.session_id ?? "N/A"}<br>
+                            User IDs: ${Array.isArray(session.user_id_list) ? session.user_id_list.join(", ") : "N/A"}<br>
+                            Question ID: ${session.question_id ?? "N/A"}<br>
+                            Title: ${session.title ?? "N/A"}<br>
+                            Statement: ${session.statement_md ?? "N/A"}<br>
+                            Assets: ${Array.isArray(session.assets) ? session.assets.join(", ") : "N/A"}<br>
+                            Topics: ${Array.isArray(session.topics) ? session.topics.join(", ") : "N/A"}<br>
+                            Difficulty: ${session.difficulty ?? "N/A"}<br>
+                            Language: ${session.language ?? "N/A"}<br>
+                            Company Tags: ${Array.isArray(session.company_tags) ? session.company_tags.join(", ") : "N/A"}<br>
+                            Examples: ${Array.isArray(session.examples) ? session.examples.join("<br>") : "N/A"}<br>
+                            Constraints: ${Array.isArray(session.constraints) ? session.constraints.join("<br>") : "N/A"}<br>
+                            Timestamp: ${session.timestamp ? new Date(session.timestamp).toLocaleString() : "N/A"}`;
+                        }
+
+                        // Inject into <ul> as HTML
+                        const messages = document.getElementById('messages');
+                        const li = document.createElement('li');
+                        li.innerHTML = formatted;
+                        messages.appendChild(li);
+
                     } catch (err) {
+                        console.warn("Non-JSON WebSocket message:", event.data);
                         printMessage("Non-JSON message: " + event.data);
                     }
                 };
+
+
+
+
 
                 ws.onclose = function() {
                     printMessage("WebSocket connection closed.");

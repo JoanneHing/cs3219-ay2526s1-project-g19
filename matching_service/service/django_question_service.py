@@ -16,7 +16,7 @@ class DjangoQuestionService:
         self.get_difficulty_path = "/api/difficulty"
 
     async def shutdown(self):
-        self.client.aclose()
+        await self.client.aclose()
         return
 
     def safe_http_call(func):
