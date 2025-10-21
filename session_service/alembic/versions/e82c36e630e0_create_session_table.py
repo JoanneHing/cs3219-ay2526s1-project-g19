@@ -1,8 +1,8 @@
 """create session table
 
-Revision ID: 45103517040f
+Revision ID: e82c36e630e0
 Revises: 
-Create Date: 2025-10-20 17:15:41.463195
+Create Date: 2025-10-21 06:08:23.938019
 
 """
 import sqlmodel
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '45103517040f'
+revision: str = 'e82c36e630e0'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,7 +39,7 @@ def upgrade() -> None:
     op.create_table('sessionuser',
     sa.Column('session_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
-    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ),
+    sa.ForeignKeyConstraint(['session_id'], ['session.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('session_id', 'user_id')
     )
     # ### end Alembic commands ###

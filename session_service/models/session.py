@@ -11,12 +11,12 @@ class Session(SQLModel, table=True):
     language: str = Field(nullable=False)
 
     # Relationships
-    session_users: list["SessionUser"] = Relationship(back_populates="session")
-    session_metadata: "SessionMetadata" = Relationship(back_populates="session")
+    session_users: list["SessionUser"] = Relationship(back_populates="session", cascade_delete=True)
+    session_metadata: "SessionMetadata" = Relationship(back_populates="session", cascade_delete=True)
 
 
 class SessionUser(SQLModel, table=True):
-    session_id: UUID = Field(foreign_key="session.id", primary_key=True)
+    session_id: UUID = Field(foreign_key="session.id", primary_key=True, ondelete="CASCADE")
     user_id: UUID = Field(nullable=False, primary_key=True)
 
     # Relationships
