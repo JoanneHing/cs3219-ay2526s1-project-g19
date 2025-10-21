@@ -15,6 +15,10 @@ export type {
   VerifyTokenResponse,
   RegisterRequest,
   RegisterResponse,
+  EmailSSORequest,
+  EmailSSOResponse,
+  EmailSSOVerifyRequest,
+  EmailSSOVerifyResponse,
 } from './auth';
 
 // Matching types

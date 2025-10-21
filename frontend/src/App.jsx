@@ -14,6 +14,7 @@ import MatchingPage from './pages/MatchingPage';
 import MatchingProgressPage from './pages/MatchingProgressPage';
 import CollaborationPage from './pages/CollaborationPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import EmailSSOPage from './pages/EmailSSOPage';
 
 import AppLayout from './components/AppLayout';
 
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/email-sso" element={<EmailSSOPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>

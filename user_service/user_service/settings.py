@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'user_service.middleware.ForwardedPrefixMiddleware',  # Handle X-Forwarded-Prefix from nginx
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'user_service.middleware.FixedPrefixMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -74,7 +75,7 @@ ROOT_URLCONF = 'user_service.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],  # Custom templates directory
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -245,22 +246,27 @@ ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_UNIQUE_EMAIL = True
 
-# Email configuration (development - console backend)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email configuration
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=False, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@peerprep.com')
 EMAIL_SUBJECT_PREFIX = '[PeerPrep] '
 
-# For production, use SMTP:
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-# EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = config('EMAIL_HOST_USER')
-# EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+# Email SSO configuration
+FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173')
+EMAIL_SSO_CALLBACK_PATH = config('EMAIL_SSO_CALLBACK_PATH', default='/auth/email-sso')
+EMAIL_SSO_TOKEN_TTL_MINUTES = config('EMAIL_SSO_TOKEN_TTL_MINUTES', default=15, cast=int)
+EMAIL_SSO_SUBJECT = config('EMAIL_SSO_SUBJECT', default='[PeerPrep] Sign in link')
 
 # After login or email confirmation, send user here:
-LOGIN_REDIRECT_URL = 'http://localhost:3000/dashboard'
-LOGOUT_REDIRECT_URL = 'http://localhost:3000/'
+LOGIN_REDIRECT_URL = FRONTEND_BASE_URL + '/login'
+LOGOUT_REDIRECT_URL = FRONTEND_BASE_URL
 
-ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'
-ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = 'http://localhost:5173/email-verified?status=success'
+# Redirect with verification success parameter after email confirmation
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = FRONTEND_BASE_URL + '/login?verified=true'
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = FRONTEND_BASE_URL + '/login?verified=true'

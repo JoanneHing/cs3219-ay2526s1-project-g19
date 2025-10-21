@@ -74,10 +74,6 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  matching_db:
-    deploy:
-      replicas: 0  # Disable local database in production
-
   matching_redis:
     deploy:
       replicas: 0  # Disable local Redis in production

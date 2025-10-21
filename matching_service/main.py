@@ -5,14 +5,18 @@ import logging.config
 from pathlib import Path
 from fastapi import APIRouter, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
 import uvicorn
 import logging
+from kafka.kafka_client import kafka_client
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller
 from service.matching import matching_service
 from service.websocket import websocket_service
 from uuid import UUID
+from middleware.fixed_prefix import FixedPrefixMiddleware
 from config import settings
 
 with open("log_config.json", "r") as f:
@@ -20,22 +24,65 @@ with open("log_config.json", "r") as f:
 logging.config.dictConfig(config)
 logger = logging.getLogger(__name__)
 
+SERVICE_PREFIX = os.getenv("SERVICE_PREFIX", "/matching-service-api")
+if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
+    SERVICE_PREFIX = "/" + SERVICE_PREFIX
+SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Running events on start...")
-    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
+    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())
+    session_created_listener = asyncio.create_task(redis_controller.start_session_created_listener())
     yield
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
+    session_created_listener.cancel()
     await django_question_service.shutdown()
+    kafka_client.shutdown()
 
-
-router = APIRouter(
-    prefix="/api"
+router = APIRouter(prefix="/api", redirect_slashes=False)
+app = FastAPI(
+    redirect_slashes=False,
+    lifespan=lifespan,
+    docs_url="/api/docs"
 )
-app = FastAPI(lifespan=lifespan)
+allowed_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins if allowed_origins else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+if SERVICE_PREFIX:
+    app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
+
+
+async def health_check():
+    """Health check endpoint for ALB"""
+    return {"status": "healthy"}
+
+app.add_api_route(
+    "/health",
+    endpoint=health_check,
+    methods=["GET"],
+    include_in_schema=False,
+)
+
+
+@app.get("/", include_in_schema=False)
+async def root_status():
+    """Legacy landing endpoint that previously returned 404."""
+    return {"ok": True}
+
+router.add_api_route(
+    "/health",
+    endpoint=health_check,
+    methods=["GET"],
+    include_in_schema=False,
+)
 
 @app.get("/test_ws")
 async def get():

@@ -18,6 +18,12 @@ class MatchUserRequestSchema(BaseModel):
     criteria: MatchingCriteriaSchema
 
 
+class MatchedCriteriaSchema(BaseModel):
+    topic: str
+    difficulty: str
+    language: str
+
+
 VALID_LANGUAGE_LIST = [
     "Python",
     "Java",

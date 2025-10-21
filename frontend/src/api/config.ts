@@ -1,8 +1,17 @@
 /// <reference types="vite/client" />
 
+const ensureTrailingSlash = (rawUrl?: string): string => {
+  if (!rawUrl || rawUrl.trim() === '') {
+    return '';
+  }
+  return rawUrl.endsWith('/') ? rawUrl : `${rawUrl}/`;
+};
+
+const USER_SERVICE_BASE = ensureTrailingSlash(import.meta.env.VITE_USER_SERVICE_URL) || '/user-service-api/';
+
 export const API_CONFIGS = {
   user: {
-    baseURL: import.meta.env.VITE_USER_SERVICE_URL,
+    baseURL: USER_SERVICE_BASE,
     timeout: 10000,
   },
   question: {
@@ -14,15 +23,15 @@ export const API_CONFIGS = {
     timeout: 10000,
   },
   // order: {
-  //   baseURL: import.meta.env.VITE_ORDER_SERVICE_URL || 'http://localhost:8002/',
+  //   baseURL: ensureTrailingSlash(import.meta.env.VITE_ORDER_SERVICE_URL) || 'http://localhost:8002/',
   //   timeout: 10000,
   // },
   // product: {
-  //   baseURL: import.meta.env.VITE_PRODUCT_SERVICE_URL || 'http://localhost:8003/',
+  //   baseURL: ensureTrailingSlash(import.meta.env.VITE_PRODUCT_SERVICE_URL) || 'http://localhost:8003/',
   //   timeout: 10000,
   // },
   // auth: {
-  //   baseURL: import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8004/',
+  //   baseURL: ensureTrailingSlash(import.meta.env.VITE_AUTH_SERVICE_URL) || 'http://localhost:8004/',
   //   timeout: 10000,
   // },
 };

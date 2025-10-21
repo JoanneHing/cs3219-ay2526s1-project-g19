@@ -8,7 +8,16 @@ Handles all authentication-related endpoints including:
 - Email verification (future)
 """
 from django.urls import path
-from .views import UserRegistrationView, UserLoginView, UserLogoutView, TokenVerifyView, RefreshTokenView
+from .views import (
+    UserRegistrationView,
+    UserLoginView,
+    UserLogoutView,
+    TokenVerifyView,
+    RefreshTokenView,
+    EmailSSORequestView,
+    EmailSSOVerifyView,
+    ResetPasswordView,
+)
 
 app_name = 'authentication'
 
@@ -18,9 +27,7 @@ urlpatterns = [
     path('logout/', UserLogoutView.as_view(), name='logout'),
     path('verify-token/', TokenVerifyView.as_view(), name='verify-token'),
     path('refresh/', RefreshTokenView.as_view(), name='refresh'),
-    # Future endpoints:
-    # path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
-    # path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
-    # path('verify-email/', VerifyEmailView.as_view(), name='verify-email'),
-    # path('resend-verification/', ResendVerificationView.as_view(), name='resend-verification'),
+    path('email-sso/', EmailSSORequestView.as_view(), name='email-sso'),
+    path('email-sso/verify/', EmailSSOVerifyView.as_view(), name='email-sso-verify'),
+    path('reset-password/', ResetPasswordView.as_view(), name='reset-password'),
 ]
