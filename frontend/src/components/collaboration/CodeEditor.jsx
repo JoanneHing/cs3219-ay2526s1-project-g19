@@ -12,9 +12,10 @@ import { createCursorsField, posToLineChar, getUserColor } from "./codeeditor/ut
 import EditorHeader from "./codeeditor/EditorHeader"
 import EditorStatsBar from "./codeeditor/EditorCursorBar"
 import EditorRunButton from "./codeeditor/EditorRunButton"
+import EditorRunTestsButton from "./codeeditor/EditorRunTestsButton"
 import EditorOutputTerminal from "./codeeditor/EditorOutputTerminal"
 
-const CodeEditor = ({ room, currentUsername, language }) => {
+const CodeEditor = ({ room, currentUsername, language, questionId }) => {
     const getDefaultCode = (lang) => {
         switch (lang) {
             case "Python":
@@ -221,26 +222,129 @@ int main() {
         setCode({ value: value, isReceived: false })
     }
 
+    // Language mapping to Judge0 IDs
+    const getLanguageId = (lang) => {
+        const languageMap = {
+            'Python': 71,
+            'Javascript': 63,
+            'Java': 62,
+            'C++': 54,
+            'C': 50,
+            'C#': 51,
+            'Go': 60,
+            'Rust': 73,
+            'PHP': 68,
+            'Ruby': 72,
+            'Swift': 83,
+            'Kotlin': 78,
+            'Scala': 81,
+            'TypeScript': 74,
+        }
+        return languageMap[lang] || 71 // Default to Python
+    }
+
     const runCode = async () => {
         setIsRunning(true)
         setOutput("Running...")
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_EXECUTION_API}/run`, {
+            const response = await fetch(`${import.meta.env.VITE_EXECUTION_SERVICE_URL || '/execution-service-api'}/api/execute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    code: code.value,
-                    language: language // Send language to execution service
+                    language_id: getLanguageId(language),
+                    source_code: code.value,
+                    stdin: ""
                 }),
             })
 
             const data = await response.json()
-            setOutput(data.output || data.error)
+            
+            if (response.ok) {
+                // Format the output nicely
+                let outputText = ""
+                if (data.stdout) {
+                    outputText += `Output:\n${data.stdout}`
+                }
+                if (data.stderr) {
+                    outputText += `\n\nErrors:\n${data.stderr}`
+                }
+                if (data.compile_output) {
+                    outputText += `\n\nCompile Output:\n${data.compile_output}`
+                }
+                if (data.time) {
+                    outputText += `\n\nTime: ${data.time}s`
+                }
+                if (data.memory) {
+                    outputText += ` | Memory: ${data.memory}KB`
+                }
+                
+                setOutput(outputText || `Status: ${data.status}`)
+            } else {
+                setOutput(`Error: ${data.error || 'Execution failed'}`)
+            }
         } catch (error) {
-            setOutput("Error: Could not connect to execution service")
+            setOutput(`Error: Could not connect to execution service - ${error.message}`)
+        } finally {
+            setIsRunning(false)
+        }
+    }
+
+    const runTests = async () => {
+        if (!questionId) {
+            setOutput("Error: No question selected for testing")
+            return
+        }
+
+        setIsRunning(true)
+        setOutput("Running tests...")
+
+        try {
+            const response = await fetch(`${import.meta.env.VITE_EXECUTION_SERVICE_URL || '/execution-service-api'}/api/execute/tests`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    language_id: getLanguageId(language),
+                    source_code: code.value,
+                    question_id: questionId
+                }),
+            })
+
+            const data = await response.json()
+            
+            if (response.ok) {
+                const { summary, results } = data
+                let outputText = `Test Results: ${summary.passed}/${summary.total} tests passed\n\n`
+                
+                results.forEach((result, index) => {
+                    const status = result.ok ? "✅ PASS" : "❌ FAIL"
+                    outputText += `Test ${index + 1}: ${status}\n`
+                    outputText += `  Status: ${result.status}\n`
+                    if (result.stdout) {
+                        outputText += `  Output: ${result.stdout}\n`
+                    }
+                    if (result.expected) {
+                        outputText += `  Expected: ${result.expected}\n`
+                    }
+                    if (result.stderr) {
+                        outputText += `  Error: ${result.stderr}\n`
+                    }
+                    if (result.time) {
+                        outputText += `  Time: ${result.time}s\n`
+                    }
+                    outputText += "\n"
+                })
+                
+                setOutput(outputText)
+            } else {
+                setOutput(`Error: ${data.error || 'Test execution failed'}`)
+            }
+        } catch (error) {
+            setOutput(`Error: Could not connect to execution service - ${error.message}`)
         } finally {
             setIsRunning(false)
         }
@@ -304,7 +408,14 @@ int main() {
                     }}
                 />
             </div>
-            <EditorRunButton onClick={runCode} isRunning={isRunning} />
+            <div className="flex gap-3">
+                <EditorRunButton onClick={runCode} isRunning={isRunning} />
+                <EditorRunTestsButton 
+                    onClick={runTests} 
+                    isRunning={isRunning} 
+                    disabled={!questionId}
+                />
+            </div>
             {output && <EditorOutputTerminal output={output} />}
         </div>
     )
