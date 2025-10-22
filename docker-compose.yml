@@ -24,7 +24,7 @@ include:
   # Backend Services
   - path: ./question_service/docker-compose.yml
   - path: ./matching_service/docker-compose.yml
-  - path: ./history_service/docker-compose.yml
+  - path: ./session_service/docker-compose.yml
   - path: ./user_service/docker-compose.yml
   - path: ./collaboration_service/docker-compose.yml
   - path: ./chat_service/docker-compose.yml

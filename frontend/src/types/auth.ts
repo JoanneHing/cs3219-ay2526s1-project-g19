@@ -58,3 +58,27 @@ export interface RegisterRequest {
 export interface RegisterResponse {
   user: User;
 }
+
+// Email SSO
+export interface EmailSSORequest {
+  email: string;
+  redirect_path?: string;
+}
+
+export interface EmailSSOResponse {
+  email: string;
+  account_exists: boolean;
+  delivered: boolean;
+  expires_in: number;
+  login_url: string | null;
+}
+
+export interface EmailSSOVerifyRequest {
+  token: string;
+}
+
+export interface EmailSSOVerifyResponse {
+  user: User;
+  tokens: Tokens;
+  session_profile: SessionProfile;
+}

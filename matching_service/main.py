@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import uvicorn
 import logging
+from kafka.kafka_client import kafka_client
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller
@@ -31,14 +32,21 @@ SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Running events on start...")
-    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())  # run listener concurrently
+    expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())
+    session_created_listener = asyncio.create_task(redis_controller.start_session_created_listener())
     yield
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
+    session_created_listener.cancel()
     await django_question_service.shutdown()
+    kafka_client.shutdown()
 
 router = APIRouter(prefix="/api", redirect_slashes=False)
-app = FastAPI(redirect_slashes=False, lifespan=lifespan)
+app = FastAPI(
+    redirect_slashes=False,
+    lifespan=lifespan,
+    docs_url="/api/docs"
+)
 allowed_origins = [origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()]
 
 app.add_middleware(

@@ -2,14 +2,17 @@ import asyncio
 import json
 import logging
 import redis.asyncio as redis
+from redis.asyncio.client import PubSub
 from constants.matching import RELAX_LANGUAGE_DURATION, MatchingCriteriaEnum
 from uuid import UUID
 from fastapi import HTTPException, status
 import time
 from datetime import datetime
 from constants.matching import MatchingCriteriaEnum, EXPIRATION_DURATION
+from kafka.kafka_client import kafka_client
+from schemas.events import SessionCreatedSchema
 from schemas.matching import MatchingCriteriaSchema
-from schemas.message import MatchedCriteriaSchema
+from schemas.matching import MatchedCriteriaSchema
 from service.websocket import websocket_service
 from config import settings
 
@@ -23,10 +26,9 @@ class RedisController:
             host=settings.redis_host,
             port=settings.redis_port,
             db=0,
-            decode_responses=True
+            decode_responses=True,
         )
         self.general_queue_key="gen_queue:"
-        self.pubsub = self.redis.pubsub()
         self.websocket_service = websocket_service
 
         ## Add operations
@@ -72,7 +74,6 @@ class RedisController:
                 user_id=user_id,
                 matched_user_id=matched_user_id
             )
-        logger.info(f"{await self.debug_show()}")
         return
 
     async def remove_from_queue(self, user_id: UUID):
@@ -153,12 +154,13 @@ class RedisController:
         )
 
     async def start_expiry_listener(self):
-        await self.pubsub.psubscribe("__keyevent@0__:expired")
+        pubsub = self.get_pubsub()
+        await pubsub.psubscribe("__keyevent@0__:expired")
         logger.info("Subscribed to key expiry events")
 
         try:
             while True:
-                message = await self.pubsub.get_message(
+                message = await pubsub.get_message(
                     ignore_subscribe_messages=True,
                     timeout=None
                 )
@@ -174,8 +176,31 @@ class RedisController:
         except asyncio.CancelledError:
             logger.info("Expiry event listener cancelled — shutting down")
         finally:
-            await self.pubsub.close()
+            await pubsub.close()
             await self.redis.close()
+
+    async def start_session_created_listener(self):
+        pubsub = self.get_pubsub()
+        await pubsub.subscribe(settings.topic_session_created)
+        logger.info(f"Subscribed to session created events on {settings.topic_session_created}")
+        logger.info(settings.redis_host)
+
+        async for msg in pubsub.listen():
+            if msg["type"] == "message":
+                data = json.loads(msg["data"])
+                logger.info(msg["data"])
+                session_created = SessionCreatedSchema(**data)
+                await self.websocket_service.send_session_created(session_created=session_created)
+
+    def get_pubsub(self) -> PubSub:
+        r = redis.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            db=0,
+            decode_responses=True,
+        )
+        pubsub = r.pubsub()
+        return pubsub
 
     async def handle_timeout(self, expiry_key: str):
         user_id = UUID(expiry_key.split(":")[1])
@@ -213,13 +238,13 @@ class RedisController:
             matched_user_id=matched_user_id
         )
         logger.info(f"User {user_id} matched with user {matched_user_id}. Criteria: {matched_criteria}")
-        await self.websocket_service.send_match_success(
-            user_a=user_id,
-            user_b=matched_user_id,
+        await redis_controller.remove_from_queue(user_id=user_id)
+        await redis_controller.remove_from_queue(user_id=matched_user_id)
+        kafka_client.pub_match_found(
+            user_id_list=[user_id, matched_user_id],
             criteria=matched_criteria
         )
-        await self.websocket_service.close_ws_connection(user_id=user_id)
-        await self.websocket_service.close_ws_connection(user_id=matched_user_id)
+        return
 
     ## Add operations
 
@@ -362,6 +387,9 @@ class RedisController:
         user_id: UUID
     ) -> list[str]:
         meta_key = self._get_user_meta_key(user_id=user_id)
+        raw = await self.redis.hget(name=meta_key, key=criteria.value)
+        if not raw:
+            return []
         criteria_list = json.loads(await self.redis.hget(name=meta_key, key=criteria.value))
         if criteria_list is None:
             criteria_list = []
@@ -383,7 +411,7 @@ class RedisController:
             aggregate="SUM"
         )
         assert await self.redis.zcard(temp_set_key) > 0
-        earliest_user = await self.redis.zpopmin(temp_set_key, 1)[0][0]
+        earliest_user = (await self.redis.zpopmin(temp_set_key, 1))[0][0]
         await self.redis.delete(intersection_key, temp_set_key)
         return UUID(earliest_user)
 

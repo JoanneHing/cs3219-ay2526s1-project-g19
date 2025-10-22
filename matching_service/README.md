@@ -16,19 +16,31 @@ The matching service is responsible for matching users based on the below define
     ```json
         {
             "status": "success" | "timeout" | "relax",
-            "matched_user_id": "3fa85f64-5717-4562-b3fc-2c963f66afa5" | None,
-            "criteria": {
-                "topic": "string",
-                "difficulty": "string",
-                "langugage": "string"
-            } | None
+            "session": "SessionCreatedSchema" | None
         }
     ```
-    - Message format: matched_user_id and criteria will be None for all statuses except success.
+    - Message format: session will be None for all statuses except success.
     - Statuses:
         - Success: Matching success. Matched user_id and criteria is given.
         - Timeout: 60s passed, user matching time out and user removed from queue.
         - Relax: 30s passed, language matching has been relaxed, secondary language will be used.
+    - Format of SessionCreatedSchema:
+        ```python
+            class SessionCreatedSchema(BaseModel):
+                session_id: UUID
+                match_id: UUID
+                user_id_list: list[UUID]
+                question_id: UUID
+                title: str
+                statement_md: str
+                assets: list[str]
+                topics: list[str]
+                difficulty: str
+                company_tags: list[str]
+                examples: list[str]
+                constraints: list[str]
+                timestamp: datetime
+        ```
 
 ### Basic matching
 - `POST /api/match` - Adds the user to the matching queue with the given criteria

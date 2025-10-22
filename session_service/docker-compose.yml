@@ -1,0 +1,83 @@
+# Session Service - Standalone Configuration
+# Run independently: cd session_service && docker-compose up
+
+services:
+  session-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_session_service
+    ports:
+      - "${SESSION_SERVICE_PORT:-8003}:8000"
+    env_file:
+      - ../.env
+      - .env
+    environment:
+      - DEBUG=${DEBUG:-true}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,session-service}
+    volumes:
+      - ./:/app:rw
+    networks:
+      - shared_network
+      - session_network
+    depends_on:
+      session_db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  session_db:
+    image: postgres:15-alpine
+    container_name: peerprep_session_db
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${SESSION_DB_NAME:-session_db}
+      - POSTGRES_USER=${SESSION_DB_USER:-peerprep}
+      - POSTGRES_PASSWORD=${SESSION_DB_PASSWORD:-peerprep_dev_password}
+    volumes:
+      - session_db_data:/var/lib/postgresql/data
+    ports:
+      - 5433:${SESSION_DB_PORT:-5432}
+    networks:
+      - session_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SESSION_DB_USER:-peerprep} -d ${SESSION_DB_NAME:-session_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  session_consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_session_kafka
+    command: python -m kafka.consumers.question_chosen
+    volumes:
+      - ./:/app:rw
+      - session_db_data:/var/lib/postgresql/data
+    networks:
+      - shared_network
+      - session_network
+    env_file:
+      - .env
+      - ../.env
+    depends_on:
+      session_db:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  shared_network:
+  session_network:
+    driver: bridge
+    name: peerprep_session_network
+
+volumes:
+  session_db_data:
+    name: session_db_data
