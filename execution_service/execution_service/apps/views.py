@@ -287,6 +287,7 @@ class ExecuteTestsView(APIView):
                             'ok': False,
                             'error': 'exec_failed',
                             'status': 'Error',
+                            'input': test_input,
                             'stdout': '',
                             'expected': expected_output,
                             'stderr': response.text,
@@ -302,6 +303,7 @@ class ExecuteTestsView(APIView):
                     return {
                         'ok': stdout == expected and status_desc == 'Accepted',
                         'status': status_desc,
+                        'input': test_input,
                         'stdout': stdout,
                         'expected': expected,
                         'stderr': data.get('stderr', ''),
@@ -315,6 +317,7 @@ class ExecuteTestsView(APIView):
                         'ok': False,
                         'error': 'exec_failed',
                         'status': 'Error',
+                        'input': case.get('input', ''),
                         'stdout': '',
                         'expected': case.get('output', ''),
                         'stderr': str(e),

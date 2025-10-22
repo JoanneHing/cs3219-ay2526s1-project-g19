@@ -324,6 +324,9 @@ int main() {
                     const status = result.ok ? "✅ PASS" : "❌ FAIL"
                     outputText += `Test ${index + 1}: ${status}\n`
                     outputText += `  Status: ${result.status}\n`
+                    if (result.input !== undefined) {
+                        outputText += `  Input: ${result.input}\n`
+                    }
                     if (result.stdout) {
                         outputText += `  Output: ${result.stdout}\n`
                     }
