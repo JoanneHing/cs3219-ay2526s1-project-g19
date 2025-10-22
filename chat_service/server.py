@@ -98,7 +98,7 @@ def register_handlers(sio: socketio.AsyncServer):
 
         # Notify room
         join_notification = MessageData(
-            message=f"{username} has joined the interview",
+            message=f"{username} has joined the session",
             username="ChatBot"
         )
         await sio.emit("receive", join_notification.to_dict(), room=room)
