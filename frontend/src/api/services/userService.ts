@@ -11,7 +11,7 @@ import type {
   EmailSSOResponse,
   EmailSSOVerifyRequest,
   EmailSSOVerifyResponse
-} from '@/types';
+} from '../../types';
 
 export const userService = {
   register: (data: RegisterRequest) =>
@@ -38,4 +38,8 @@ export const userService = {
   // Email SSO - Verify token and login
   verifyEmailSSO: (data: EmailSSOVerifyRequest) =>
     userClient.post<EmailSSOVerifyResponse>('api/auth/email-sso/verify/', data),
+
+  // Get public profile information by user ID
+  getPublicProfile: (userId: string) =>
+    userClient.get(`api/users/public-profile/?user_id=${userId}`),
 };

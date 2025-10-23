@@ -61,8 +61,8 @@ const App = () => {
             <Route path="/questions/:id" element={<QuestionDetailPage />} />
             <Route path="/matching" element={<MatchingPage />} />
             <Route path="/matching/finding" element={<MatchingProgressPage />} />
-            <Route path="/collaboration" element={<CollaborationPage />} />
           </Route>
+          <Route path="/collaboration/:sessionId" element={<CollaborationPage />} />
         </Route>
 
         <Route path="*" element={<h1>404 Not Found</h1>} />

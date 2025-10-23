@@ -1,10 +1,15 @@
-import { Children, useState } from "react";
+import { Children, useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useMatchingSocket } from "../../hooks/useMatchingSocket";
+import { useAuth } from "../../contexts/AuthContext";
+import CancelConfirmation from "./CancelConfirmation";
+import FindingMatch from "./FindingMatch";
+import MatchFound from "./MatchFound";
+import MatchNotFound from "./MatchNotFound";
+import { questionService } from "../../api/services/questionService";
+import { matchingService as matchingApiService } from "../../api/services/matchingService";
 
-// Selection Options
-// Hardcoded for now (If backend support is added, fetch from backend)
-// Topics are form leetcode 150
-const TOPICS = [
+const DEFAULT_TOPICS = [
     "Array",
     "String",
     "Two Pointers",
@@ -12,7 +17,7 @@ const TOPICS = [
     "Matrix",
     "Hashmap",
     "Intervals",
-    "Stack",
+    "stack",
     "Linked List",
     "Binary Tree General",
     "Binary Tree BFS",
@@ -31,28 +36,23 @@ const TOPICS = [
     "Multi-D DP"
 ];
 
-// This list is used to check if all difficulties are selected
-// Then will automatically select "Any"
-const DIFFICULTIES = [
-    "Easy",
-    "Medium",
-    "Hard"
-];
+const DEFAULT_DIFFICULTIES = ["easy", "medium","hard"];
 
-// This is for rendering
-const ALL_DIFFICULTIES = [...DIFFICULTIES, "Any"];
-
-const LANGUAGES = [
-    "Java",
+const DEFAULT_LANGUAGES = [
     "Python",
+    "Java",
+    "Javascript",
+    "C",
     "C++",
-    "C#",
-    "JavaScript",
-    "TypeScript",
-    "Go",
-    "Ruby",
-    "Rust"
+    "Default" // See if backend retrieve from api or default
 ];
+
+const ANY_DIFFICULTY_OPTION = "Any";
+
+const capitalize = (value) => {
+    if (!value) return value;
+    return value.charAt(0).toUpperCase() + value.slice(1);
+};
 
 // Helper functions
 const BubbleLabels = ({ label, isSelected, onClick}) => {
@@ -70,16 +70,15 @@ const BubbleLabels = ({ label, isSelected, onClick}) => {
     );
 };
 
-// Overylay for pop up windows
-const Overlay = ({ Children }) => {
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-        <div className = "rounded-lg shadow-lg p-8 max-w-lg w-full relative bg-background-secondary border border-gray-700">
-            {Children}
-        </div>
-    </div>
-};
 
 const MatchingForm = () => {
+    const { user } = useAuth();
+    const [topicOptions, setTopicOptions] = useState(DEFAULT_TOPICS);
+    const [difficultyOptions, setDifficultyOptions] = useState(DEFAULT_DIFFICULTIES);
+    const [languageOptions, setLanguageOptions] = useState(DEFAULT_LANGUAGES);
+    const [optionsLoading, setOptionsLoading] = useState(false);
+    const [optionsError, setOptionsError] = useState(null);
+
     const [selections, setSelections] = useState({
         topics: [],
         difficulties: [],
@@ -88,10 +87,93 @@ const MatchingForm = () => {
     });
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+    const [confirmAction, setConfirmAction] = useState('');
+
+    useEffect(() => {
+        const loadOptions = async () => {
+            setOptionsLoading(true);
+            try {
+                const [topics, difficulties, languages] = await Promise.all([
+                    questionService.getTopics(),
+                    questionService.getDifficulties(),
+                    matchingApiService.getLanguages()
+                ]);
+
+                const safeTopics = topics.length ? topics : DEFAULT_TOPICS;
+                const safeDifficulties = difficulties.length ? difficulties : DEFAULT_DIFFICULTIES;
+                const safeLanguages = languages.length ? languages : DEFAULT_LANGUAGES;
+
+                setTopicOptions(safeTopics);
+                setDifficultyOptions(safeDifficulties);
+                setLanguageOptions(safeLanguages);
+
+                setSelections((prev) => {
+                    const filteredTopics = prev.topics.filter((topic) => safeTopics.includes(topic));
+                    const filteredBackup = prev.backupLanguages.filter((lang) => safeLanguages.includes(lang));
+                    const preferredLanguage = safeLanguages.includes(prev.preferredLanguage) ? prev.preferredLanguage : '';
+
+                    let filteredDifficulties = prev.difficulties.includes(ANY_DIFFICULTY_OPTION)
+                        ? [ANY_DIFFICULTY_OPTION]
+                        : prev.difficulties.filter((difficulty) => safeDifficulties.includes(difficulty));
+
+                    if (filteredDifficulties.length === safeDifficulties.length) {
+                        filteredDifficulties = [ANY_DIFFICULTY_OPTION];
+                    }
+
+                    return {
+                        ...prev,
+                        topics: filteredTopics,
+                        difficulties: filteredDifficulties,
+                        preferredLanguage,
+                        backupLanguages: filteredBackup
+                    };
+                });
+
+                setOptionsError(null);
+            } catch (error) {
+                console.error('Failed to load matching options', error);
+                setOptionsError('Unable to load latest options. Using default values.');
+                setTopicOptions(DEFAULT_TOPICS);
+                setDifficultyOptions(DEFAULT_DIFFICULTIES);
+                setLanguageOptions(DEFAULT_LANGUAGES);
+            } finally {
+                setOptionsLoading(false);
+            }
+        };
+
+        void loadOptions();
+    }, []);
+
+    const sortedTopicOptions = useMemo(() => [...topicOptions].sort((a, b) => a.localeCompare(b)), [topicOptions]);
+    const difficultyOptionDetails = useMemo(() => difficultyOptions.map((value) => ({
+        value,
+        label: capitalize(value)
+    })), [difficultyOptions]);
+    const sortedLanguageOptions = useMemo(() => [...languageOptions].sort((a, b) => a.localeCompare(b)), [languageOptions]);
+    
+    // Use Socket.IO-like hook for consistency with collaboration service
+    const { 
+        isConnected,
+        isMatching, 
+        matchFound,
+        sessionData,
+        error, 
+        startMatching, 
+        cancelMatching,
+        resetMatch
+    } = useMatchingSocket();
 
     // Handlers for selections
     // For bubble selections: topics, backupLanguages
     const handleBubbleToggle = (field, item) => {
+        if (field === 'topics' && !topicOptions.includes(item)) {
+            return;
+        }
+        if (field === 'backupLanguages' && !languageOptions.includes(item)) {
+            return;
+        }
+
         setSelections(prev => {
             const currentSelections = prev[field];
             const isSelected = currentSelections.includes(item);
@@ -116,36 +198,38 @@ const MatchingForm = () => {
     // For difficulty selection
     const handleDifficultyToggle = (difficulty) => {
         setSelections(prev => {
-            let currentDifficulties = [...prev.difficulties];
-            const isSelected = currentDifficulties.includes(difficulty);
-            let updatedDifficulties;
+            const current = prev.difficulties;
 
-            if (difficulty === "Any") {
-                updatedDifficulties = isSelected ? [] : ["Any"];
-            } else {
-                let tempDiffoculties;
-
-                if (isSelected) {
-                    // Remove difficulty, and if "Any" is selected, remove also
-                    tempDiffoculties = currentDifficulties.filter(d => d !== difficulty && d !== "Any");
-                } else {
-                    // Add difficulty, remove "Any" if it was selected
-                    tempDiffoculties = [...currentDifficulties.filter(d => d !== "Any"), difficulty];
-                }
-
-                // Check if all difficulties are selected
-                if (tempDiffoculties.length === DIFFICULTIES.length) {
-                    updatedDifficulties = ["Any"];
-                } else {
-                    updatedDifficulties = tempDiffoculties;
-                }
+            if (difficulty === ANY_DIFFICULTY_OPTION) {
+                const hasAny = current.includes(ANY_DIFFICULTY_OPTION);
+                return {
+                    ...prev,
+                    difficulties: hasAny ? [] : [ANY_DIFFICULTY_OPTION]
+                };
             }
 
-            return {...prev, difficulties: updatedDifficulties};
+            let withoutAny = current.filter(value => value !== ANY_DIFFICULTY_OPTION);
+            if (withoutAny.includes(difficulty)) {
+                withoutAny = withoutAny.filter(value => value !== difficulty);
+            } else {
+                withoutAny = [...withoutAny, difficulty];
+            }
+
+            if (withoutAny.length === difficultyOptions.length) {
+                return {
+                    ...prev,
+                    difficulties: [ANY_DIFFICULTY_OPTION]
+                };
+            }
+
+            return {
+                ...prev,
+                difficulties: withoutAny
+            };
         });
     }
 
-    const isAnySelected = selections.difficulties.includes("Any") && selections.difficulties.length === 1;
+    const isAnySelected = selections.difficulties.includes(ANY_DIFFICULTY_OPTION);
 
     // Handler for preferred language dropdown
     const handlePreferredLanguageSelect = (language) => {
@@ -153,7 +237,7 @@ const MatchingForm = () => {
         setIsDropdownOpen(false);
     }
 
-    const renderLanguageDropdown = LANGUAGES.map(lang => (
+    const renderLanguageDropdown = sortedLanguageOptions.map(lang => (
         <div
             key={lang}
             className={"px-4 py-2 hover:bg-gray-900 cursor-pointer text-gray-200"}
@@ -164,20 +248,163 @@ const MatchingForm = () => {
     ));
 
     // Form submission handler
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Connect with api here
-        console.log(`Matching selections:
-            Topics: ${selections.topics.join(", ") || "Any"}
-            Difficulties: ${selections.difficulties.join(", ") || "Any"}
-            Preferred Language: ${selections.preferredLanguage || "None"}
-            Backup Languages: ${selections.backupLanguages.join(", ") || "None"}
-        `);
+        // Convert "Any" difficulty to all available difficulties
+        let submittedDifficulties = selections.difficulties;
+        if (selections.difficulties.includes(ANY_DIFFICULTY_OPTION)) {
+            submittedDifficulties = difficultyOptions;
+        }
 
+        // Prepare matching criteria for the backend (match backend schema)
+        const criteria = {
+            topics: selections.topics.length > 0 ? selections.topics : [],
+            difficulty: submittedDifficulties.length > 0 ? submittedDifficulties : [],
+            primary_lang: selections.preferredLanguage || null,
+            secondary_lang: selections.backupLanguages.length > 0 ? selections.backupLanguages : [],
+            proficiency: 0 // Default proficiency level
+        };
+
+        try {
+            await startMatching(criteria);
+        } catch (err) {
+            console.error('Failed to start matching:', err);
+        }
+    }
+
+    // Handle cancel button click during matching
+    const handleCancelClick = () => {
+        setConfirmAction('confirm_cancel');
+        setShowCancelConfirm(true);
+    };
+
+    // Handle quit button click when match is found
+    const handleQuitClick = () => {
+        setConfirmAction('confirm_leave');
+        setShowCancelConfirm(true);
+    };
+
+    // Confirm cancellation/quit
+    const handleConfirmAction = async () => {
+        if (confirmAction === 'confirm_cancel') {
+            await cancelMatching();
+        } else if (confirmAction === 'confirm_leave') {
+            await cancelMatching();
+            resetMatch();
+        }
+        setShowCancelConfirm(false);
+        setConfirmAction('');
+    };
+
+    // Cancel confirmation dialog
+    const handleCancelConfirmation = () => {
+        setShowCancelConfirm(false);
+        setConfirmAction('');
+    };
+
+    // Handle rematch (Use same criteria)
+    const handleRematch = async () => {
+        // Convert "Any" difficulty to all available difficulties
+        let submittedDifficulties = selections.difficulties;
+        if (selections.difficulties.includes(ANY_DIFFICULTY_OPTION)) {
+            submittedDifficulties = difficultyOptions;
+        }
+
+        const criteria = {
+            topics: selections.topics.length > 0 ? selections.topics : [],
+            difficulty: submittedDifficulties.length > 0 ? submittedDifficulties : [],
+            primary_lang: selections.preferredLanguage || null,
+            secondary_lang: selections.backupLanguages.length > 0 ? selections.backupLanguages : [],
+            proficiency: 0 // Set as 0 as haven't implement this yet
+        };
+        
+        resetMatch();
+        try {
+            await startMatching(criteria);
+        } catch (err) {
+            console.error('Failed to rematch:', err);
+        }
+    };
+
+    // Handle return to form from match not found
+    const handleReturnToForm = () => {
+        resetMatch();
+    };
+
+    // Show different components based on current state
+    if (isMatching) {
+        return (
+            <>
+                <FindingMatch 
+                    selections={{
+                        topic: selections.topics.join(', ') || 'Any',
+                        difficulty: selections.difficulties.join(', ') || 'Any',
+                        preferredLanguage: selections.preferredLanguage || 'Any',
+                        backupLanguages: selections.backupLanguages || 'None'
+                    }}
+                    onCancel={handleCancelClick}
+                />
+                {/* Confirmation Dialog */}
+                {showCancelConfirm && (
+                    <CancelConfirmation 
+                        actionType={confirmAction}
+                        onConfirm={handleConfirmAction}
+                        onCancel={handleCancelConfirmation}
+                    />
+                )}
+            </>
+        );
+    }
+
+    if (matchFound && sessionData) {
+        return (
+            <>
+                <MatchFound 
+                    user1={user?.display_name || "You"}
+                    user2="Matched User" // Need API to get name
+                    matchedSelections={{
+                        topic: sessionData.topics?.[0] || 'Any',
+                        difficulty: sessionData.difficulty || 'Any',
+                        language: sessionData.language || 'JavaScript'
+                    }}
+                    sessionData={sessionData}
+                    onQuit={handleQuitClick}
+                />
+                {/* Confirmation Dialog */}
+                {showCancelConfirm && (
+                    <CancelConfirmation 
+                        actionType={confirmAction}
+                        onConfirm={handleConfirmAction}
+                        onCancel={handleCancelConfirmation}
+                    />
+                )}
+            </>
+        );
+    }
+
+    if (error && (error.includes('No match found') || error.includes('Partner quit'))) {
+        const isPartnerQuit = error.includes('Partner quit');
+        
+        return (
+            <MatchNotFound 
+                title={isPartnerQuit ? "Partner Left" : "No Match Found"}
+                message={isPartnerQuit 
+                    ? "Your partner has left the match." 
+                    : "We couldn't find a suitable match based on your preferences."
+                }
+                subtitle={isPartnerQuit 
+                    ? "Don't worry! You can try finding a new match."
+                    : "You can try adjusting your preferences or match again."
+                }
+                onRematch={handleRematch}
+                onReturn={handleReturnToForm}
+            />
+        );
     }
 
     return (
+        <>
             <div className="bg-background-secondary p-6 rounded-xl w-full max-w-6xl shadow-2xl border border-gray-700">
                 {/* Form Header */}
                 <div className="mb-4 border-b border-gray-700 pb-4">
@@ -195,7 +422,7 @@ const MatchingForm = () => {
                         Topics: <span className="text-sm font-normal text-gray-400 pl-1">Select one or more, default is set as Any</span>
                     </h4>
                     <div className="flex flex-wrap gap-3 border border-gray-600 p-4 rounded-lg max-h-48 overflow-y-auto justify-start">
-                        {TOPICS.map(topic => (
+                        {topicOptions.map(topic => (
                             <BubbleLabels
                                 key={topic}
                                 label={topic}
@@ -211,7 +438,7 @@ const MatchingForm = () => {
                     <h4 className ="text-white font-semibold mb-3">
                         Difficulty: <span className="text-sm font-normal text-gray-400 pl-1">Select one or more</span>
                     </h4>
-                    {DIFFICULTIES.map(difficulty => (
+                    {difficultyOptions.map(difficulty => (
                         <label key={difficulty} className="inline-flex items-center mr-6 mb-2 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -219,19 +446,19 @@ const MatchingForm = () => {
                                 value={difficulty}
                                 checked={selections.difficulties.includes(difficulty) || isAnySelected}
                                 onChange={() => handleDifficultyToggle(difficulty)}
-                                disabled={isAnySelected && difficulty !== "Any"}
+                                disabled={isAnySelected && difficulty !== ANY_DIFFICULTY_OPTION}
                                 className="form-checkbox h-5 w-5 text-primary bg-gray-700 border-gray-600 rounded focus:ring-0 cursor-pointer"
                             />
-                            <span className="ml-2 text-gray-200 select-none">{difficulty}</span>
+                            <span className="ml-2 text-gray-200 select-none">{capitalize(difficulty)}</span>
                         </label>
                     ))}
                     <label className="inline-flex items-center mr-6 mb-2 cursor-pointer">
                         <input
                             type="checkbox"
                             name="difficulty"
-                            value="Any"
+                            value={ANY_DIFFICULTY_OPTION}
                             checked={isAnySelected}
-                            onChange={() => handleDifficultyToggle("Any")}
+                            onChange={() => handleDifficultyToggle(ANY_DIFFICULTY_OPTION)}
                             className="form-checkbox h-5 w-5 text-secondary bg-gray-700 border-gray-600 rounded focus:ring-0 cursor-pointer"
                         />
                         <span className="ml-2 text-gray-200 select-none">Any</span>
@@ -267,7 +494,7 @@ const MatchingForm = () => {
                             Backup Languages : <span className="text-sm font-normal text-gray-400 pl-1">Select up to two (Optional)</span>
                         </h4>
                         <div className="flex flex-wrap gap-3 border border-gray-600 p-4 rounded-lg max-h-48 overflow-y-auto justify-start">
-                            {LANGUAGES.map(lang => (
+                            {languageOptions.map(lang => (
                                 <BubbleLabels
                                     key={lang}
                                     label={lang}
@@ -287,12 +514,30 @@ const MatchingForm = () => {
                     <button
                         type="submit"
                         onClick={handleSubmit}
-                        className="bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-6 rounded-lg transition duration-200 w-full"
+                        disabled={!selections.preferredLanguage}
+                        className="bg-primary hover:bg-primary-dark text-white font-semibold py-2 px-6 rounded-lg transition duration-200 w-full disabled:bg-gray-600 disabled:cursor-not-allowed"
                     >
                         Find Match
                     </button>
                 </div>
+                
+                {/* Error Messages */}
+                {error && !error.includes('No match found') && (
+                    <div className="text-center mt-4 p-4 bg-red-900 border border-red-600 rounded-lg">
+                        <p className="text-red-300 font-semibold">Error: {error}</p>
+                    </div>
+                )}
             </div>
+
+            {/* Confirmation Dialog */}
+            {showCancelConfirm && (
+                <CancelConfirmation 
+                    actionType={confirmAction}
+                    onConfirm={handleConfirmAction}
+                    onCancel={handleCancelConfirmation}
+                />
+            )}
+        </>
     );
 }
 
