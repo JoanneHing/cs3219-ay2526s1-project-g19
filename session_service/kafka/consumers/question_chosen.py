@@ -55,6 +55,7 @@ class QuestionChosenConsumer:
             value=session_created.model_dump(mode="json", exclude={"match_id"}),
             serializer=self.session_created_serializer
         )
+        kafka_client.producer.flush()
         await session_service.start_new_session(
             session_id=session_id,
             session_created=session_created,

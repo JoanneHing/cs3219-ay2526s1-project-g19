@@ -1,15 +1,31 @@
 import QuestionHeader from "./questionpanel/QuestionHeader";
 import QuestionDescription from "./questionpanel/QuestionDescription";
 
-export default function QuestionPanel() {
-  // Updated dummy data based on API response structure
-  const question = {
+export default function QuestionPanel({ questionData }) {
+  const question = questionData ? {
+    title: questionData.title || "Untitled Question",
+    difficulty: questionData.difficulty || "unknown",
+    topics: questionData.topics || [],
+    statement_md: questionData.statement_md || "No description available",
+    examples: questionData.examples || [],
+    constraints: questionData.constraints || [],
+    assets: questionData.assets || [],
+    company_tags: questionData.company_tags || [],
+    stats: {
+      views: 0,
+      attempts: 0,
+      solved: 0,
+      percentage_solved: 0,
+      last_activity_at: new Date().toISOString()
+    }
+  } : {
+    // Fallback
     title: "Reverse String",
     difficulty: "easy",
     topics: ["Array", "Two Pointers", "String"],
     statement_md: `Write a function that reverses a string. The input string is given as an array of characters s.
 
-You must do this by modifying the input array in-place with O(1) extra memory.`,
+    You must do this by modifying the input array in-place with O(1) extra memory.`,
     examples: [
       {
         input: 's = ["h","e","l","l","o"]',

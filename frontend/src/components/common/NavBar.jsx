@@ -2,6 +2,7 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useNavigate } from "react-router-dom";
+import PeerPrepLogo from "../../assets/PeerPrepLogoLight.png";
 
 const Link = ({ to, children }) => {
     return (

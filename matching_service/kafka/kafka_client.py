@@ -79,6 +79,7 @@ class KafkaClient:
             value=serialized_value,
             on_delivery=self.delivery_report
         )
+        self.producer.flush()
         return
 
     def shutdown(self):

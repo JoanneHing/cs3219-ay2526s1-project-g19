@@ -21,6 +21,17 @@ export type {
   EmailSSOVerifyResponse,
 } from './auth';
 
+// Matching types
+export type {
+  MatchingSelections,
+  MatchRequest,
+  MatchResponse,
+  MatchedSelections,
+  SessionData,
+  WebSocketMessage,
+  DeleteMatchRequest,
+} from './matching';
+
 // Common types
 export type {
   PaginationParams,

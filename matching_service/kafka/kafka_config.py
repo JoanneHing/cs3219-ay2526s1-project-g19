@@ -15,7 +15,7 @@ consumer_config = {
     "bootstrap.servers": settings.kafka_bootstrap_servers,
     'group.id': settings.group_id,
     'session.timeout.ms': 6000,
-    'auto.offset.reset': 'earliest',
+    'auto.offset.reset': 'latest',  # Process only new messages 
     "security.protocol": "SASL_SSL",
     'sasl.mechanisms': 'PLAIN',
     "sasl.username": settings.sasl_username,

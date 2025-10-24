@@ -4,11 +4,11 @@ import ChatHeader from "./chatbox/ChatHeader";
 import ChatMessagesList from "./chatbox/ChatMessagesList";
 import ChatInput from "./chatbox/ChatInput";
 
-const ChatBox = ({ room, currentUsername }) => {
+const ChatBox = ({ room, currentUsername, socketRef, onPartnerLeft }) => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
-  const chatSocketRef = useRef(null);
+  const chatSocketRef = socketRef || useRef(null);
 
   const handleBeforeUnload = useCallback(() => {
     if (chatSocketRef.current) {
@@ -23,22 +23,47 @@ const ChatBox = ({ room, currentUsername }) => {
     // The options object contains the path, which should be the proxy path.
     // This tells Socket.IO to connect to `ws://<host>/chat-service-api/socket.io`
     const socketPath = `${import.meta.env.VITE_CHAT_SERVICE_URL || "/chat-service-api"}/socket.io`;
+    
+    // If socket already exists and is connected, disconnect it first
+    if (chatSocketRef.current && chatSocketRef.current.connected) {
+      console.log("Disconnecting existing socket before creating new one");
+      chatSocketRef.current.disconnect();
+    }
+    
     chatSocketRef.current = io(window.location.origin, { path: socketPath });
     console.log("Connecting to chat Socket.IO with path:", socketPath);
 
-    chatSocketRef.current.on("connect", () => {
+    const handleConnect = () => {
       console.log(`Connected to chat server with SID ${chatSocketRef.current.id}`);
       chatSocketRef.current.emit("join", { username: currentUsername, room });
-    });
+    };
 
-    chatSocketRef.current.on("receive", (data) => {
+    const handleReceive = (data) => {
       setMessages((prev) => [...prev, data]);
-    });
+    };
+
+    const handlePartnerLeft = (data) => {
+      console.log("Partner left:", data);
+      if (onPartnerLeft) {
+        onPartnerLeft(data);
+      }
+    };
+
+    chatSocketRef.current.on("connect", handleConnect);
+    chatSocketRef.current.on("receive", handleReceive);
+    chatSocketRef.current.on("partner-left", handlePartnerLeft);
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("unload", handleBeforeUnload);
 
     return () => {
+      // Clean up event listeners
+      if (chatSocketRef.current) {
+        chatSocketRef.current.off("connect", handleConnect);
+        chatSocketRef.current.off("receive", handleReceive);
+        chatSocketRef.current.off("partner-left", handlePartnerLeft);
+      }
+      
       handleBeforeUnload();
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("unload", handleBeforeUnload);
