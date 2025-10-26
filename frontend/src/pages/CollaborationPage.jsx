@@ -8,7 +8,7 @@ import ChatBox from "../components/collaboration/ChatBox"
 import QuestionPanel from "../components/collaboration/QuestionPanel"
 import LeaveRoomConfirmation from "../components/collaboration/LeaveRoomConfirmation"
 import PartnerLeftModal from "../components/collaboration/PartnerLeftModal"
-import { Code2, GripVertical, LogOut } from "lucide-react"
+import { Code2, GripVertical, LogOut, Clock } from "lucide-react"
 
 const CollaborationPage = () => {
   const location = useLocation();
@@ -22,11 +22,14 @@ const CollaborationPage = () => {
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false)
   const [showPartnerLeftModal, setShowPartnerLeftModal] = useState(false)
   const [hasPartnerLeft, setHasPartnerLeft] = useState(false)
+  const [sessionTime, setSessionTime] = useState(0) // Session time in seconds
   const leftPanelRef = useRef(null)
   const chatSocketRef = useRef(null)
+  const timerRef = useRef(null)
 
   // Get session data from navigation state
   const sessionData = location.state?.sessionData;
+  console.log("CollaborationPage sessionData:", sessionData);
 
   // Redirect to matching page if no session data or session ID
   useEffect(() => {
@@ -78,6 +81,45 @@ const CollaborationPage = () => {
 
     fetchPartnerName();
   }, [partnerId]);
+
+  // Calculate and update session time
+  useEffect(() => {
+    if (!sessionData?.started_at) return;
+
+    const startTime = new Date(sessionData.started_at);
+    
+    // Calculate initial elapsed time
+    const calculateElapsedTime = () => {
+      return Math.floor((Date.now() - startTime.getTime()) / 1000);
+    };
+
+    // Set initial time
+    setSessionTime(calculateElapsedTime());
+
+    // Update timer every second
+    timerRef.current = setInterval(() => {
+      setSessionTime(calculateElapsedTime());
+    }, 1000);
+
+    // Cleanup on unmount or sessionData change
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [sessionData?.started_at]);
+
+  // Format session time as HH:MM:SS or MM:SS
+  const formatSessionTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Handle leave room confirmation
   const handleLeaveClick = () => {
@@ -212,16 +254,30 @@ const CollaborationPage = () => {
                 </p>
               </div>
             </div>
-            
-            {/* Leave Room Button - Always visible so user can leave even after partner leaves */}
-            <button
-              onClick={handleLeaveClick}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500 rounded-lg transition-colors"
-              title="Leave Room"
-            >
-              <LogOut className="w-4 h-4" />
-              Leave Room
-            </button>
+
+            {/* Session Timer and Leave Button */}
+            <div className="flex items-center gap-3">
+              {/* Session Timer */}
+              <div className="flex items-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 px-4 py-2 rounded-lg border border-slate-600 shadow-md h-10">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <div className="text-sm font-mono font-bold text-blue-400 tracking-wider">
+                  {sessionData?.started_at ? formatSessionTime(sessionTime) : "--:--"}
+                </div>
+                <div className="text-xs text-gray-400 font-medium">
+                  SESSION TIME
+                </div>
+              </div>
+
+              {/* Leave Room Button */}
+              <button
+                onClick={handleLeaveClick}
+                className="flex items-center gap-2 px-4 py-2 h-10 text-sm font-semibold text-gray-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500 rounded-lg transition-colors"
+                title="Leave Room"
+              >
+                <LogOut className="w-4 h-4" />
+                Leave Room
+              </button>
+            </div>
           </div>
         </div>
       </div>
