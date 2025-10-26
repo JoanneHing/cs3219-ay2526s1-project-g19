@@ -12,7 +12,7 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,execution-service}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,execution-service,peerprep_execution_service}
       - JUDGE0_URL=${JUDGE0_URL:-https://ce.judge0.com}
       - JUDGE0_API_KEY=${JUDGE0_API_KEY:-your-api-key-here}
       - QUESTION_SERVICE_URL=${QUESTION_SERVICE_URL:-http://question-service:8000}

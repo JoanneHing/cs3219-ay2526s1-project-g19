@@ -14,38 +14,12 @@ import EditorStatsBar from "./codeeditor/EditorCursorBar"
 import EditorRunButton from "./codeeditor/EditorRunButton"
 import EditorRunTestsButton from "./codeeditor/EditorRunTestsButton"
 import EditorOutputTerminal from "./codeeditor/EditorOutputTerminal"
+import executionService from "../../api/services/executionService"
 
 const CodeEditor = ({ room, currentUsername, language, questionId }) => {
+    // Use service layer for default code
     const getDefaultCode = (lang) => {
-        switch (lang) {
-            case "Python":
-                return "print('Hello, World!')"
-            case "Javascript":
-                return "console.log('Hello, World!');"
-            case "Java":
-                return `public class Main {
-  public static void main(String[] args) {
-    System.out.println("Hello, World!");
-  }
-}`
-            case "C++":
-                return `#include <iostream>
-using namespace std;
-
-int main() {
-  cout << "Hello, World!" << endl;
-  return 0;
-}`
-            case "C":
-                return `#include <stdio.h>
-
-int main() {
-  printf("Hello, World!\\n");
-  return 0;
-}`
-            default:
-                return "print('Hello, World!')"
-        }
+        return executionService.getDefaultCode(lang)
     }
     const [code, setCode] = useState({
         value: getDefaultCode(language),
@@ -222,25 +196,9 @@ int main() {
         setCode({ value: value, isReceived: false })
     }
 
-    // Language mapping to Judge0 IDs
+    // Use service layer for language mapping
     const getLanguageId = (lang) => {
-        const languageMap = {
-            'Python': 71,
-            'Javascript': 63,
-            'Java': 62,
-            'C++': 54,
-            'C': 50,
-            'C#': 51,
-            'Go': 60,
-            'Rust': 73,
-            'PHP': 68,
-            'Ruby': 72,
-            'Swift': 83,
-            'Kotlin': 78,
-            'Scala': 81,
-            'TypeScript': 74,
-        }
-        return languageMap[lang] || 71 // Default to Python
+        return executionService.getLanguageId(lang)
     }
 
     const runCode = async () => {
@@ -248,106 +206,24 @@ int main() {
         setOutput("Running...")
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_EXECUTION_SERVICE_URL || '/execution-service-api'}/api/execute`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    language_id: getLanguageId(language),
-                    source_code: code.value,
-                    stdin: ""
-                }),
-            })
-
-            const data = await response.json()
-            
-            if (response.ok) {
-                // Format the output nicely
-                let outputText = ""
-                if (data.stdout) {
-                    outputText += `Output:\n${data.stdout}`
-                }
-                if (data.stderr) {
-                    outputText += `\n\nErrors:\n${data.stderr}`
-                }
-                if (data.compile_output) {
-                    outputText += `\n\nCompile Output:\n${data.compile_output}`
-                }
-                if (data.time) {
-                    outputText += `\n\nTime: ${data.time}s`
-                }
-                if (data.memory) {
-                    outputText += ` | Memory: ${data.memory}KB`
-                }
-                
-                setOutput(outputText || `Status: ${data.status}`)
-            } else {
-                setOutput(`Error: ${data.error || 'Execution failed'}`)
-            }
+            const result = await executionService.execute(language, code.value, "")
+            setOutput(result.outputText)
         } catch (error) {
-            setOutput(`Error: Could not connect to execution service - ${error.message}`)
+            setOutput(`Error: ${error.message}`)
         } finally {
             setIsRunning(false)
         }
     }
 
     const runTests = async () => {
-        if (!questionId) {
-            setOutput("Error: No question selected for testing")
-            return
-        }
-
         setIsRunning(true)
         setOutput("Running tests...")
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_EXECUTION_SERVICE_URL || '/execution-service-api'}/api/execute/tests`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    language_id: getLanguageId(language),
-                    source_code: code.value,
-                    question_id: questionId
-                }),
-            })
-
-            const data = await response.json()
-            
-            if (response.ok) {
-                const { summary, results } = data
-                let outputText = `Test Results: ${summary.passed}/${summary.total} tests passed\n\n`
-                
-                results.forEach((result, index) => {
-                    const status = result.ok ? "✅ PASS" : "❌ FAIL"
-                    outputText += `Test ${index + 1}: ${status}\n`
-                    outputText += `  Status: ${result.status}\n`
-                    if (result.input !== undefined) {
-                        outputText += `  Input: ${result.input}\n`
-                    }
-                    if (result.stdout) {
-                        outputText += `  Output: ${result.stdout}\n`
-                    }
-                    if (result.expected) {
-                        outputText += `  Expected: ${result.expected}\n`
-                    }
-                    if (result.stderr) {
-                        outputText += `  Error: ${result.stderr}\n`
-                    }
-                    if (result.time) {
-                        outputText += `  Time: ${result.time}s\n`
-                    }
-                    outputText += "\n"
-                })
-                
-                setOutput(outputText)
-            } else {
-                setOutput(`Error: ${data.error || 'Test execution failed'}`)
-            }
+            const result = await executionService.runTests(language, code.value, questionId)
+            setOutput(result.outputText)
         } catch (error) {
-            setOutput(`Error: Could not connect to execution service - ${error.message}`)
+            setOutput(`Error: ${error.message}`)
         } finally {
             setIsRunning(false)
         }

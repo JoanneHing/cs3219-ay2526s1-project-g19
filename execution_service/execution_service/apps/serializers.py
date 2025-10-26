@@ -79,6 +79,8 @@ class ExecuteRequestSerializer(serializers.Serializer):
     )
     stdin = serializers.CharField(
         required=False,
+        allow_blank=True,
+        allow_null=True,
         default="",
         help_text="Standard input for the program"
     )
@@ -88,12 +90,13 @@ class ExecuteResponseSerializer(serializers.Serializer):
     """Serializer for code execution responses."""
     status = serializers.CharField(help_text="Execution status")
     stdout = serializers.CharField(help_text="Standard output")
-    stderr = serializers.CharField(help_text="Standard error")
-    time = serializers.CharField(help_text="Execution time")
+    stderr = serializers.CharField(allow_blank=True, allow_null=True, help_text="Standard error")
+    time = serializers.CharField(allow_blank=True, help_text="Execution time")
     memory = serializers.IntegerField(help_text="Memory usage")
     compile_output = serializers.CharField(
         required=False,
-        default="",
+        allow_blank=True,
+        allow_null=True,
         help_text="Compilation output"
     )
 
@@ -115,15 +118,16 @@ class TestResultSerializer(serializers.Serializer):
     """Serializer for individual test results."""
     ok = serializers.BooleanField(help_text="Whether test passed")
     status = serializers.CharField(help_text="Execution status")
-    input = serializers.CharField(help_text="Test input")
-    stdout = serializers.CharField(help_text="Program output")
-    expected = serializers.CharField(help_text="Expected output")
-    stderr = serializers.CharField(help_text="Error output")
-    time = serializers.CharField(help_text="Execution time")
+    input = serializers.CharField(allow_blank=True, help_text="Test input")
+    stdout = serializers.CharField(allow_blank=True, help_text="Program output")
+    expected = serializers.CharField(allow_blank=True, help_text="Expected output")
+    stderr = serializers.CharField(allow_blank=True, allow_null=True, help_text="Error output")
+    time = serializers.CharField(allow_blank=True, help_text="Execution time")
     memory = serializers.IntegerField(help_text="Memory usage")
     error = serializers.CharField(
         required=False,
         allow_null=True,
+        allow_blank=True,
         help_text="Error message if execution failed"
     )
 
@@ -157,11 +161,11 @@ def judge0_response_to_dataclass(data: Dict[str, Any]) -> Judge0Response:
     """Convert Judge0 API response to dataclass."""
     return Judge0Response(
         status=data.get('status', {}).get('description', 'Unknown'),
-        stdout=data.get('stdout', ''),
-        stderr=data.get('stderr', ''),
-        time=data.get('time', ''),
+        stdout=data.get('stdout') or '',
+        stderr=data.get('stderr') or '',
+        time=data.get('time') or '',
         memory=data.get('memory', 0),
-        compile_output=data.get('compile_output', '')
+        compile_output=data.get('compile_output') or ''
     )
 
 
