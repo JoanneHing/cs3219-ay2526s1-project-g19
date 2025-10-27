@@ -85,8 +85,19 @@ const CollaborationPage = () => {
   useEffect(() => {
     if (!sessionData?.started_at) return;
 
-    // Explicitly handle UTC timestamp
-    const startTime = new Date(sessionData.started_at + 'Z'); // Add 'Z' to ensure UTC parsing
+    let startTime;
+    
+    // Handle both timestamp formats
+    if (typeof sessionData.started_at === 'number') {
+      // Unix timestamp in milliseconds
+      startTime = new Date(sessionData.started_at);
+    } else if (typeof sessionData.started_at === 'string') {
+      // ISO string format
+      startTime = new Date(sessionData.started_at + 'Z');
+    } else {
+      console.error('Invalid started_at format:', sessionData.started_at);
+      return;
+    }
     
     // Calculate initial elapsed time
     const calculateElapsedTime = () => {

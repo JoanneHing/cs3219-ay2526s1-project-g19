@@ -1,6 +1,18 @@
 import { RefreshCw, ArrowRight } from 'lucide-react';
 
 const SessionStatusCard = ({ isChecking, activeSession, onReconnect, onStartNew }) => {
+  // Helper function to format the started_at timestamp
+  const formatStartTime = (startedAt) => {
+    if (!startedAt) return 'N/A';
+    
+    // Handle both string (ISO) and number (Unix timestamp) formats
+    const date = typeof startedAt === 'string' 
+      ? new Date(startedAt + 'Z')  // Add 'Z' to ensure UTC parsing
+      : new Date(startedAt);  // Unix timestamp in milliseconds
+    
+    return date.toLocaleString();
+  };
+
   if (isChecking) {
     return (
       <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
@@ -23,7 +35,7 @@ const SessionStatusCard = ({ isChecking, activeSession, onReconnect, onStartNew 
         <div className="space-y-2 text-gray-300 mb-6">
           <p><span className="font-semibold">Session ID:</span> {activeSession.id}</p>
           <p><span className="font-semibold">Language:</span> {activeSession.language || 'N/A'}</p>
-          <p><span className="font-semibold">Started:</span> {new Date(activeSession.started_at).toLocaleString()}</p>
+          <p><span className="font-semibold">Started:</span> {formatStartTime(activeSession.started_at)}</p>
           {activeSession.question_id && (
             <p><span className="font-semibold">Question ID:</span> {activeSession.question_id}</p>
           )}

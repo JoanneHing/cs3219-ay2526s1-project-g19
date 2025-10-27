@@ -110,7 +110,7 @@ def register_handlers(sio: socketio.AsyncServer):
         for existing_user in existing_users:
             if existing_user != username:  # Don't announce self
                 existing_user_notification = MessageData(
-                    message=f"{existing_user} is already in the session",
+                    message=f"{existing_user} has joined the session",
                     username="ChatBot"
                 )
                 await sio.emit("receive", existing_user_notification.to_dict(), to=sid)
