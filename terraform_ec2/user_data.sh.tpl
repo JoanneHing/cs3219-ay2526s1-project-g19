@@ -3,7 +3,7 @@
 # PeerPrep EC2 User Data - Instance Initialization Script
 # =============================================================================
 # This script runs once when the EC2 instance is first created
-# It sets up Docker, clones the repo, fetches secrets from SSM, and starts services
+# It sets up Docker, clones the repo, fetches secrets from AWS, and starts services
 # =============================================================================
 
 set -euxo pipefail
@@ -13,8 +13,8 @@ set -euxo pipefail
 # =============================================================================
 REPO_URL="${github_repo_url}"
 BRANCH="${github_branch}"
-USE_SSM_SECRETS="${use_ssm_secrets}"
-SSM_SECRET_PATH="${ssm_secret_path}"
+USE_SECRETS_MANAGER="${use_secrets_manager}"
+SECRETS_MANAGER_NAME="${secrets_manager_name}"
 AWS_REGION="${aws_region}"
 APP_DIR="/opt/peerprep"
 
@@ -116,21 +116,21 @@ fi
 # Fetch Secrets and Create .env
 # =============================================================================
 
-if [[ "$USE_SSM_SECRETS" == "true" ]]; then
-    log "Fetching secrets from AWS SSM Parameter Store..."
-    log "SSM Path: $SSM_SECRET_PATH"
+if [[ "$USE_SECRETS_MANAGER" == "true" ]]; then
+    log "Fetching secrets from AWS Secrets Manager..."
+    log "Secret Name: $SECRETS_MANAGER_NAME"
     log "AWS Region: $AWS_REGION"
 
     # Run fetch-secrets script
-    if bash "$APP_DIR/scripts/fetch-secrets.sh" "$SSM_SECRET_PATH" "$AWS_REGION" "$APP_DIR/.env"; then
-        log "✓ Secrets fetched from SSM successfully"
+    if bash "$APP_DIR/scripts/fetch-secrets.sh" "$SECRETS_MANAGER_NAME" "$AWS_REGION" "$APP_DIR/.env"; then
+        log "✓ Secrets fetched from AWS Secrets Manager successfully"
     else
-        log "ERROR: Failed to fetch secrets from SSM Parameter Store"
+        log "ERROR: Failed to fetch secrets from AWS Secrets Manager"
         log "Check: Did you run terraform_ec2/scripts/setup-ssm-secrets.sh?"
         exit 1
     fi
 else
-    log "SSM disabled, using root .env file from repo..."
+    log "Remote secrets disabled, using root .env file from repo..."
 
     # Copy .env from repo root (for development/testing)
     if [[ -f "$APP_DIR/.env" ]]; then
@@ -138,7 +138,7 @@ else
     else
         log "ERROR: No .env file found in repository root"
         log "Either:"
-        log "  1. Enable SSM: use_ssm_secrets = true in terraform.tfvars"
+        log "  1. Enable remote secrets: set use_secrets_manager = true in terraform.tfvars"
         log "  2. Or commit a .env file to your repo (not recommended)"
         exit 1
     fi

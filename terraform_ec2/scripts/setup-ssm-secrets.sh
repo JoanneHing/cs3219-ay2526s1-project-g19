@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# Upload secrets/.env to AWS SSM Parameter Store
+# Upload secrets/.env to AWS Secrets Manager
 # =============================================================================
-# Usage: ./scripts/setup-ssm-secrets.sh
+# Usage: ./scripts/setup-ssm-secrets.sh [secrets_dir]
 # =============================================================================
 
 set -euo pipefail
@@ -11,7 +11,10 @@ set -euo pipefail
 SECRETS_DIR="${1:-../secrets}"
 ENV_FILE="${SECRETS_DIR}/.env"
 AWS_REGION="${AWS_REGION:-us-east-1}"
-SSM_BASE_PATH="/peerprep/ec2-prod"
+SECRET_NAME="${SECRET_NAME:-peerprep/ec2-prod/env}"
+SECRET_DESCRIPTION="${SECRET_DESCRIPTION:-PeerPrep EC2 environment variables}"
+APPLY_TAGS="${APPLY_TAGS:-true}"
+TAG_ARGS=(Key=Project,Value=peerprep Key=Environment,Value=ec2-prod)
 
 # Colors
 RED='\033[0;31m'
@@ -27,7 +30,7 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Validation
 # =============================================================================
 
-log_info "Uploading secrets to AWS SSM Parameter Store..."
+log_info "Uploading secrets to AWS Secrets Manager..."
 
 if [[ ! -f "$ENV_FILE" ]]; then
     log_error "File not found: $ENV_FILE"
@@ -51,42 +54,74 @@ fi
 
 log_success "Found: $ENV_FILE"
 log_info "Region: $AWS_REGION"
-log_info "SSM Path: $SSM_BASE_PATH"
+log_info "Secrets Manager Name: $SECRET_NAME"
 echo ""
 
 # =============================================================================
-# Upload entire .env file as single parameter
+# Upload .env file
 # =============================================================================
 
-log_info "Uploading complete .env file..."
-
-SSM_PARAM_NAME="${SSM_BASE_PATH}/ENV_FILE"
-
-if aws ssm put-parameter \
-    --name "$SSM_PARAM_NAME" \
-    --value "file://$ENV_FILE" \
-    --type "SecureString" \
-    --region "$AWS_REGION" \
-    --overwrite \
-    --tags "Key=Project,Value=peerprep" "Key=Environment,Value=ec2-prod" \
-    &> /dev/null; then
-    log_success "✓ Uploaded to: $SSM_PARAM_NAME"
-else
-    log_error "Failed to upload to SSM"
+log_info "Uploading complete .env file to Secrets Manager..."
+file_size=$(wc -c < "$ENV_FILE")
+if [[ $file_size -gt 65536 ]]; then
+    log_error "Secret size exceeds the 64KB Secrets Manager limit (current: ${file_size} bytes)"
     exit 1
 fi
+
+if aws secretsmanager describe-secret \
+    --secret-id "$SECRET_NAME" \
+    --region "$AWS_REGION" \
+    &> /dev/null; then
+    log_info "Secret exists, updating..."
+    if ! output=$(aws secretsmanager update-secret \
+        --secret-id "$SECRET_NAME" \
+        --secret-string "file://$ENV_FILE" \
+        --region "$AWS_REGION" 2>&1); then
+        log_error "Failed to update secret"
+        echo "$output"
+        exit 1
+    fi
+else
+    log_info "Secret not found, creating..."
+    if ! output=$(aws secretsmanager create-secret \
+        --name "$SECRET_NAME" \
+        --description "$SECRET_DESCRIPTION" \
+        --secret-string "file://$ENV_FILE" \
+        --region "$AWS_REGION" \
+        --tags "${TAG_ARGS[@]}" 2>&1); then
+        log_error "Failed to create secret"
+        echo "$output"
+        exit 1
+    fi
+fi
+
+if [[ "$APPLY_TAGS" == "true" ]]; then
+    log_info "Ensuring tags are applied..."
+    if ! tag_output=$(aws secretsmanager tag-resource \
+        --secret-id "$SECRET_NAME" \
+        --tags "${TAG_ARGS[@]}" \
+        --region "$AWS_REGION" 2>&1); then
+        log_error "Failed to tag secret"
+        echo "$tag_output"
+    else
+        log_success "✓ Tags applied"
+    fi
+fi
+
+log_success "✓ Uploaded to Secrets Manager: $SECRET_NAME"
 
 echo ""
 log_success "✓ Upload complete!"
 echo ""
 echo "Next steps:"
-echo "  1. Enable SSM in terraform.tfvars:"
-echo "     use_ssm_secrets = true"
+echo "  1. In terraform.tfvars set:"
+echo "     use_secrets_manager  = true"
+echo "     secrets_manager_name = \"$SECRET_NAME\""
 echo ""
 echo "  2. Deploy:"
 echo "     cd terraform_ec2"
 echo "     terraform apply"
 echo ""
 echo "To view uploaded secrets:"
-echo "  aws ssm get-parameter --name $SSM_PARAM_NAME --region $AWS_REGION --with-decryption --query 'Parameter.Value' --output text"
+echo "  aws secretsmanager get-secret-value --secret-id $SECRET_NAME --region $AWS_REGION --query 'SecretString' --output text"
 echo ""

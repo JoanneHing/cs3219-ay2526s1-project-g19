@@ -118,7 +118,7 @@ resource "aws_security_group" "peerprep" {
 }
 
 # =============================================================================
-# IAM Role for EC2 Instance (for SSM Session Manager & Parameter Store)
+# IAM Role for EC2 Instance (Session Manager + Secrets access)
 # =============================================================================
 
 resource "aws_iam_role" "ec2_role" {
@@ -153,43 +153,15 @@ resource "aws_iam_role_policy_attachment" "ssm_managed_instance" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# Custom policy for Parameter Store access (if using SSM secrets)
-resource "aws_iam_role_policy" "parameter_store" {
-  count = var.use_ssm_secrets ? 1 : 0
-  name  = "${var.project_name}-${var.environment}-parameter-store"
+# Custom policy for Secrets Manager access
+resource "aws_iam_role_policy" "secrets_manager" {
+  count = var.use_secrets_manager ? 1 : 0
+  name  = "${var.project_name}-${var.environment}-secrets-manager"
   role  = aws_iam_role.ec2_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      {
-        Sid    = "AllowSSMParameterAccess"
-        Effect = "Allow"
-        Action = [
-          "ssm:GetParameter",
-          "ssm:GetParameters",
-          "ssm:GetParametersByPath",
-          "ssm:DescribeParameters"
-        ]
-        Resource = [
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_secret_path}",
-          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.ssm_secret_path}/*"
-        ]
-      },
-      {
-        Sid    = "AllowKMSDecryption"
-        Effect = "Allow"
-        Action = [
-          "kms:Decrypt",
-          "kms:DescribeKey"
-        ]
-        Resource = "*"
-        Condition = {
-          StringEquals = {
-            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
-          }
-        }
-      },
       {
         Sid    = "AllowSecretsManagerAccess"
         Effect = "Allow"
@@ -197,7 +169,7 @@ resource "aws_iam_role_policy" "parameter_store" {
           "secretsmanager:GetSecretValue",
           "secretsmanager:DescribeSecret"
         ]
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.project_name}/${var.environment}/*"
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${var.secrets_manager_name}*"
       }
     ]
   })
@@ -246,11 +218,11 @@ resource "aws_instance" "peerprep" {
   }
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
-    github_repo_url = var.github_repo_url
-    github_branch   = var.github_branch
-    use_ssm_secrets = var.use_ssm_secrets
-    ssm_secret_path = var.ssm_secret_path
-    aws_region      = var.aws_region
+    github_repo_url     = var.github_repo_url
+    github_branch       = var.github_branch
+    use_secrets_manager = var.use_secrets_manager
+    secrets_manager_name = var.secrets_manager_name
+    aws_region          = var.aws_region
   }))
 
   # Prevent replacement when user_data changes (use lifecycle)

@@ -67,21 +67,15 @@ secret_key = "CHANGEME_django_secret_key_min_50_chars_random_generate_with_comma
 # -----------------------------------------------------------------------------
 # Advanced: Secrets Management (Optional)
 # -----------------------------------------------------------------------------
-# Instead of hardcoding secrets here, you can use AWS SSM Parameter Store
+# Instead of hardcoding secrets here, you can use AWS Secrets Manager
 # This is more secure for production environments
 
-# use_ssm_secrets = true
-# ssm_secret_path = "/peerprep/ec2-prod/env"
+# use_secrets_manager  = true
+# secrets_manager_name = "peerprep/ec2-prod/env"
 
-# To use SSM Parameter Store:
-# 1. Create the parameter:
-#    aws ssm put-parameter \
-#      --name "/peerprep/ec2-prod/env" \
-#      --type "SecureString" \
-#      --value "$(cat .env.ec2)" \
-#      --region us-east-1
-# 2. Uncomment the lines above
-# 3. Comment out db_password and secret_key
+# To upload secrets:
+#   cd terraform_ec2
+#   ./scripts/setup-ssm-secrets.sh
 
 # -----------------------------------------------------------------------------
 # Advanced: Custom VPC/Subnet (Optional)

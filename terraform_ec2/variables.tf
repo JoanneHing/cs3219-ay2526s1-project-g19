@@ -85,16 +85,16 @@ variable "secret_key" {
 # Secrets Management (Optional)
 # =============================================================================
 
-variable "use_ssm_secrets" {
-  description = "Pull secrets from AWS SSM Parameter Store instead of variables (recommended for production)"
+variable "use_secrets_manager" {
+  description = "Pull secrets from AWS Secrets Manager instead of Terraform variables"
   type        = bool
   default     = false
 }
 
-variable "ssm_secret_path" {
-  description = "SSM Parameter Store base path for secrets (if use_ssm_secrets=true). Example: /peerprep/ec2-prod"
+variable "secrets_manager_name" {
+  description = "Secrets Manager secret name (if use_secrets_manager=true). Example: peerprep/ec2-prod/env"
   type        = string
-  default     = "/peerprep/ec2-prod"
+  default     = "peerprep/ec2-prod/env"
 }
 
 # =============================================================================

@@ -1,15 +1,15 @@
 #!/bin/bash
 # =============================================================================
-# Fetch .env from AWS SSM Parameter Store
+# Fetch .env from AWS Secrets Manager
 # =============================================================================
-# This script runs on EC2 to download the entire .env file from SSM
-# Usage: ./fetch-secrets.sh [ssm_base_path] [aws_region] [output_file]
+# This script runs on EC2 to download the entire .env file from AWS
+# Usage: ./fetch-secrets.sh [secret_name] [aws_region] [output_file]
 # =============================================================================
 
 set -euo pipefail
 
 # Configuration
-SSM_BASE_PATH="${1:-/peerprep/ec2-prod}"
+SECRET_NAME="${1:-peerprep/ec2-prod/env}"
 AWS_REGION="${2:-us-east-1}"
 OUTPUT_FILE="${3:-/opt/peerprep/.env}"
 
@@ -25,8 +25,8 @@ log_error() {
 # Validation
 # =============================================================================
 
-log "Fetching .env from AWS SSM Parameter Store..."
-log "SSM Path: ${SSM_BASE_PATH}/ENV_FILE"
+log "Fetching .env from AWS Secrets Manager..."
+log "Secret Name: ${SECRET_NAME}"
 log "Region: $AWS_REGION"
 log "Output: $OUTPUT_FILE"
 
@@ -51,22 +51,19 @@ if [[ $RETRY_COUNT -eq $MAX_RETRIES ]]; then
 fi
 
 # =============================================================================
-# Fetch .env from SSM
+# Fetch .env from Secrets Manager
 # =============================================================================
 
-SSM_PARAM_NAME="${SSM_BASE_PATH}/ENV_FILE"
+log "Downloading .env file from Secrets Manager..."
 
-log "Downloading .env file from SSM..."
-
-ENV_CONTENT=$(aws ssm get-parameter \
-    --name "$SSM_PARAM_NAME" \
+ENV_CONTENT=$(aws secretsmanager get-secret-value \
+    --secret-id "$SECRET_NAME" \
     --region "$AWS_REGION" \
-    --with-decryption \
-    --query 'Parameter.Value' \
+    --query 'SecretString' \
     --output text 2>&1)
 
 if [[ $? -ne 0 ]]; then
-    log_error "Failed to fetch .env from SSM"
+    log_error "Failed to fetch .env from Secrets Manager"
     log_error "$ENV_CONTENT"
     log_error "Make sure you ran: ./scripts/setup-ssm-secrets.sh"
     exit 1
@@ -116,7 +113,7 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
     exit 1
 fi
 
-log "✓ .env file created successfully from SSM"
+log "✓ .env file created successfully from Secrets Manager"
 log "✓ All critical variables present"
 
 exit 0

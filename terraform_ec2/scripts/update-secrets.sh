@@ -2,16 +2,11 @@
 # =============================================================================
 # PeerPrep - Update Secrets at Runtime
 # =============================================================================
-# This script updates secrets on a running EC2 instance
-# Run this script when you've updated secrets in SSM Parameter Store
+# This script updates secrets on a running EC2 instance.
+# Run this after uploading a new secrets/.env to Secrets Manager.
 #
 # Usage:
 #   sudo /opt/peerprep/scripts/update-secrets.sh
-#
-# What it does:
-#   1. Fetches latest secrets from SSM Parameter Store
-#   2. Updates /opt/peerprep/.env
-#   3. Restarts docker-compose services to pick up new secrets
 # =============================================================================
 
 set -euo pipefail
@@ -20,7 +15,7 @@ set -euo pipefail
 # Configuration
 # =============================================================================
 
-SSM_BASE_PATH="${SSM_BASE_PATH:-/peerprep/ec2-prod}"
+SECRET_NAME="${SECRET_NAME:-peerprep/ec2-prod/env}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 APP_DIR="${APP_DIR:-/opt/peerprep}"
 ENV_FILE="${APP_DIR}/.env"
@@ -37,21 +32,10 @@ NC='\033[0m' # No Color
 # Helper Functions
 # =============================================================================
 
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+log_info()   { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success(){ echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning(){ echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error()  { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # =============================================================================
 # Root Check
@@ -83,15 +67,15 @@ fi
 # Fetch Latest Secrets
 # =============================================================================
 
-log_info "Fetching latest secrets from SSM Parameter Store..."
-log_info "SSM Base Path: $SSM_BASE_PATH"
+log_info "Fetching latest secrets from AWS Secrets Manager..."
+log_info "Secret Name: $SECRET_NAME"
 log_info "AWS Region: $AWS_REGION"
 echo ""
 
-if bash "$FETCH_SCRIPT" "$SSM_BASE_PATH" "$AWS_REGION" "$ENV_FILE"; then
+if bash "$FETCH_SCRIPT" "$SECRET_NAME" "$AWS_REGION" "$ENV_FILE"; then
     log_success "Secrets updated successfully"
 else
-    log_error "Failed to fetch secrets from SSM"
+    log_error "Failed to fetch secrets from AWS Secrets Manager"
     exit 1
 fi
 
@@ -174,16 +158,12 @@ echo ""
 
 log_success "✓ Secret update complete!"
 echo ""
-echo "Services have been restarted with the latest secrets from SSM Parameter Store."
+echo "Services have been restarted with the latest secrets from AWS Secrets Manager."
 echo ""
 echo "To verify:"
 echo "  docker compose ps              # Check service status"
 echo "  docker compose logs -f         # View logs"
 echo "  docker compose logs <service>  # View specific service logs"
-echo ""
-echo "If you encounter issues:"
-echo "  docker compose down            # Stop all services"
-echo "  docker compose up -d           # Restart services"
 echo ""
 
 exit 0
