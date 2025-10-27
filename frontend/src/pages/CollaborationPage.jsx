@@ -29,7 +29,6 @@ const CollaborationPage = () => {
 
   // Get session data from navigation state
   const sessionData = location.state?.sessionData;
-  console.log("CollaborationPage sessionData:", sessionData);
 
   // Redirect to matching page if no session data or session ID
   useEffect(() => {
@@ -86,7 +85,8 @@ const CollaborationPage = () => {
   useEffect(() => {
     if (!sessionData?.started_at) return;
 
-    const startTime = new Date(sessionData.started_at);
+    // Explicitly handle UTC timestamp
+    const startTime = new Date(sessionData.started_at + 'Z'); // Add 'Z' to ensure UTC parsing
     
     // Calculate initial elapsed time
     const calculateElapsedTime = () => {
