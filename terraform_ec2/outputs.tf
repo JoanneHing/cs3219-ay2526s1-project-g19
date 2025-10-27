@@ -9,7 +9,7 @@ output "instance_id" {
 
 output "instance_public_ip" {
   description = "Elastic IP address (use this to access your application)"
-  value       = aws_eip.peerprep.public_ip
+  value       = var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip
 }
 
 output "instance_private_ip" {
@@ -29,12 +29,12 @@ output "security_group_id" {
 
 output "application_url" {
   description = "URL to access the PeerPrep application"
-  value       = "http://${aws_eip.peerprep.public_ip}"
+  value       = "http://${var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip}"
 }
 
 output "ssh_command" {
   description = "SSH command to connect to the instance (if key_name is configured)"
-  value       = var.key_name != "" ? "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${aws_eip.peerprep.public_ip}" : "SSH not configured (use AWS Systems Manager Session Manager instead)"
+  value       = var.key_name != "" ? "ssh -i ~/.ssh/${var.key_name}.pem ubuntu@${var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip}" : "SSH not configured (use AWS Systems Manager Session Manager instead)"
 }
 
 output "ssm_session_command" {
@@ -44,10 +44,10 @@ output "ssm_session_command" {
 
 output "deployment_status_command" {
   description = "Command to check deployment logs"
-  value       = "ssh ubuntu@${aws_eip.peerprep.public_ip} 'tail -f /var/log/cloud-init-output.log'"
+  value       = "ssh ubuntu@${var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip} 'tail -f /var/log/cloud-init-output.log'"
 }
 
 output "docker_status_command" {
   description = "Command to check Docker container status"
-  value       = "ssh ubuntu@${aws_eip.peerprep.public_ip} 'cd /opt/peerprep && docker compose ps'"
+  value       = "ssh ubuntu@${var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip} 'cd /opt/peerprep && docker compose ps'"
 }

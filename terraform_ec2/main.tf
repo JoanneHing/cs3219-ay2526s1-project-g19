@@ -50,6 +50,12 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+# Look up existing Elastic IP if allocation ID is provided
+data "aws_eip" "existing" {
+  count = var.elastic_ip_allocation_id != "" ? 1 : 0
+  id    = var.elastic_ip_allocation_id
+}
+
 # Get current AWS account ID
 data "aws_caller_identity" "current" {}
 
@@ -252,7 +258,13 @@ resource "aws_instance" "peerprep" {
 # Elastic IP
 # =============================================================================
 
+# =============================================================================
+# Elastic IP (Conditional: Use pre-allocated or create new)
+# =============================================================================
+
+# Create new EIP only if elastic_ip_allocation_id is not provided
 resource "aws_eip" "peerprep" {
+  count    = var.elastic_ip_allocation_id == "" ? 1 : 0
   domain   = "vpc"
   instance = aws_instance.peerprep.id
 
@@ -264,4 +276,11 @@ resource "aws_eip" "peerprep" {
     },
     var.tags
   )
+}
+
+# Associate pre-allocated EIP if allocation ID is provided
+resource "aws_eip_association" "peerprep_existing" {
+  count         = var.elastic_ip_allocation_id != "" ? 1 : 0
+  instance_id   = aws_instance.peerprep.id
+  allocation_id = var.elastic_ip_allocation_id
 }

@@ -43,6 +43,12 @@ allowed_ssh_cidr = ["1.2.3.4/32"] # CHANGE THIS to your IP!
 # If not specified, you can still use AWS Systems Manager Session Manager
 # key_name = "my-ec2-keypair"
 
+# Permanent Elastic IP (OPTIONAL but recommended)
+# Pre-allocate an EIP that survives destroy/apply cycles:
+#   aws ec2 allocate-address --domain vpc --region us-east-1 --tag-specifications 'ResourceType=elastic-ip,Tags=[{Key=Name,Value=peerprep-permanent-eip}]'
+# Then set the allocation ID here. If not set, Terraform will create (and destroy) a new EIP each time.
+elastic_ip_allocation_id = "eipalloc-0d625702e78cc7c87" # 98.91.82.243
+
 # -----------------------------------------------------------------------------
 # Secrets Configuration
 # -----------------------------------------------------------------------------

@@ -113,6 +113,12 @@ variable "subnet_id" {
   default     = ""
 }
 
+variable "elastic_ip_allocation_id" {
+  description = "Pre-allocated Elastic IP allocation ID (permanent IP). If not specified, a new EIP will be created."
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # Tags
 # =============================================================================
