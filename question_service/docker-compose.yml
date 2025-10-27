@@ -9,6 +9,8 @@ services:
     container_name: peerprep_question_service
     ports:
       - "${QUESTION_SERVICE_PORT:-8001}:8000"
+    env_file:
+      - ../.env
     environment:
       - DEBUG=${DEBUG:-true}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
@@ -51,6 +53,39 @@ services:
       - question_db_data:/var/lib/postgresql/data
     networks:
       - question_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${QUESTION_DB_USER:-peerprep} -d ${QUESTION_DB_NAME:-question_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  question_consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_question_kafka
+    command: python manage.py run_question_consumer
+    volumes:
+      - ./:/app:rw
+      - question_db_data:/var/lib/postgresql/data
+    networks:
+      - shared_network
+      - question_network
+    env_file:
+      - ../.env
+    environment:
+      - SKIP_DB_SETUP=true
+      - GROUP_ID=question-service-group
+      - DJANGO_USE_SQLITE=0
+      - DATABASE_URL=${QUESTION_DATABASE_URL}
+      - DB_HOST=${QUESTION_DB_HOST:-question_db}
+      - DB_PORT=${QUESTION_DB_PORT:-5432}
+      - DB_NAME=${QUESTION_DB_NAME:-question_db}
+      - DB_USER=${QUESTION_DB_USER:-peerprep}
+      - DB_PASSWORD=${QUESTION_DB_PASSWORD:-peerprep_dev_password}
+    depends_on:
+      question_db:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${QUESTION_DB_USER:-peerprep} -d ${QUESTION_DB_NAME:-question_db}"]

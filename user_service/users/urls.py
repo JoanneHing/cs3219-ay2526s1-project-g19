@@ -7,10 +7,14 @@ Handles all user profile and data-related endpoints including:
 - Account operations
 """
 from django.urls import path
+from .views import PublicProfileView
 
 app_name = 'users'
 
 urlpatterns = [
+    # Public profile endpoint
+    path('public-profile/', PublicProfileView.as_view(), name='public-profile'),
+
     # Future user profile endpoints:
     # path('me/', UserMeView.as_view(), name='me'),
     # path('profile/', UserProfileUpdateView.as_view(), name='profile-update'),

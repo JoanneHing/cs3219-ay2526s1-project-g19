@@ -4,12 +4,6 @@ const MATCHING_STATUS = {
     CONFIRM_LEAVE: 'confirm_leave',
 };
 
-/**
- * Confirmation window for cancelling match or leaving found match
- * @param {string} actionType - The type of action (confirm_cancel or confirm_leave)
- * @param {function} onConfirm - Function to call when user confirms the action
- * @param {function} onCancel - Function to call when user cancels the action
- */
 const CancelConfirmation = ({ actionType, onConfirm, onCancel }) => {
     const isLeave = actionType === MATCHING_STATUS.CONFIRM_LEAVE;
     const title = isLeave ? "Leave Match?" : "Cancel Matching?";

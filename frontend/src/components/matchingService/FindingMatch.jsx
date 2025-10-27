@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 
-/**
- * Finding Match window to show matching progress
- * @param {object} selections - The user's matching selections
- * @param {function} onCancel - Function to call when user cancels the matching process
- */
 const FindingMatch = ({ selections: { topic, difficulty, preferredLanguage, backupLanguages }, onCancel }) => {
     const [seconds, setSeconds] = useState(0);
     const [isMatching, setIsMatching] = useState(true);

@@ -14,6 +14,7 @@ import MatchingPage from './pages/MatchingPage';
 import MatchingProgressPage from './pages/MatchingProgressPage';
 import CollaborationPage from './pages/CollaborationPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import EmailSSOPage from './pages/EmailSSOPage';
 
 import AppLayout from './components/AppLayout';
 
@@ -48,6 +49,7 @@ const App = () => {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/auth/email-sso" element={<EmailSSOPage />} />
         </Route>
 
         <Route element={<ProtectedRoute />}>
@@ -59,8 +61,8 @@ const App = () => {
             <Route path="/questions/:id" element={<QuestionDetailPage />} />
             <Route path="/matching" element={<MatchingPage />} />
             <Route path="/matching/finding" element={<MatchingProgressPage />} />
-            <Route path="/collaboration" element={<CollaborationPage />} />
           </Route>
+          <Route path="/collaboration/:sessionId" element={<CollaborationPage />} />
         </Route>
 
         <Route path="*" element={<h1>404 Not Found</h1>} />

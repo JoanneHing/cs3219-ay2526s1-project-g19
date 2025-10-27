@@ -15,7 +15,22 @@ export type {
   VerifyTokenResponse,
   RegisterRequest,
   RegisterResponse,
+  EmailSSORequest,
+  EmailSSOResponse,
+  EmailSSOVerifyRequest,
+  EmailSSOVerifyResponse,
 } from './auth';
+
+// Matching types
+export type {
+  MatchingSelections,
+  MatchRequest,
+  MatchResponse,
+  MatchedSelections,
+  SessionData,
+  WebSocketMessage,
+  DeleteMatchRequest,
+} from './matching';
 
 // Common types
 export type {
