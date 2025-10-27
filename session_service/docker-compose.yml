@@ -34,7 +34,7 @@ services:
     image: postgres:15-alpine
     container_name: peerprep_session_db
     env_file:
-      - ../env
+      - ../.env
     environment:
       - POSTGRES_DB=${SESSION_DB_NAME:-session_db}
       - POSTGRES_USER=${SESSION_DB_USER:-peerprep}
