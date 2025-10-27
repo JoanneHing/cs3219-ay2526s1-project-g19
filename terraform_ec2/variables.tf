@@ -86,15 +86,15 @@ variable "secret_key" {
 # =============================================================================
 
 variable "use_ssm_secrets" {
-  description = "Pull secrets from AWS SSM Parameter Store instead of variables"
+  description = "Pull secrets from AWS SSM Parameter Store instead of variables (recommended for production)"
   type        = bool
   default     = false
 }
 
 variable "ssm_secret_path" {
-  description = "SSM Parameter Store path for secrets (if use_ssm_secrets=true)"
+  description = "SSM Parameter Store base path for secrets (if use_ssm_secrets=true). Example: /peerprep/ec2-prod"
   type        = string
-  default     = "/peerprep/ec2-prod/env"
+  default     = "/peerprep/ec2-prod"
 }
 
 # =============================================================================
