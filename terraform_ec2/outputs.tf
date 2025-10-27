@@ -51,3 +51,8 @@ output "docker_status_command" {
   description = "Command to check Docker container status"
   value       = "ssh ubuntu@${var.elastic_ip_allocation_id != "" ? data.aws_eip.existing[0].public_ip : aws_eip.peerprep[0].public_ip} 'cd /opt/peerprep && docker compose ps'"
 }
+
+output "key_name" {
+  description = "EC2 key pair name (if configured)"
+  value       = var.key_name
+}

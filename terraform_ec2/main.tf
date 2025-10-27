@@ -248,8 +248,6 @@ resource "aws_instance" "peerprep" {
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tpl", {
     github_repo_url = var.github_repo_url
     github_branch   = var.github_branch
-    db_password     = var.db_password
-    secret_key      = var.secret_key
     use_ssm_secrets = var.use_ssm_secrets
     ssm_secret_path = var.ssm_secret_path
     aws_region      = var.aws_region
