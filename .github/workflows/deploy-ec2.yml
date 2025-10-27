@@ -44,43 +44,48 @@ jobs:
 
           echo "Deploying to instance: $INSTANCE_ID"
 
-          # Create deployment script with no leading whitespace to keep shebang valid
-          cat <<'EOF' >/tmp/deploy.sh
-#!/bin/bash
-set -euo pipefail
+          # Create deployment script and strip indentation so the shebang stays valid
+          python <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
 
-echo "====== PeerPrep Deployment Started ======"
-echo "Time: $(date)"
-echo "Branch: ${{ github.ref_name }}"
-echo "Commit: ${{ github.sha }}"
-echo ""
+          Path("/tmp/deploy.sh").write_text(dedent("""\
+          #!/bin/bash
+          set -euo pipefail
 
-cd /opt/peerprep
+          echo "====== PeerPrep Deployment Started ======"
+          echo "Time: $(date)"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
 
-echo "Pulling latest changes..."
-git fetch origin
-git reset --hard origin/${{ github.ref_name }}
+          cd /opt/peerprep
 
-echo ""
-echo "Stopping containers..."
-docker compose down
+          echo "Pulling latest changes..."
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
 
-echo ""
-echo "Rebuilding and starting containers..."
-docker compose up -d --build
+          echo ""
+          echo "Stopping containers..."
+          docker compose down
 
-echo ""
-echo "Waiting for services to be healthy..."
-sleep 10
+          echo ""
+          echo "Rebuilding and starting containers..."
+          docker compose up -d --build
 
-echo ""
-echo "Container status:"
-docker compose ps
+          echo ""
+          echo "Waiting for services to be healthy..."
+          sleep 10
 
-echo ""
-echo "====== Deployment Complete ======"
-echo "Application URL: http://98.91.82.243"
-EOF
+          echo ""
+          echo "Container status:"
+          docker compose ps
+
+          echo ""
+          echo "====== Deployment Complete ======"
+          echo "Application URL: http://98.91.82.243"
+          """))
+          PY
 
           chmod +x /tmp/deploy.sh
 
