@@ -44,43 +44,43 @@ jobs:
 
           echo "Deploying to instance: $INSTANCE_ID"
 
-          # Create deployment script
-          cat << 'EOF' > /tmp/deploy.sh
-          #!/bin/bash
-          set -euo pipefail
+          # Create deployment script with no leading whitespace to keep shebang valid
+          cat <<'EOF' >/tmp/deploy.sh
+#!/bin/bash
+set -euo pipefail
 
-          echo "====== PeerPrep Deployment Started ======"
-          echo "Time: $(date)"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit: ${{ github.sha }}"
-          echo ""
+echo "====== PeerPrep Deployment Started ======"
+echo "Time: $(date)"
+echo "Branch: ${{ github.ref_name }}"
+echo "Commit: ${{ github.sha }}"
+echo ""
 
-          cd /opt/peerprep
+cd /opt/peerprep
 
-          echo "Pulling latest changes..."
-          git fetch origin
-          git reset --hard origin/${{ github.ref_name }}
+echo "Pulling latest changes..."
+git fetch origin
+git reset --hard origin/${{ github.ref_name }}
 
-          echo ""
-          echo "Stopping containers..."
-          docker compose down
+echo ""
+echo "Stopping containers..."
+docker compose down
 
-          echo ""
-          echo "Rebuilding and starting containers..."
-          docker compose up -d --build
+echo ""
+echo "Rebuilding and starting containers..."
+docker compose up -d --build
 
-          echo ""
-          echo "Waiting for services to be healthy..."
-          sleep 10
+echo ""
+echo "Waiting for services to be healthy..."
+sleep 10
 
-          echo ""
-          echo "Container status:"
-          docker compose ps
+echo ""
+echo "Container status:"
+docker compose ps
 
-          echo ""
-          echo "====== Deployment Complete ======"
-          echo "Application URL: http://98.91.82.243"
-          EOF
+echo ""
+echo "====== Deployment Complete ======"
+echo "Application URL: http://98.91.82.243"
+EOF
 
           chmod +x /tmp/deploy.sh
 
@@ -95,11 +95,12 @@ jobs:
           echo "SSM Command ID: $COMMAND_ID"
           echo "Waiting for deployment to complete..."
 
-          # Wait for command to complete (max 5 minutes)
+          # Wait for command to complete (max ~5 minutes)
           aws ssm wait command-executed \
             --command-id "$COMMAND_ID" \
             --instance-id "$INSTANCE_ID" \
-            --timeout 300 || true
+            --max-attempts 30 \
+            --delay 10 || true
 
           # Get command status and output
           STATUS=$(aws ssm get-command-invocation \
