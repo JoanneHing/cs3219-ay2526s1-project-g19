@@ -24,12 +24,6 @@ export default defineConfig(({ mode }) => {
           target: `http://localhost:${env.USER_SERVICE_PORT || 8004}`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/user-service-api/, ''),
-          ws: true, // Enable WebSocket proxying for matching service
-        },
-        '/session-service-api': {
-          target: `http://localhost:${env.SESSION_SERVICE_PORT || 8003}`,
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/session-service-api/, ''),
         },
         '/question-service-api': {
           target: `http://localhost:${env.QUESTION_SERVICE_PORT || 8001}`,
@@ -40,11 +34,17 @@ export default defineConfig(({ mode }) => {
           target: `http://localhost:${env.MATCHING_SERVICE_PORT || 8002}`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/matching-service-api/, ''),
+          ws: true, // Enable WebSocket proxying for matching service
         },
         '/history-service-api': {
           target: `http://localhost:${env.HISTORY_SERVICE_PORT || 8003}`,
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/history-service-api/, ''),
+        },
+        '/session-service-api': {
+          target: `http://localhost:${env.SESSION_SERVICE_PORT || 8003}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/session-service-api/, ''),
         },
         '/collaboration-service-api': {
           target: `http://localhost:${env.COLLABORATION_SERVICE_PORT || 8005}`,
