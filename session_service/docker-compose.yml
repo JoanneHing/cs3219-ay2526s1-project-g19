@@ -69,6 +69,8 @@ services:
       session_db:
         condition: service_healthy
     restart: unless-stopped
+    environment:
+      - SKIP_DB_SETUP=true
 
 networks:
   shared_network:
