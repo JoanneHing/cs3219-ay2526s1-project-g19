@@ -1,6 +1,5 @@
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import axios from 'axios';
-import { ensureTrailingSlash } from './config';
+import { userService } from './services/userService';
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -72,8 +71,8 @@ export const setupInterceptors = (client: AxiosInstance) => {
         }
 
         try {
-          // Call refresh token endpoint
-          const response = await axios.post(REFRESH_ENDPOINT, {
+          // Call refresh token endpoint via userService
+          const response = await userService.refreshToken({
             refresh_token: refreshToken,
           });
 
@@ -107,5 +106,3 @@ export const setupInterceptors = (client: AxiosInstance) => {
     }
   );
 };
-const userServiceBase = ensureTrailingSlash(import.meta.env.VITE_USER_SERVICE_URL) || '/user-service-api/';
-const REFRESH_ENDPOINT = `${userServiceBase}api/auth/refresh/`;
