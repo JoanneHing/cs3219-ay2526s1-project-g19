@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-const ensureTrailingSlash = (rawUrl?: string): string => {
+export const ensureTrailingSlash = (rawUrl?: string): string => {
   if (!rawUrl || rawUrl.trim() === '') {
     return '';
   }
