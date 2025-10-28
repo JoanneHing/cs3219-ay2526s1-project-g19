@@ -10,6 +10,7 @@ import os
 import uvicorn
 import logging
 from kafka.kafka_client import kafka_client
+from kafka.consumers.topics_difficulties_consumer import TopicsDifficultiesConsumer
 from service.django_question_service import django_question_service
 from schemas.matching import VALID_LANGUAGE_LIST, MatchUserRequestSchema
 from service.redis_controller import redis_controller
@@ -34,10 +35,16 @@ async def lifespan(app: FastAPI):
     logger.info("Running events on start...")
     expiry_event_listener = asyncio.create_task(redis_controller.start_expiry_listener())
     session_created_listener = asyncio.create_task(redis_controller.start_session_created_listener())
+    
+    # Start topics/difficulties consumer
+    topics_difficulties_consumer = TopicsDifficultiesConsumer()
+    topics_difficulties_listener = asyncio.create_task(topics_difficulties_consumer.listen())
+    
     yield
     logger.info("Cleaning up events on shutdown...")
     expiry_event_listener.cancel()
     session_created_listener.cancel()
+    topics_difficulties_listener.cancel()
     await django_question_service.shutdown()
     kafka_client.shutdown()
 

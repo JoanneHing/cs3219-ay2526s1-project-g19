@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str
     topic_match_found: str
     topic_session_created: str
+    topic_topics_updated: str = "topics.updated"
+    topic_difficulties_updated: str = "difficulties.updated"
     schema_registry_url: str
     schema_registry_key: str
     schema_registry_secret: str

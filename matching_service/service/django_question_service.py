@@ -14,6 +14,7 @@ class DjangoQuestionService:
         self.client = httpx.AsyncClient()
         self.get_topics_path = "/api/topics"
         self.get_difficulty_path = "/api/difficulty"
+        self._fallback_to_http = True  # Flag to fallback to HTTP if Kafka data not available
 
     async def shutdown(self):
         await self.client.aclose()
@@ -46,19 +47,43 @@ class DjangoQuestionService:
 
     @safe_http_call
     async def get_topics(self) -> list[str]:
-        resp = await self.client.get(f"{settings.question_service_url}{self.get_topics_path}")
-        data: dict = resp.json()
-        topics = data.get("topics") or []
-        logger.info(f"Topic list retrieved from question service: {topics}")
-        return topics
+        # Try to use cached data first (from Kafka)
+        if self.topics is not None:
+            logger.info(f"Using cached topics: {self.topics}")
+            return self.topics
+        
+        # Fallback to HTTP if no cached data
+        if self._fallback_to_http:
+            logger.info("No cached topics available, fetching from HTTP endpoint")
+            resp = await self.client.get(f"{settings.question_service_url}{self.get_topics_path}")
+            data: dict = resp.json()
+            topics = data.get("topics") or []
+            logger.info(f"Topic list retrieved from question service: {topics}")
+            return topics
+        
+        # If no fallback and no cached data, return empty list
+        logger.warning("No topics available from cache or HTTP")
+        return []
 
     @safe_http_call
     async def get_difficulty(self) -> list[str]:
-        resp = await self.client.get(f"{settings.question_service_url}{self.get_difficulty_path}")
-        data: dict = resp.json()
-        difficulty = data.get("difficulties") or []
-        logger.info(f"Difficulty list retrieved from question service: {difficulty}")
-        return difficulty
+        # Try to use cached data first (from Kafka)
+        if self.difficulty is not None:
+            logger.info(f"Using cached difficulties: {self.difficulty}")
+            return self.difficulty
+        
+        # Fallback to HTTP if no cached data
+        if self._fallback_to_http:
+            logger.info("No cached difficulties available, fetching from HTTP endpoint")
+            resp = await self.client.get(f"{settings.question_service_url}{self.get_difficulty_path}")
+            data: dict = resp.json()
+            difficulty = data.get("difficulties") or []
+            logger.info(f"Difficulty list retrieved from question service: {difficulty}")
+            return difficulty
+        
+        # If no fallback and no cached data, return default difficulties
+        logger.warning("No difficulties available from cache or HTTP, using defaults")
+        return ["easy", "medium", "hard"]
 
 
 django_question_service = DjangoQuestionService()

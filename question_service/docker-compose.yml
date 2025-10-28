@@ -26,6 +26,9 @@ services:
       - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
       - MATCHING_SERVICE_URL=${MATCHING_SERVICE_URL:-http://matching-service:8000}
       - HISTORY_SERVICE_URL=${HISTORY_SERVICE_URL:-http://history-service:8000}
+      # Kafka configuration
+      - TOPIC_TOPICS_UPDATED=${TOPIC_TOPICS_UPDATED:-topics.updated}
+      - TOPIC_DIFFICULTIES_UPDATED=${TOPIC_DIFFICULTIES_UPDATED:-difficulties.updated}
     volumes:
       - ./:/app:rw
     networks:
