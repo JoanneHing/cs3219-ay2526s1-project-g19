@@ -10,6 +10,7 @@ import uvicorn
 from config import settings
 from middleware.fixed_prefix import FixedPrefixMiddleware
 from pg_db.core import get_db_session
+from schemas.session import ActiveSessionSchema
 from service.session import session_service
 
 
@@ -41,7 +42,7 @@ if SERVICE_PREFIX:
     app.add_middleware(FixedPrefixMiddleware, prefix=SERVICE_PREFIX)
 
 
-@router.get("/session")
+@router.get("/session", response_model=ActiveSessionSchema | None)
 async def get_session(
     user_id: UUID,
     db_session: AsyncSession = Depends(get_db_session)
