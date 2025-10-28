@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { sessionService } from '../api/services/sessionService';
+import { questionService } from '../api/services/questionService';
 import SessionStatusCard from '../components/home/SessionStatusCard';
 
 const HomePage = () => {
@@ -21,10 +22,27 @@ const HomePage = () => {
         const sessionData = await sessionService.getActiveSession(user.id);
         
         if (sessionData && sessionData.id && !sessionData.ended_at) {
-          setActiveSession({
+          let enrichedSession = {
             ...sessionData,
             session_id: sessionData.id
-          });
+          };
+
+          // Fetch and merge question data if question_id exists
+          if (sessionData.question_id) {
+            try {
+              const questionData = await questionService.getQuestion(sessionData.question_id);
+              if (questionData) {
+                enrichedSession = {
+                  ...enrichedSession,
+                  ...questionData  // Merge question data directly (title, description, etc.)
+                };
+              }
+            } catch (error) {
+              console.error('Failed to fetch question details:', error);
+            }
+          }
+
+          setActiveSession(enrichedSession);
         }
       } catch (error) {
         console.error('Failed to check active session:', error);
