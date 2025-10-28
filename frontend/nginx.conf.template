@@ -155,13 +155,14 @@ server {
     }
 
     # ---------------------------------------------------------------------------
-    # Matching Service API
+    # Matching Service API (WebSocket Support)
     # ---------------------------------------------------------------------------
     location /matching-service-api/ {
         set $matching_service ${NGINX_MATCHING_SERVICE_HOST};
         rewrite ^/matching-service-api/(.*)$ /$1 break;
         proxy_pass http://$matching_service:8000;
 
+        # Standard proxy headers
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -180,7 +181,7 @@ server {
         proxy_send_timeout 7d;
         proxy_read_timeout 7d;
 
-        # Disable buffering for WebSocket traffic
+        # Disable buffering for WebSocket
         proxy_buffering off;
 
         add_header Access-Control-Allow-Origin * always;
