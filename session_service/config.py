@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -10,7 +11,7 @@ class Settings(BaseSettings):
     session_db_password: str
 
     # Kafka variables
-    group_id: str
+    group_id: str = Field(alias="SESSION_GROUP_ID")
     topic_question_chosen: str
     topic_session_created: str
     topic_session_end: str

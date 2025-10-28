@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     question_service_url: str
 
     # Kafka
-    group_id: str
+    group_id: str = Field(alias="MATCHING_GROUP_ID")
     kafka_bootstrap_servers: str
     topic_match_found: str
     topic_session_created: str
