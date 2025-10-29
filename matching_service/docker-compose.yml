@@ -10,7 +10,6 @@ services:
     ports:
       - "${MATCHING_SERVICE_PORT:-8002}:8000"
     env_file:
-      - .env
       - ../.env
     environment:
       - DEBUG=${DEBUG:-true}
@@ -29,6 +28,12 @@ services:
     depends_on:
       matching_redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -60,13 +65,19 @@ services:
     volumes:
       - ./:/app:rw
     networks:
+      - shared_network
       - matching_network
     env_file:
-      - .env
       - ../.env
     depends_on:
       matching_redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

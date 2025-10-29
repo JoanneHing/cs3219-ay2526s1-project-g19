@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, MessageSquareWarning } from "lucide-react";
 import { userService } from "../../api/services/userService";
 import SuccessMessage from "../common/SuccessMessage";
+import PeerPrepLogo from "../../assets/PeerPrepLogoLight.png";
 
 // Validation functions for each field
 const validateUsername = (value, errors) => {
@@ -246,7 +247,7 @@ const RegisterForm = () => {
 
     return (
         <div className="flex flex-col items-center border border-gray-700 p-8 rounded-lg gap-3 w-150 min-w-[520px] max-w-[550px] bg-background-secondary shadow-lg">
-            <img src="./src/assets/PeerPrepLogoLight.png" alt="PeerPrep Logo" className="w-40 rounded-lg"/>
+            <img src={PeerPrepLogo} alt="PeerPrep Logo" className="w-40 rounded-lg"/>
             <h2 className="font-bold">Sign Up</h2>
             <p className="text-gray-300">Create your PeerPrep account today!</p>
             <div className="w-full">

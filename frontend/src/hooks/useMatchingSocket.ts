@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { matchingService } from '../api/services/matchingService';
+import { sessionService } from '../api/services/sessionService';
 import { useAuth } from '../contexts/AuthContext';
 import type { MatchingSelections, WebSocketMessage, SessionData } from '../types';
 
@@ -96,6 +97,15 @@ export const useMatchingSocket = () => {
     if (!user?.id) {
       setError('User not authenticated');
       return;
+    }
+
+    // check active sessions
+    const session = await sessionService.getActiveSession(user?.id)
+    console.log(`${session}`)
+    if (session) {
+      setError('Already in active session, rejoin from home screen');
+      setIsMatching(false);
+      return
     }
 
     console.log('Starting matching with criteria:', criteria);

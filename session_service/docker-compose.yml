@@ -11,7 +11,6 @@ services:
       - "${SESSION_SERVICE_PORT:-8003}:8000"
     env_file:
       - ../.env
-      - .env
     environment:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,session-service}
@@ -23,6 +22,12 @@ services:
     depends_on:
       session_db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -35,7 +40,7 @@ services:
     image: postgres:15-alpine
     container_name: peerprep_session_db
     env_file:
-      - .env
+      - ../.env
     environment:
       - POSTGRES_DB=${SESSION_DB_NAME:-session_db}
       - POSTGRES_USER=${SESSION_DB_USER:-peerprep}
@@ -52,11 +57,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  session_consumer:
+  session_consumer_question_chosen:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: peerprep_session_kafka
+    container_name: peerprep_session_kafka_question_chosen
     command: python -m kafka.consumers.question_chosen
     volumes:
       - ./:/app:rw
@@ -65,12 +70,45 @@ services:
       - shared_network
       - session_network
     env_file:
-      - .env
       - ../.env
     depends_on:
       session_db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
+    environment:
+      - SKIP_DB_SETUP=true
+  session_consumer_session_end:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_session_kafka_session_end
+    command: python -m kafka.consumers.session_end
+    volumes:
+      - ./:/app:rw
+      - session_db_data:/var/lib/postgresql/data
+    networks:
+      - shared_network
+      - session_network
+    env_file:
+      - ../.env
+    depends_on:
+      session_db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    environment:
+      - SKIP_DB_SETUP=true
 
 networks:
   shared_network:
