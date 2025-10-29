@@ -61,4 +61,23 @@ class SessionRepo:
         return session
 
 
+class SessionUserRepo:
+    def __init__(self):
+        self.model = SessionUser
+
+    async def get_by_session_id(
+        self,
+        session_id: UUID,
+        db_session: AsyncSession
+    ) -> list[UUID]:
+        query = select(
+            self.model.user_id
+        ).where(
+            self.model.session_id == session_id
+        )
+        res = await db_session.execute(query)
+        return res.scalars().all()
+
+
 session_repo = SessionRepo()
+session_user_repo = SessionUserRepo()

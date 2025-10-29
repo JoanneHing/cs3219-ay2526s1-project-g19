@@ -39,6 +39,7 @@ services:
       - NGINX_SESSION_SERVICE_HOST
       - NGINX_COLLABORATION_SERVICE_HOST
       - NGINX_CHAT_SERVICE_HOST
+      - NGINX_EXECUTION_SERVICE_HOST
     volumes:
       # Development mode volumes (hot reload)
       # Comment out or remove in production
