@@ -12,39 +12,14 @@ import { createCursorsField, posToLineChar, getUserColor } from "./codeeditor/ut
 import EditorHeader from "./codeeditor/EditorHeader"
 import EditorStatsBar from "./codeeditor/EditorCursorBar"
 import EditorRunButton from "./codeeditor/EditorRunButton"
+import EditorRunTestsButton from "./codeeditor/EditorRunTestsButton"
 import EditorOutputTerminal from "./codeeditor/EditorOutputTerminal"
+import executionService from "../../api/services/executionService"
 
-const CodeEditor = ({ room, currentUsername, language }) => {
+const CodeEditor = ({ room, currentUsername, language, questionId }) => {
+    // Use service layer for default code
     const getDefaultCode = (lang) => {
-        switch (lang) {
-            case "Python":
-                return "print('Hello, World!')"
-            case "Javascript":
-                return "console.log('Hello, World!');"
-            case "Java":
-                return `public class Main {
-  public static void main(String[] args) {
-    System.out.println("Hello, World!");
-  }
-}`
-            case "C++":
-                return `#include <iostream>
-using namespace std;
-
-int main() {
-  cout << "Hello, World!" << endl;
-  return 0;
-}`
-            case "C":
-                return `#include <stdio.h>
-
-int main() {
-  printf("Hello, World!\\n");
-  return 0;
-}`
-            default:
-                return "print('Hello, World!')"
-        }
+        return executionService.getDefaultCode(lang)
     }
     const [code, setCode] = useState({
         value: getDefaultCode(language),
@@ -221,26 +196,34 @@ int main() {
         setCode({ value: value, isReceived: false })
     }
 
+    // Use service layer for language mapping
+    const getLanguageId = (lang) => {
+        return executionService.getLanguageId(lang)
+    }
+
     const runCode = async () => {
         setIsRunning(true)
         setOutput("Running...")
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_EXECUTION_API}/run`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    code: code.value,
-                    language: language // Send language to execution service
-                }),
-            })
-
-            const data = await response.json()
-            setOutput(data.output || data.error)
+            const result = await executionService.execute(language, code.value, "")
+            setOutput(result.outputText)
         } catch (error) {
-            setOutput("Error: Could not connect to execution service")
+            setOutput(`Error: ${error.message}`)
+        } finally {
+            setIsRunning(false)
+        }
+    }
+
+    const runTests = async () => {
+        setIsRunning(true)
+        setOutput("Running tests...")
+
+        try {
+            const result = await executionService.runTests(language, code.value, questionId)
+            setOutput(result.outputText)
+        } catch (error) {
+            setOutput(`Error: ${error.message}`)
         } finally {
             setIsRunning(false)
         }
@@ -304,7 +287,14 @@ int main() {
                     }}
                 />
             </div>
-            <EditorRunButton onClick={runCode} isRunning={isRunning} />
+            <div className="flex gap-3">
+                <EditorRunButton onClick={runCode} isRunning={isRunning} />
+                <EditorRunTestsButton 
+                    onClick={runTests} 
+                    isRunning={isRunning} 
+                    disabled={!questionId}
+                />
+            </div>
             {output && <EditorOutputTerminal output={output} />}
         </div>
     )

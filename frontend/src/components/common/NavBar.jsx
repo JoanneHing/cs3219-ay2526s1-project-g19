@@ -57,7 +57,7 @@ const NavBar = () => {
     return (
         <nav className="flex justify-between items-center bg-background shadow-md border-b border-gray-600 w-full min-w-7xl p-4">
             <div className="flex items-center space-x-2">
-                <img src="./src/assets/PeerPrepLogoLight.png" alt="PeerPrep Logo" className="h-10 ml-4"/>
+                <img src={PeerPrepLogo} alt="PeerPrep Logo" className="h-10 ml-4"/>
             </div>
 
             <div className="flex space-x-10">

@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
 from kafka.kafka_client import kafka_client
 from pg_db.core import engine
-from crud.session import session_repo
+from crud.session import session_repo, session_user_repo
 from models.session import Session, SessionUser
 from schemas.events import SessionCreated, SessionEnd
 from confluent_kafka.schema_registry.avro import AvroSerializer
+
+from schemas.session import ActiveSessionSchema
 
 
 logger = logging.getLogger(__name__)
@@ -57,10 +59,32 @@ class SessionService:
         self,
         user_id: UUID,
         db_session: AsyncSession
-    ) -> Session:
-        return await session_repo.get_active_session(
+    ) -> ActiveSessionSchema | None:
+        session = await session_repo.get_active_session(
             user_id=user_id,
             db_session=db_session
+        )
+        if not session:
+            logger.info(f"No active session found for user {user_id}")
+            return
+        user_id_list = await session_user_repo.get_by_session_id(
+            session_id=session.id,
+            db_session=db_session
+        )
+        if len(user_id_list) == 0:
+            logger.info(f"No users found in this session {session.id}")
+            return
+        user_id_list = [id for id in user_id_list if id != user_id]
+        if len(user_id_list) != 1:
+            logger.info(f"No matched user found in this session {session.id} for user {user_id}")
+            return
+        return ActiveSessionSchema(
+            id=session.id,
+            started_at=session.started_at,
+            ended_at=session.ended_at,
+            question_id=session.question_id,
+            language=session.language,
+            matched_user_id=user_id_list[0]
         )
 
     async def end_session(

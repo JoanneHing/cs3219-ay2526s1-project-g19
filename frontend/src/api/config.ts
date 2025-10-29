@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-const ensureTrailingSlash = (rawUrl?: string): string => {
+export const ensureTrailingSlash = (rawUrl?: string): string => {
   if (!rawUrl || rawUrl.trim() === '') {
     return '';
   }
@@ -15,15 +15,15 @@ export const API_CONFIGS = {
     timeout: 10000,
   },
   question: {
-    baseURL: import.meta.env.VITE_QUESTION_SERVICE_URL,
+    baseURL: ensureTrailingSlash(import.meta.env.VITE_QUESTION_SERVICE_URL) || '/question-service-api/',
     timeout: 10000,
   },
   matching: {
-    baseURL: import.meta.env.VITE_MATCHING_SERVICE_URL,
+    baseURL: ensureTrailingSlash(import.meta.env.VITE_MATCHING_SERVICE_URL) || '/matching-service-api/',
     timeout: 10000,
   },
   session: {
-    baseURL: import.meta.env.VITE_SESSION_SERVICE_URL,
+    baseURL: ensureTrailingSlash(import.meta.env.VITE_SESSION_SERVICE_URL) || '/session-service-api/',
     timeout: 10000,
   },
   // order: {

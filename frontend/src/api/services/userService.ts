@@ -1,4 +1,4 @@
-import { userClient } from '../client';
+import { userClient, authClient } from '../client';
 import type {
   LoginRequest,
   LoginResponse,
@@ -20,8 +20,9 @@ export const userService = {
   login: (data: LoginRequest) =>
     userClient.post<LoginResponse>('api/auth/login/', data),
 
+  // Use authClient (without interceptors) to avoid circular refresh calls
   refreshToken: (data: RefreshTokenRequest) =>
-    userClient.post<RefreshTokenResponse>('api/auth/refresh/', data),
+    authClient.post<RefreshTokenResponse>('api/auth/refresh/', data),
 
   // Verify JWT token and get current user
   verifyToken: () =>

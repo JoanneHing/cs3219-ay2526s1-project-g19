@@ -1,11 +1,11 @@
 import logging
 import os
 from confluent_kafka.schema_registry import Schema
-from kafka.kafka_client import kafka_client
+from question_service.kafka.kafka_client import kafka_client
 
 logger = logging.getLogger(__name__)
 
-def register_schemas(schema_dir: str = "kafka/schemas"):
+def register_schemas(schema_dir: str = "question_service/kafka/schemas"):
     # List all .avsc files in the schema directory
     for filename in os.listdir(schema_dir):
         if not filename.endswith(".avsc"):

@@ -1,5 +1,5 @@
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import axios from 'axios';
+import { userService } from './services/userService';
 
 let isRefreshing = false;
 let failedQueue: Array<{
@@ -71,11 +71,10 @@ export const setupInterceptors = (client: AxiosInstance) => {
         }
 
         try {
-          // Call refresh token endpoint
-          const response = await axios.post(
-            `${client.defaults.baseURL}api/auth/refresh/`,
-            { refresh_token: refreshToken }
-          );
+          // Call refresh token endpoint via userService
+          const response = await userService.refreshToken({
+            refresh_token: refreshToken,
+          });
 
           const { tokens } = response.data;
 
