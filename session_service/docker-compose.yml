@@ -23,6 +23,12 @@ services:
     depends_on:
       session_db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -70,6 +76,12 @@ services:
     depends_on:
       session_db:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 networks:
