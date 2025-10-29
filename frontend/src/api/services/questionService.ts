@@ -19,4 +19,13 @@ export const questionService = {
       return [];
     }
   },
+  getQuestion: async (questionId: string) => {
+    try {
+      const response = await questionClient.get(`/api/questions/${questionId}`);
+      return response.data;
+    } catch (error) {
+      console.warn(`Error fetching question with ID ${questionId}:`, error);
+      return null;
+    }
+  },
 };

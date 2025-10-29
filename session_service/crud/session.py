@@ -39,8 +39,9 @@ class SessionRepo:
     async def end_session(
         self,
         session_id: UUID,
+        ended_at: datetime,
         db_session: AsyncSession
-    ) -> Session:
+    ) -> None:
         query = select(
             self.model
         ).where(
@@ -50,15 +51,12 @@ class SessionRepo:
         res = await db_session.execute(query)
         session = res.scalar_one_or_none()
         if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session {session_id} not found"
-            )
-        session.ended_at = datetime.now()
+            return
+        session.ended_at = ended_at
         db_session.add(session)
         await db_session.commit()
         await db_session.refresh(session)
-        return session
+        return
 
 
 class SessionUserRepo:
