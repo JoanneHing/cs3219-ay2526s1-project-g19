@@ -92,10 +92,6 @@ class SessionService:
         session_id: UUID,
         db_session: AsyncSession
     ) -> None:
-        session = await session_repo.end_session(
-            session_id=session_id,
-            db_session=db_session
-        )
         # publish session end event to kafka
         with open("kafka/schemas/session_end.avsc") as f:
             session_end_schema = f.read()
@@ -104,8 +100,8 @@ class SessionService:
             session_end_schema
         )
         session_end = SessionEnd(
-            session_id=session.id,
-            ended_at=session.ended_at,
+            session_id=session_id,
+            ended_at=datetime.now(),
             timestamp=datetime.now()
         )
         kafka_client.produce(
