@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { sessionService } from '../api/services/sessionService';
 import { questionService } from '../api/services/questionService';
+import { userService } from '../api/services/userService';
 import SessionStatusCard from '../components/home/SessionStatusCard';
 
 const HomePage = () => {
@@ -32,13 +33,31 @@ const HomePage = () => {
             try {
               const questionData = await questionService.getQuestion(sessionData.question_id);
               if (questionData) {
+                const { id: questionInternalId, ...safeQuestionData } = questionData;
                 enrichedSession = {
                   ...enrichedSession,
-                  ...questionData  // Merge question data directly (title, description, etc.)
+                  ...safeQuestionData,  // Merge question data (title, description, etc.)
                 };
               }
             } catch (error) {
               console.error('Failed to fetch question details:', error);
+            }
+          }
+
+          // Fetch and merge matched user profile if matched_user_id exists
+          if (sessionData.matched_user_id) {
+            try {
+              const partnerProfile = await userService.getPublicProfile(sessionData.matched_user_id);
+              if (partnerProfile?.data?.user) {
+                enrichedSession = {
+                  ...enrichedSession,
+                  partner_name: partnerProfile.data.user.display_name,
+                  partner_email: partnerProfile.data.user.email,
+                  // Add any other partner fields you need
+                };
+              }
+            } catch (error) {
+              console.error('Failed to fetch partner profile:', error);
             }
           }
 

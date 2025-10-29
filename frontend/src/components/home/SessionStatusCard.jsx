@@ -34,6 +34,9 @@ const SessionStatusCard = ({ isChecking, activeSession, onReconnect, onStartNew 
           <p><span className="font-semibold">Session ID:</span> {activeSession.id}</p>
           <p><span className="font-semibold">Language:</span> {activeSession.language || 'N/A'}</p>
           <p><span className="font-semibold">Started:</span> {formatStartTime(activeSession.started_at)}</p>
+          {activeSession.partner_name && (
+            <p><span className="font-semibold">Partner:</span> {activeSession.partner_name}</p>
+          )}
           {activeSession.title && (
             <p>
               <span className="font-semibold">Question:</span>{' '}

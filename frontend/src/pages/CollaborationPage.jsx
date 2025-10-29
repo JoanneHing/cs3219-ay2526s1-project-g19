@@ -67,14 +67,14 @@ const CollaborationPage = () => {
           console.log("Fetching partner profile for ID:", partnerId);
           const response = await userService.getPublicProfile(partnerId);
           console.log("Partner profile response:", response);
-          setPartnerName(response.data?.user?.display_name || "Partner");
+          setPartnerName(response.data?.user?.display_name || sessionData.partner_name || "Partner");
         } catch (error) {
           console.error('Failed to fetch partner profile:', error);
           console.error('Error response:', error.response);
-          setPartnerName("Partner");
+          setPartnerName(sessionData.partner_name || "Partner");
         }
       } else {
-        setPartnerName("Partner");
+        setPartnerName(sessionData.partner_name || "Partner");
       }
     };
 
