@@ -59,6 +59,11 @@ export default defineConfig(({ mode }) => {
           rewrite: (path) => path.replace(/^\/chat-service-api/, ''),
           ws: true, // Enable WebSocket proxying for Socket.IO
         },
+        '/execution-service-api': {
+          target: `http://localhost:${env.EXECUTION_SERVICE_PORT || 8007}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/execution-service-api/, ''),
+        },
       },
     },
   }

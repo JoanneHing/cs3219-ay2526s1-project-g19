@@ -211,6 +211,7 @@ const CollaborationPage = () => {
       </div>
     );
   }
+  const questionId = "04132e60-9272-4438-a01d-b735bf1a1001" // Mock question ID for testing
 
   // Handle vertical resizing for left panel
   const handleMouseDown = (e) => {
@@ -343,6 +344,7 @@ const CollaborationPage = () => {
                 room={room}
                 currentUsername={username}
                 language={language}
+                questionId={questionId}
               />
             </div>
           </div>

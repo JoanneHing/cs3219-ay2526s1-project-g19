@@ -1,4 +1,5 @@
 import { matchingClient } from '../client';
+import { ensureTrailingSlash } from '../config';
 import type {
   MatchRequest,
   MatchResponse,
@@ -26,17 +27,18 @@ export const matchingService = {
     let wsUrl: string;
     
     // Get the configured base URL or use default proxy path
-    const apiBaseUrl = baseUrl || matchingClient.defaults.baseURL || '/matching-service-api';
+    const apiBaseUrl = baseUrl || matchingClient.defaults.baseURL || '/matching-service-api/';
     
     // If using a proxy path , construct WebSocket URL using current window location
     if (apiBaseUrl.startsWith('/')) {
       // Use the current window location to build WebSocket URL
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host; 
-      wsUrl = `${protocol}//${host}${apiBaseUrl}/api/ws?user_id=${userId}`;
+      const host = window.location.host;
+      const cleanBase = ensureTrailingSlash(apiBaseUrl).replace(/\/$/, '');
+      wsUrl = `${protocol}//${host}${cleanBase}/api/ws?user_id=${userId}`;
     } else {
       // Direct URL, convert http to ws
-      const wsBaseUrl = apiBaseUrl.replace(/^http/, 'ws');
+      const wsBaseUrl = ensureTrailingSlash(apiBaseUrl).replace(/^http/, 'ws').replace(/\/$/, '');
       wsUrl = `${wsBaseUrl}/api/ws?user_id=${userId}`;
     }
     
