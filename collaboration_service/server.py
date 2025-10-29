@@ -1,34 +1,40 @@
 import logging
 import os
 import socketio
-from socketio import AsyncRedisManager  # NEW: cluster manager
+from socketio import AsyncRedisManager
 from aiohttp import web
 import redis.asyncio as aioredis
-import aiohttp
 import asyncio
+from datetime import datetime
 from schemas import CodeChangeData, CursorData, ErrorData, RoomJoinData
+from kafka.kafka_client import kafka_client
+from confluent_kafka.schema_registry.avro import AvroSerializer
+from config import settings
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+# Use settings from config
 logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 
 logger = logging.getLogger(__name__)
 
-EXPIRY_TIME = 1800  # 30 minutes
-INACTIVE_SESSION_TIMEOUT = 300  # 5 minutes in seconds
-SESSION_SERVICE_URL = os.getenv("SESSION_SERVICE_URL", "http://session-service:8000")
-
-SERVICE_PREFIX = os.getenv("SERVICE_PREFIX", "/collaboration-service-api")
-if SERVICE_PREFIX and not SERVICE_PREFIX.startswith("/"):
-    SERVICE_PREFIX = "/" + SERVICE_PREFIX
-SERVICE_PREFIX = SERVICE_PREFIX.rstrip("/")
-
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")  # centralize
+EXPIRY_TIME = settings.expiry_time
+INACTIVE_SESSION_TIMEOUT = settings.inactive_session_timeout
+SERVICE_PREFIX = settings.service_prefix.rstrip("/")
+REDIS_URL = settings.redis_url
 
 # Track background tasks for ending sessions
 session_end_tasks = {}
+
+# Load session end schema and create serializer
+with open("kafka/schemas/session_end.avsc") as f:
+    session_end_schema = f.read()
+
+session_end_serializer = AvroSerializer(
+    kafka_client.schema_registry_client,
+    session_end_schema
+)
 
 
 @web.middleware
@@ -73,7 +79,7 @@ sio = socketio.AsyncServer(
     cors_allowed_origins="*",
     logger=True,
     engineio_logger=True,
-    client_manager=AsyncRedisManager(REDIS_URL),  # <--- KEY LINE: cross-pod fanout
+    client_manager=AsyncRedisManager(REDIS_URL),
     ping_interval=25,
     ping_timeout=60,
 )
@@ -105,7 +111,6 @@ async def init_redis():
         logger.info(f"Connected to Redis at {REDIS_URL}")
     except Exception as e:
         logger.exception("Failed to connect to Redis")
-        # Fail fast so the container restarts rather than running half-broken
         raise
 
 
@@ -135,99 +140,71 @@ async def cleanup_on_startup():
         logger.error(f"Error during startup cleanup: {e}")
 
 
-async def end_session_after_timeout(session_id: str):
-    """End a session after the timeout if no users rejoin."""
-    try:
-        logger.info(f"Waiting {INACTIVE_SESSION_TIMEOUT}s before ending session {session_id}")
-        await asyncio.sleep(INACTIVE_SESSION_TIMEOUT)
-        
-        # Check if room still has no users
-        room_users_key = f"collab_room_users:{session_id}"
-        user_count = await redis.scard(room_users_key)
-        
-        if user_count == 0:
-            # First check if session is already ended
-            async with aiohttp.ClientSession() as session:
-                try:
-                    # Check session status first
-                    check_url = f"{SESSION_SERVICE_URL}/api/session"
-                    async with session.get(check_url, params={"session_id": session_id}) as check_resp:
-                        if check_resp.status == 200:
-                            session_data = await check_resp.json()
-                            
-                            # If session already has ended_at, don't try to end it again
-                            if session_data.get("ended_at"):
-                                logger.info(f"Session {session_id} already ended, skipping")
-                                await redis.delete(room_users_key)
-                                await redis.delete(f"room:{session_id}:code")
-                                await redis.delete(f"inactive_collab_session:{session_id}")
-                                return
-                        elif check_resp.status == 404:
-                            logger.info(f"Session {session_id} not found, skipping")
-                            return
-                    
-                    # Call session service to end the session
-                    url = f"{SESSION_SERVICE_URL}/api/session/end"
-                    params = {"session_id": session_id}
-                    async with session.post(url, params=params) as resp:
-                        if resp.status == 200:
-                            logger.info(f"Successfully ended inactive session {session_id}")
-                            # Clean up Redis data
-                            await redis.delete(room_users_key)
-                            await redis.delete(f"room:{session_id}:code")
-                            await redis.delete(f"inactive_collab_session:{session_id}")
-                        elif resp.status == 400:
-                            # Session already ended
-                            logger.info(f"Session {session_id} already ended")
-                            await redis.delete(room_users_key)
-                            await redis.delete(f"room:{session_id}:code")
-                            await redis.delete(f"inactive_collab_session:{session_id}")
-                        else:
-                            logger.error(f"Failed to end session {session_id}: {resp.status}")
-                except Exception as e:
-                    logger.error(f"Error calling session service for {session_id}: {e}")
-        else:
-            logger.info(f"Session {session_id} has active users, not ending")
-            await redis.delete(f"inactive_collab_session:{session_id}")
-    except asyncio.CancelledError:
-        logger.info(f"Session end task for {session_id} was cancelled")
-    finally:
-        # Clean up task reference
-        if session_id in session_end_tasks:
-            del session_end_tasks[session_id]
-
-
 async def schedule_session_end(room: str):
     """Schedule a session to end after timeout if room becomes empty."""
     # Cancel existing task if any
     if room in session_end_tasks:
         session_end_tasks[room].cancel()
     
-    # Check if session is already ended before scheduling
-    try:
-        async with aiohttp.ClientSession() as session:
-            check_url = f"{SESSION_SERVICE_URL}/api/session"
-            async with session.get(check_url, params={"session_id": room}) as resp:
-                if resp.status == 200:
-                    session_data = await resp.json()
-                    if session_data.get("ended_at"):
-                        logger.info(f"Session {room} already ended, not scheduling timeout")
-                        # Clean up Redis immediately
-                        await redis.delete(f"collab_room_users:{room}")
-                        await redis.delete(f"room:{room}:code")
-                        return
-                elif resp.status == 404:
-                    logger.info(f"Session {room} not found, not scheduling timeout")
-                    return
-    except Exception as e:
-        logger.error(f"Error checking session status for {room}: {e}")
-    
     # Mark session as inactive in Redis
     inactive_key = f"inactive_collab_session:{room}"
     await redis.set(inactive_key, "1", ex=INACTIVE_SESSION_TIMEOUT + 60)
     
-    # Create new task
-    task = asyncio.create_task(end_session_after_timeout(room))
+    async def end_session_task():
+        """Background task to end session after timeout."""
+        try:
+            logger.info(f"Waiting {INACTIVE_SESSION_TIMEOUT}s before ending session {room}")
+            await asyncio.sleep(INACTIVE_SESSION_TIMEOUT)
+            
+            # Check if room still has no users
+            room_users_key = f"collab_room_users:{room}"
+            user_count = await redis.scard(room_users_key)
+            
+            if user_count == 0:
+                try:
+                    # Produce session end event to Kafka
+                    ended_at = int(datetime.now().timestamp() * 1000)
+                    timestamp = ended_at
+                    
+                    value = {
+                        "session_id": room,
+                        "ended_at": ended_at,
+                        "timestamp": timestamp
+                    }
+                    
+                    kafka_client.produce(
+                        topic=settings.topic_session_end,
+                        key=room,
+                        value=value,
+                        serializer=session_end_serializer
+                    )
+                    
+                    kafka_client.producer.flush()
+                    logger.info(f"Successfully produced session end event for {room}")
+                    
+                    # Clean up Redis data
+                    await redis.delete(room_users_key)
+                    await redis.delete(f"room:{room}:code")
+                    await redis.delete(f"inactive_collab_session:{room}")
+                    
+                except Exception as e:
+                    logger.error(f"Error producing session end event for {room}: {e}")
+                    # Clean up Redis even if Kafka fails
+                    await redis.delete(room_users_key)
+                    await redis.delete(f"room:{room}:code")
+                    await redis.delete(f"inactive_collab_session:{room}")
+            else:
+                logger.info(f"Session {room} has active users, not ending")
+                await redis.delete(f"inactive_collab_session:{room}")
+        except asyncio.CancelledError:
+            logger.info(f"Session end task for {room} was cancelled")
+        finally:
+            # Clean up task reference
+            if room in session_end_tasks:
+                del session_end_tasks[room]
+    
+    # Create and store the task
+    task = asyncio.create_task(end_session_task())
     session_end_tasks[room] = task
     logger.info(f"Scheduled session end for {room} in {INACTIVE_SESSION_TIMEOUT}s")
 
@@ -246,19 +223,13 @@ async def cancel_session_end(room: str):
 
 @sio.event
 async def connect(sid, environ):
-    """
-    Handle a new WebSocket connection.
-    """
+    """Handle a new WebSocket connection."""
     logger.info(f"WebSocket: connect called for SID {sid}")
-    print(f"WebSocket: connect called for SID {sid}")
 
 
 @sio.event
 async def join(sid, data):
-    """
-    Handle a user joining a room.
-    """
-    # Create structured join data
+    """Handle a user joining a room."""
     join_data = RoomJoinData.from_request(data, sid)
 
     if not join_data.room:
@@ -277,28 +248,24 @@ async def join(sid, data):
     await cancel_session_end(join_data.room)
     
     logger.info(f"SID {sid} joined room {join_data.room}")
-    print(f"SID {sid} joined room {join_data.room}")
 
     # Send cached code if it exists
     cache_key = f"room:{join_data.room}:code"
     try:
         cached_code = await redis.get(cache_key)
+        if cached_code:
+            logger.info(f"Found cached code for room {join_data.room}, sending to SID {sid}")
+            code_data = CodeChangeData(code=cached_code)
+            await sio.emit("receive", code_data.to_dict(), to=sid)
     except Exception:
-        cached_code = None
         logger.exception("Redis GET failed for %s", cache_key)
-
-    if cached_code:
-        print(f"Found cached code for room {join_data.room}, sending to SID {sid}")
-        code_data = CodeChangeData(code=cached_code)
-        await sio.emit("receive", code_data.to_dict(), to=sid)
 
 
 @sio.event
 async def change(sid, data):
+    """Handle code changes."""
     room = data.get("room")
     code = data.get("code")
-
-    print(f"Received change event from SID {sid} for room {room} with code: {code}")
 
     if not room or code is None:
         error = ErrorData("room and code are required")
@@ -314,13 +281,14 @@ async def change(sid, data):
     except Exception:
         logger.exception("Redis SETEX failed for %s", cache_key)
 
-    # Broadcast the code change to others in the room, across pods
+    # Broadcast the code change to others in the room
     await sio.emit("receive", code_change.to_dict(), room=room, skip_sid=sid)
     logger.info(f"Code change broadcasted to room {room} by SID {sid}")
 
 
 @sio.event
 async def leave(sid, data):
+    """Handle user leaving a room."""
     room = data.get("room")
     if not room:
         error = ErrorData("room is required")
@@ -336,7 +304,6 @@ async def leave(sid, data):
 
     await sio.leave_room(sid, room)
     logger.info(f"SID {sid} left room {room}")
-    print(f"SID {sid} left room {room}")
     
     # Check if room is now empty
     remaining_users = await redis.scard(room_users_key)
@@ -347,10 +314,7 @@ async def leave(sid, data):
 
 @sio.event
 async def disconnect(sid):
-    """
-    Handle WebSocket disconnection.
-    """
-    # Notify all rooms that this user disconnected
+    """Handle WebSocket disconnection."""
     rooms = sio.manager.get_rooms(sid, namespace='/')
     for room in rooms:
         if room != sid:  # Skip the user's own room
@@ -368,12 +332,11 @@ async def disconnect(sid):
                 await schedule_session_end(room)
 
     logger.info(f"WebSocket: disconnect called for SID {sid}")
-    print(f"WebSocket: disconnect called for SID {sid}")
 
 
 @sio.event
 async def cursor(sid, data):
-    """Handle cursor position updates with line/character coordinates."""
+    """Handle cursor position updates."""
     room = data.get("room")
     if not room:
         error = ErrorData("room is required")
@@ -392,8 +355,14 @@ async def startup_sequence(app):
     await init_redis()
     await cleanup_on_startup()
 
+
+async def shutdown_sequence(app):
+    """Run shutdown sequence."""
+    kafka_client.shutdown()
+
+
 # Run the server
 if __name__ == "__main__":
     app.on_startup.append(startup_sequence)
-    port = int(os.environ.get("PORT", 8005))  # Read from env or default to 8005
-    web.run_app(app, port=port)
+    app.on_shutdown.append(shutdown_sequence)
+    web.run_app(app, port=settings.port)

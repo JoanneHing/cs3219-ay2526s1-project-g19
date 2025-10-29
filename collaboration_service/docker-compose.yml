@@ -36,6 +36,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    env_file:
+      - ../.env
 
   collaboration_redis:
     image: redis:7-alpine
@@ -51,6 +53,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    env_file:
+      - ../.env
 
 volumes:
   collaboration_redis_data:
