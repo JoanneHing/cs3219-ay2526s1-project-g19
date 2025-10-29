@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, UserCircle2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNotification } from "../../contexts/NotificationContext";
 import { useNavigate } from "react-router-dom";
@@ -75,6 +75,13 @@ const NavBar = () => {
                     <LogOut className="inline-block mr-2" />
                     Logout
                 </button>
+                <button
+                    onClick={() => navigate('/profile')}
+                    className="bg-primary text-white hover:bg-primary-dark font-semibold py-2 px-4 rounded">
+                    <UserCircle2 className="inline-block mr-2" />
+                    Profile
+                </button>
+
             </div>
         </nav>
 
