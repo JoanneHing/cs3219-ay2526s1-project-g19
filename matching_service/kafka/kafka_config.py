@@ -14,7 +14,7 @@ producer_config = {
 }
 consumer_config = {
     "bootstrap.servers": settings.kafka_bootstrap_servers,
-    'group.id': settings.group_id,
+    'group.id': settings.matching_group_id,
     'session.timeout.ms': 6000,
     "security.protocol": "PLAINTEXT",
     'auto.offset.reset': 'latest',  # Process only new messages
