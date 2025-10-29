@@ -28,6 +28,7 @@ include:
   - path: ./user_service/docker-compose.yml
   - path: ./collaboration_service/docker-compose.yml
   - path: ./chat_service/docker-compose.yml
+  - path: ./execution_service/docker-compose.yml
 
 networks:
   shared_network:
