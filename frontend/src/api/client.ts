@@ -23,14 +23,14 @@ export const sessionClient = axios.create({
   headers: COMMON_HEADERS,
 });
 
-// export const authClient = axios.create({
-//   ...API_CONFIGS.auth,
-//   headers: COMMON_HEADERS,
-// });
+// Bare client for auth operations (no interceptors to avoid circular calls)
+export const authClient = axios.create({
+  ...API_CONFIGS.user,
+  headers: COMMON_HEADERS,
+});
 
-// Setup interceptors for all clients
+// Setup interceptors for all clients except authClient
 setupInterceptors(userClient);
 setupInterceptors(matchingClient);
 setupInterceptors(questionClient);
 setupInterceptors(sessionClient);
-// setupInterceptors(authClient);

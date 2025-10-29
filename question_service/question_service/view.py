@@ -2,6 +2,7 @@
 from django.db.models import F, Q, Value, FloatField, Case, When
 from django.db.models.functions import Coalesce, Cast
 from rest_framework import viewsets, mixins
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.conf import settings
@@ -197,6 +198,7 @@ class QuestionViewSet(mixins.ListModelMixin,
                       mixins.UpdateModelMixin,
                       mixins.DestroyModelMixin,
                       viewsets.GenericViewSet):
+    permission_classes = [AllowAny]
     queryset = Question.objects.all().select_related("stats","score")
     pagination_class = QuestionPagination
     filter_backends = [DjangoFilterBackend]
@@ -256,6 +258,8 @@ class QuestionViewSet(mixins.ListModelMixin,
         return self.get_paginated_response(serializer.data)
 
 class TopicsView(APIView):
+    permission_classes = [AllowAny]
+
     @extend_schema(
         summary="Get all topics",
         description="Retrieve a list of all unique topics from active questions.",
@@ -302,6 +306,8 @@ class TopicsView(APIView):
         return Response({"topics": topics_list})
 
 class DifficultiesView(APIView):
+    permission_classes = [AllowAny]
+
     @extend_schema(
         summary="Get all difficulties",
         description="Retrieve the list of available difficulty values.",

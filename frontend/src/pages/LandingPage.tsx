@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Code2, Users, Zap } from "lucide-react";
+import PeerPrepLogo from "../assets/PeerPrepLogoLight.png";
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ const LandingPage = () => {
         <div className="flex justify-center">
           <div className="relative">
             <div className="absolute bg-primary opacity-50 rounded-full"></div>
-            <img src="./src/assets/PeerPrepLogoLight.png" alt="PeerPrep Logo" className="relative w-50 h-20 mx-auto" />
+            <img src={PeerPrepLogo} alt="PeerPrep Logo" className="relative w-50 h-20 mx-auto" />
           </div>
         </div>
 

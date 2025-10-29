@@ -13,7 +13,7 @@ producer_admin_config = {
 }
 consumer_config = {
     'bootstrap.servers': os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
-    'group.id': 'question-service-group',
+    'group.id': os.getenv("QUESTION_GROUP_ID", "question-service-group"),
     'session.timeout.ms': 6000,
     'auto.offset.reset': 'earliest',
     "security.protocol": "SASL_SSL",

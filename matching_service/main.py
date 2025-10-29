@@ -93,12 +93,16 @@ async def get():
 
 @router.post("/match", status_code=status.HTTP_202_ACCEPTED, responses={
     202: {"description": "Accepted"},
+    400: {"description": "WebSocket not connected"},
     409: {"description": "User already in queue"}
 })
 async def match_users(data: MatchUserRequestSchema):
     # check if ws connection is set up
     if not websocket_service.check_ws_connection(user_id=data.user_id):
-        return "Error: connect to websocket first"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="WebSocket connection required. Please connect to WebSocket before joining queue."
+        )
     res = await matching_service.match_user(
         user_id=data.user_id,
         criteria=data.criteria
