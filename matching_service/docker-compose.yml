@@ -25,6 +25,12 @@ services:
     depends_on:
       matching_redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -56,12 +62,19 @@ services:
     volumes:
       - ./:/app:rw
     networks:
+      - shared_network
       - matching_network
     env_file:
       - ../.env
     depends_on:
       matching_redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
