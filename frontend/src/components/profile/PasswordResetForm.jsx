@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../api/services/userService';
 import { useNavigate } from 'react-router-dom';
 
-// Password validation function - same as registerForm
+// Password validation function - same with registration form rules
 const validatePassword = (value) => {
     const errors = [];
 
@@ -54,7 +54,7 @@ const validateConfirmPassword = (value, passwordValue) => {
     return errors;
 };
 
-const PasswordResetModal = ({ isOpen, onClose }) => {
+const PasswordResetForm = ({ isOpen, onClose }) => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showNewPassword, setShowNewPassword] = useState(false);
@@ -74,11 +74,9 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
         const value = e.target.value;
         setNewPassword(value);
         
-        // Validate new password
         const passwordErrors = validatePassword(value);
         setErrors(prev => ({ ...prev, newPassword: passwordErrors }));
         
-        // Re-validate confirm password if it has a value
         if (confirmPassword) {
             const confirmErrors = validateConfirmPassword(confirmPassword, value);
             setErrors(prev => ({ ...prev, confirmPassword: confirmErrors }));
@@ -89,7 +87,6 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
         const value = e.target.value;
         setConfirmPassword(value);
         
-        // Validate confirm password
         const confirmErrors = validateConfirmPassword(value, newPassword);
         setErrors(prev => ({ ...prev, confirmPassword: confirmErrors }));
     };
@@ -127,7 +124,6 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Final validation
         const passwordErrors = validatePassword(newPassword);
         const confirmErrors = validateConfirmPassword(confirmPassword, newPassword);
 
@@ -136,7 +132,6 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
             confirmPassword: confirmErrors
         });
 
-        // Check if there are any errors
         if (passwordErrors.length > 0 || confirmErrors.length > 0) {
             return;
         }
@@ -148,17 +143,15 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
             
             showSuccess(
                 'Password Reset Successful', 
-                'Your password has been updated. All active sessions have been invalidated. Please login again.'
+                'Your password has been updated. Please login again.'
             );
             
-            // Close modal
             onClose();
             
-            // Logout and redirect to login page
             setTimeout(async () => {
                 await logout();
                 navigate('/login');
-            }, 1500);
+            }, 100);
             
         } catch (error) {
             console.error('Password reset error:', error);
@@ -218,8 +211,8 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="bg-yellow-300 bg-opacity-60 border border-yellow-400 rounded-lg p-4 text-sm">
-                        <p className="font-semibold mb-1 text-white">⚠️ Security Notice</p>
-                        <p className="text-white">All active sessions will be invalidated. You will need to login again with your new password.</p>
+                        <p className="font-semibold mb-1 text-white">⚠️ Warning</p>
+                        <p className="text-white">For security reasons, you will need to login again with your new password after resetting it.</p>
                     </div>
 
                     <div>
@@ -312,4 +305,4 @@ const PasswordResetModal = ({ isOpen, onClose }) => {
     );
 };
 
-export default PasswordResetModal;
+export default PasswordResetForm;
