@@ -2,12 +2,15 @@ import { useAuth } from "../contexts/AuthContext";
 import { LucideLockKeyhole, Verified, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useNotification } from "../contexts/NotificationContext";
+import { useState } from "react";
+import PasswordResetModal from "../components/profile/PasswordResetModal";
 
 const ProfilePage = () => {
     const { user } = useAuth();
     const { logout } = useAuth();
     const { showSuccess, showError } = useNotification();
     const navigate = useNavigate();
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
     const handleLogout = async () => {
         const result = await logout();
@@ -46,7 +49,10 @@ const ProfilePage = () => {
             <h1 className="text-4xl font-bold mb-4">{user.display_name}</h1>
             <h4 className="text-gray-400 mb-2">Email: {user.email}</h4>
             <div className="mt-6 flex flex-col space-y-4 w-fit">
-                <button className="bg-primary text-white hover:bg-primary-dark font-semibold py-2 px-4 rounded whitespace-nowrap">
+                <button 
+                    onClick={() => setIsPasswordModalOpen(true)}
+                    className="bg-primary text-white hover:bg-primary-dark font-semibold py-2 px-4 rounded whitespace-nowrap"
+                >
                     <LucideLockKeyhole className="inline-block mr-2" />
                     Password Reset
                 </button>
@@ -61,6 +67,12 @@ const ProfilePage = () => {
                     Verify Account
                 </button> */}
             </div>
+
+            {/* Password Reset Modal */}
+            <PasswordResetModal 
+                isOpen={isPasswordModalOpen} 
+                onClose={() => setIsPasswordModalOpen(false)} 
+            />
         </div>
     );
 };

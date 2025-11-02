@@ -40,7 +40,7 @@ const ErrorMessage = ({ errorsArray }) => {
     return (
         <div className="!text-red-400 text-xs mt-1 space-y-0.5">
             {errorsArray.map((err, idx) => (
-                <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1"/> {err}</p>
+                <p key={idx}> <MessageSquareWarning className="inline w-3 h-3 mr-1 text-red-400"/> {err}</p>
             ))}
         </div>
     );
