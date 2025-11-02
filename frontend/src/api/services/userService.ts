@@ -32,7 +32,7 @@ export const userService = {
   logout: () =>
     userClient.post('api/auth/logout/'),
 
-  // Reset password (PUT request)
+  // Reset password
   resetPassword: (data: { new_password: string }) =>
     userClient.put('api/auth/reset-password/', data),
 
