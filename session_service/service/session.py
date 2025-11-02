@@ -10,7 +10,7 @@ from models.session import Session, SessionUser
 from schemas.events import SessionCreated, SessionEnd
 from confluent_kafka.schema_registry.avro import AvroSerializer
 
-from schemas.session import ActiveSessionSchema
+from schemas.session import ActiveSessionSchema, SessionHistorySchema
 
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,25 @@ class SessionService:
             serializer=serializer
         )
         return
+
+    async def get_history(
+        self,
+        user_id: UUID,
+        db_session: AsyncSession,
+        size: int = 10
+    ) -> list[SessionHistorySchema]:
+        session_user_list = await session_repo.get_by_user_id(
+            user_id=user_id,
+            size=size,
+            db_session=db_session
+        )
+        res = []
+        for session, matched_user_id in session_user_list:
+            res.append(SessionHistorySchema(
+                **session.model_dump(),
+                matched_user_id=matched_user_id
+            ))
+        return res
 
 
 session_service = SessionService()

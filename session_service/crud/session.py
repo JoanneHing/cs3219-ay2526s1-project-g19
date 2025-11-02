@@ -1,9 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 from fastapi import HTTPException, status
-from sqlmodel import select
+from sqlmodel import and_, select
 from models.session import Session, SessionUser
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 
 class SessionRepo:
@@ -57,6 +58,34 @@ class SessionRepo:
         await db_session.commit()
         await db_session.refresh(session)
         return
+
+    async def get_by_user_id(
+        self,
+        user_id: UUID,
+        db_session: AsyncSession,
+        size: int = 10
+    ) -> list[tuple[Session, UUID]]:
+        su1 = aliased(SessionUser)
+        su2 = aliased(SessionUser)
+
+        query = select(
+            Session,
+            su2.user_id
+        ).join(
+            su1,
+            Session.id == su1.session_id
+        ).join(
+            su2,
+            and_(Session.id == su2.session_id, su2.user_id != user_id)
+        ).where(
+            su1.user_id == user_id
+        ).order_by(
+            self.model.started_at
+        ).limit(
+            size
+        )
+        res = await db_session.execute(query)
+        return res.all()
 
 
 class SessionUserRepo:

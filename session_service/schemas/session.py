@@ -10,3 +10,7 @@ class ActiveSessionSchema(BaseModel):
     question_id: UUID
     language: str
     matched_user_id: UUID
+
+
+class SessionHistorySchema(ActiveSessionSchema):
+    pass
