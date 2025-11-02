@@ -38,7 +38,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
   matching_redis:
     image: redis:7-alpine
     container_name: peerprep_matching_redis
@@ -53,12 +52,35 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  matching_consumer:
+  matching_consumer_session_created:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: peerprep_matching_kafka
+    container_name: peerprep_matching_kafka_session_created
     command: python -m kafka.consumers.session_created
+    volumes:
+      - ./:/app:rw
+    networks:
+      - shared_network
+      - matching_network
+    env_file:
+      - ../.env
+    depends_on:
+      matching_redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      schema_registry:
+        condition: service_healthy
+      kafka_init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  matching_consumer_topics_difficulties:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peerprep_matching_kafka_topics_difficulties
+    command: python -m kafka.consumers.topics_difficulties
     volumes:
       - ./:/app:rw
     networks:

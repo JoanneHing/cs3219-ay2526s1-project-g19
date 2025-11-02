@@ -30,6 +30,8 @@ class RedisController:
         )
         self.general_queue_key="gen_queue:"
         self.websocket_service = websocket_service
+        self.topics_key="topics"
+        self.difficulty_key="difficulty"
 
         ## Add operations
 
@@ -320,6 +322,16 @@ class RedisController:
         await self.redis.set(user_relax_language_key, "1", ex=RELAX_LANGUAGE_DURATION)
         return
 
+    async def update_topics(self, topics: list[str]) -> None:
+        logger.info(f"Updating topics in redis: {topics}")
+        await self.redis.set(self.topics_key, json.dumps(topics))
+        return
+
+    async def update_difficulties(self, difficulties: list[str]) -> None:
+        logger.info(f"Updating difficulties in redis: {difficulties}")
+        await self.redis.set(self.difficulty_key, json.dumps(difficulties))
+        return
+
     ## Query operations
 
     async def store_all_union_set(
@@ -414,6 +426,14 @@ class RedisController:
         earliest_user = (await self.redis.zpopmin(temp_set_key, 1))[0][0]
         await self.redis.delete(intersection_key, temp_set_key)
         return UUID(earliest_user)
+
+    async def get_topics(self) -> list[str]:
+        topics = json.loads(await self.redis.get(self.topics_key) or "[]")
+        return topics
+
+    async def get_difficulties(self) -> list[str]:
+        difficulties = json.loads(await self.redis.get(self.difficulty_key) or "[]")
+        return difficulties
 
     ## Remove operations
 

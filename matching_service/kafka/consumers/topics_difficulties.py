@@ -5,7 +5,7 @@ import logging.config
 from kafka.kafka_client import kafka_client
 from config import settings
 from confluent_kafka import Message
-from service.django_question_service import django_question_service
+from service.redis_controller import redis_controller
 
 with open("log_config.json", "r") as f:
     config = json.load(f)
@@ -49,8 +49,7 @@ class TopicsDifficultiesConsumer:
         topics = data.get("topics", [])
         timestamp = data.get("timestamp")
         version = data.get("version")
-        # Update the cached topics in django_question_service
-        django_question_service.update_topics(topics=topics)
+        await redis_controller.update_topics(topics=topics)
         logger.info(f"Updated cached topics: {topics} (version: {version}, timestamp: {timestamp})")
         return
     
@@ -59,8 +58,7 @@ class TopicsDifficultiesConsumer:
         difficulties = data.get("difficulties", [])
         timestamp = data.get("timestamp")
         version = data.get("version")
-        # Update the cached difficulties in django_question_service
-        django_question_service.update_difficulties(difficulties=difficulties)
+        await redis_controller.update_difficulties(difficulties=difficulties)
         logger.info(f"Updated cached difficulties: {difficulties} (version: {version}, timestamp: {timestamp})")
         return
 
