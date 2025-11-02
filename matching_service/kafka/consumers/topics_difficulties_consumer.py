@@ -41,34 +41,30 @@ class TopicsDifficultiesConsumer:
                 await self.handle_difficulties_update(value)
             else:
                 logger.warning(f"Unknown topic: {topic_name}")
-                
         except Exception as e:
             logger.error(f"Error handling message: {e}")
     
-    async def handle_topics_update(self, data: dict):
+    async def handle_topics_update(self, data: dict) -> None:
         """Handle topics update message."""
         topics = data.get("topics", [])
         timestamp = data.get("timestamp")
         version = data.get("version")
-        
         # Update the cached topics in django_question_service
-        django_question_service.topics = topics
-        
+        django_question_service.update_topics(topics=topics)
         logger.info(f"Updated cached topics: {topics} (version: {version}, timestamp: {timestamp})")
+        return
     
-    async def handle_difficulties_update(self, data: dict):
+    async def handle_difficulties_update(self, data: dict) -> None:
         """Handle difficulties update message."""
         difficulties = data.get("difficulties", [])
         timestamp = data.get("timestamp")
         version = data.get("version")
-        
         # Update the cached difficulties in django_question_service
-        django_question_service.difficulty = difficulties
-        
+        django_question_service.update_difficulties(difficulties=difficulties)
         logger.info(f"Updated cached difficulties: {difficulties} (version: {version}, timestamp: {timestamp})")
+        return
 
 
 if __name__ == "__main__":
     consumer = TopicsDifficultiesConsumer()
     asyncio.run(consumer.listen())
-
