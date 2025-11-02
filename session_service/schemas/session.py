@@ -13,4 +13,8 @@ class ActiveSessionSchema(BaseModel):
 
 
 class SessionHistorySchema(ActiveSessionSchema):
-    pass
+    question_title: str
+    question_statement_md: str
+    topics: list[str]
+    difficulty: str
+    company_tags: list[str]

@@ -1,10 +1,9 @@
 from datetime import datetime
 from uuid import UUID
-from fastapi import HTTPException, status
 from sqlmodel import and_, select
 from models.session import Session, SessionUser
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 
 class SessionRepo:
@@ -83,6 +82,8 @@ class SessionRepo:
             self.model.started_at
         ).limit(
             size
+        ).options(
+            selectinload(self.model.session_metadata)
         )
         res = await db_session.execute(query)
         return res.all()

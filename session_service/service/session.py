@@ -6,7 +6,7 @@ from config import settings
 from kafka.kafka_client import kafka_client
 from pg_db.core import engine
 from crud.session import session_repo, session_user_repo
-from models.session import Session, SessionUser
+from models.session import Session, SessionMetadata, SessionUser
 from schemas.events import SessionCreated, SessionEnd
 from confluent_kafka.schema_registry.avro import AvroSerializer
 
@@ -46,7 +46,15 @@ class SessionService:
                         user_id=user_id
                     )
                     for user_id in session_created.user_id_list
-                ]
+                ],
+                session_metadata=SessionMetadata(
+                    session_id=session_id,
+                    question_title=session_created.title,
+                    question_statement_md=session_created.statement_md,
+                    topics=session_created.topics,
+                    difficulty=session_created.difficulty,
+                    company_tags=session_created.company_tags
+                )
             )
             logger.info(f"Creating new session {session_created.session_id}")
             await session_repo.insert(
@@ -127,7 +135,8 @@ class SessionService:
         for session, matched_user_id in session_user_list:
             res.append(SessionHistorySchema(
                 **session.model_dump(),
-                matched_user_id=matched_user_id
+                matched_user_id=matched_user_id,
+                **session.session_metadata.model_dump()
             ))
         return res
 
