@@ -133,10 +133,15 @@ class SessionService:
         )
         res = []
         for session, matched_user_id in session_user_list:
+            metadata = session.session_metadata
+            if not metadata:
+                metadata = SessionMetadata(
+                    session_id=session.id
+                )
             res.append(SessionHistorySchema(
                 **session.model_dump(),
                 matched_user_id=matched_user_id,
-                **session.session_metadata.model_dump()
+                **metadata.model_dump()
             ))
         return res
 
