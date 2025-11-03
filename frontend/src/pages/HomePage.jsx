@@ -20,7 +20,7 @@ const HomePage = () => {
       }
 
       try {
-        const sessionData = await sessionService.getActiveSession(user.id);
+        const sessionData = await sessionService.getActiveSession();
         
         if (sessionData && sessionData.id && !sessionData.ended_at) {
           let enrichedSession = {

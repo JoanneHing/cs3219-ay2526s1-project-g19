@@ -5,6 +5,7 @@ import os
 from uuid import UUID
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from core.security import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 import uvicorn
 from config import settings
@@ -44,7 +45,7 @@ if SERVICE_PREFIX:
 
 @router.get("/session", response_model=ActiveSessionSchema | None)
 async def get_session(
-    user_id: UUID,
+    user_id=Depends(get_current_user),
     db_session: AsyncSession = Depends(get_db_session)
 ):
     return await session_service.get_active_session(
@@ -71,6 +72,6 @@ if __name__=="__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.env == "dev"
+        reload=settings.environment == "development"
     )
     logger.info("Stopping session service...")

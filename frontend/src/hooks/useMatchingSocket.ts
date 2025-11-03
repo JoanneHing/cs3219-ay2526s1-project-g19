@@ -100,7 +100,7 @@ export const useMatchingSocket = () => {
     }
 
     // check active sessions
-    const session = await sessionService.getActiveSession(user?.id)
+    const session = await sessionService.getActiveSession()
     console.log(`${session}`)
     if (session) {
       setError('Already in active session, rejoin from home screen');
