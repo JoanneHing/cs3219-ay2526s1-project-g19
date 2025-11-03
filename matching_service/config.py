@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    environment: str = "prd"
+    environment: str = "production"
     redis_host: str = Field(alias="MATCHING_REDIS_HOST")
     redis_port: str = Field(alias="MATCHING_REDIS_PORT")
     user_service_url: str

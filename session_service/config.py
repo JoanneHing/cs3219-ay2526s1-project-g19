@@ -3,7 +3,7 @@ from pydantic import Field
 
 
 class Settings(BaseSettings):
-    environment: str = "prd"
+    environment: str = "production"
     session_db_host: str
     session_db_port: int
     session_db_name: str
