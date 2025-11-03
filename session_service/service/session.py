@@ -98,8 +98,7 @@ class SessionService:
 
     async def end_session(
         self,
-        session_id: UUID,
-        db_session: AsyncSession
+        session_id: UUID
     ) -> None:
         # publish session end event to kafka
         with open("kafka/schemas/session_end.avsc") as f:

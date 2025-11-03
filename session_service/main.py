@@ -56,12 +56,10 @@ async def get_session(
 
 @router.post("/end")
 async def end_session(
-    session_id: UUID,
-    db_session: AsyncSession = Depends(get_db_session)
+    session_id: UUID
 ):
     return await session_service.end_session(
-        session_id=session_id,
-        db_session=db_session
+        session_id=session_id
     )
 
 
