@@ -69,11 +69,13 @@ async def end_session(
 async def get_history(
     user_id: UUID,
     size: int = 10,
+    page: int = 1,
     db_session: AsyncSession = Depends(get_db_session)
 ):
     return await session_service.get_history(
         user_id=user_id,
         size=size,
+        page=page,
         db_session=db_session
     )
 

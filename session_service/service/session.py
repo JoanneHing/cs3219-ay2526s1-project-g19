@@ -1,6 +1,7 @@
 from datetime import datetime
 import logging
 from uuid import UUID
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from config import settings
 from kafka.kafka_client import kafka_client
@@ -124,11 +125,23 @@ class SessionService:
         self,
         user_id: UUID,
         db_session: AsyncSession,
-        size: int = 10
+        size: int = 10,
+        page: int = 1
     ) -> list[SessionHistorySchema]:
+        if page < 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Page must be 1 or larger, page received: {page}"
+            )
+        if size < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"Size must be 0 or larger, size received: {size}"
+            )
         session_user_list = await session_repo.get_by_user_id(
             user_id=user_id,
             size=size,
+            page=page,
             db_session=db_session
         )
         res = []

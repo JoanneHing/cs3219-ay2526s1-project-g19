@@ -62,7 +62,8 @@ class SessionRepo:
         self,
         user_id: UUID,
         db_session: AsyncSession,
-        size: int = 10
+        size: int = 10,
+        page: int = 1
     ) -> list[tuple[Session, UUID]]:
         su1 = aliased(SessionUser)
         su2 = aliased(SessionUser)
@@ -82,6 +83,8 @@ class SessionRepo:
             self.model.started_at
         ).limit(
             size
+        ).offset(
+            page-1
         ).options(
             selectinload(self.model.session_metadata)
         )
