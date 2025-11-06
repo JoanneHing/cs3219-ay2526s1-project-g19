@@ -35,12 +35,6 @@ INSTALLED_APPS = [
     "question_service.apps.QuestionServiceConfig",
 ]
 
-# Import Kafka signals to register them
-try:
-    import question_service.kafka.signals  # noqa: F401
-except ImportError:
-    pass  # Kafka not available in all environments
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
