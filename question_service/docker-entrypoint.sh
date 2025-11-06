@@ -7,7 +7,7 @@
 # 3. Runs Django migrations
 # 4. Collects static files
 # 5. Loads fixture data (if enabled and database is empty)
-# 6. Publishes initial topics/difficulties to Kafka (after fixture loading)
+# 6. Publishes initial topics/difficulties to Kafka (after migrations, every start)
 #
 # Environment Variables:
 #   - SKIP_DB_SETUP: Skip database setup steps (default: false)
@@ -96,15 +96,19 @@ load_fixtures() {
   echo "Loading fixture data from ${FIXTURE_FILE}..."
   if python manage.py loaddata "${FIXTURE_FILE}"; then
     echo "Successfully loaded fixture data."
-    
-    # Publish initial topics/difficulties to Kafka if enabled
-    if [ "${SKIP_KAFKA_SETUP}" != "true" ]; then
-      echo "Publishing initial topics and difficulties to Kafka..."
-      python manage.py setup_kafka --publish-only || echo "Kafka setup failed or not configured. Continuing..."
-    fi
   else
     echo "Warning: Failed to load fixture data. Continuing anyway..."
   fi
+}
+
+publish_initial_kafka() {
+  if [ "${SKIP_KAFKA_SETUP}" = "true" ]; then
+    echo "SKIP_KAFKA_SETUP is true; skipping Kafka publication."
+    return 0
+  fi
+  echo "Publishing topics and difficulties to Kafka..."
+  # This command will compute current topics/difficulties from DB and publish
+  python manage.py setup_kafka --publish-only || echo "Kafka publish failed or not configured. Continuing..."
 }
 
 main() {
@@ -114,6 +118,8 @@ main() {
     wait_for_db
     run_migrations
     load_fixtures
+    # Always publish on every container start after migrations
+    publish_initial_kafka
   else
     echo "SKIP_DB_SETUP is true; skipping migrations, collectstatic, and fixture loading."
   fi
