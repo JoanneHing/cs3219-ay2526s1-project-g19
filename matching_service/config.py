@@ -6,8 +6,6 @@ class Settings(BaseSettings):
     environment: str = "production"
     redis_host: str = Field(alias="MATCHING_REDIS_HOST")
     redis_port: str = Field(alias="MATCHING_REDIS_PORT")
-    user_service_url: str
-    question_service_url: str
 
     # Kafka
     matching_group_id: str = Field(alias="MATCHING_GROUP_ID")

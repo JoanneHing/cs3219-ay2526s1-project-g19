@@ -103,11 +103,11 @@ class TopicsDifficultiesPublisher:
         except Exception as e:
             logger.error(f"Failed to publish difficulties update: {e}")
     
-    def publish_initial_data(self):
         """Publish initial topics and difficulties data on startup."""
+    def publish_initial_data(self):
         try:
             # Get current topics from database
-            topics_query = Question.objects.filter(status='active').values_list('topics', flat=True)
+            topics_query = Question.objects.filter(is_active=True).values_list('topics', flat=True)
             topics_set = set()
             for topics_list in topics_query:
                 if topics_list:  # Handle None/empty values

@@ -185,7 +185,6 @@ class RedisController:
         pubsub = self.get_pubsub()
         await pubsub.subscribe(settings.topic_session_created)
         logger.info(f"Subscribed to session created events on {settings.topic_session_created}")
-        logger.info(settings.redis_host)
 
         async for msg in pubsub.listen():
             if msg["type"] == "message":

@@ -14,9 +14,6 @@ services:
     environment:
       - DEBUG=${DEBUG:-true}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,matching-service}
-      # Service-to-service communication URLs
-      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:8000}
-      - QUESTION_SERVICE_URL=${QUESTION_SERVICE_URL:-http://question-service:8000}
     volumes:
       - ./:/app:rw
     networks:
