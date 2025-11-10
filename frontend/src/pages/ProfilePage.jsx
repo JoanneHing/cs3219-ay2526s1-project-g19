@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useNotification } from "../contexts/NotificationContext";
 import { useState } from "react";
 import PasswordResetForm from "../components/profile/PasswordResetForm";
+import SessionHistory from "../components/profile/SessionHistory";
 
 const ProfilePage = () => {
     const { user } = useAuth();
@@ -73,6 +74,9 @@ const ProfilePage = () => {
                 isOpen={isPasswordFormOpen}
                 onClose={() => setIsPasswordFormOpen(false)}
             />
+
+            {/* Session History Section */}
+            <SessionHistory />
         </div>
     );
 };
