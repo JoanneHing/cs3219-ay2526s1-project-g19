@@ -47,26 +47,30 @@ const ProfilePage = () => {
     
     return (
         <div className="container mx-auto p-10">
-            <h1 className="text-4xl font-bold mb-4">{user.display_name}</h1>
-            <h4 className="text-gray-400 mb-2">Email: {user.email}</h4>
-            <div className="mt-6 flex flex-col space-y-4 w-fit">
-                <button 
-                    onClick={() => setIsPasswordFormOpen(true)}
-                    className="bg-primary text-white hover:bg-primary-dark font-semibold py-2 px-4 rounded whitespace-nowrap"
-                >
-                    <LucideLockKeyhole className="inline-block mr-2" />
-                    Password Reset
-                </button>
-                <button
-                    onClick={handleLogout}
-                    className="bg-red-500 text-white hover:bg-red-600 font-semibold py-2 px-4 rounded whitespace-nowrap">
-                    <LogOut className="inline-block mr-2" />
-                    Logout
-                </button>
-                {/* <button className="bg-green-500 text-white hover:bg-green-600 font-semibold py-2 px-4 rounded whitespace-nowrap">
-                    <Verified className="inline-block mr-2" />
-                    Verify Account
-                </button> */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-4xl font-bold mb-2">{user.display_name}</h1>
+                    <h4 className="text-gray-400">Email: {user.email}</h4>
+                </div>
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => setIsPasswordFormOpen(true)}
+                        className="bg-primary text-white hover:bg-primary-dark font-semibold py-2 px-4 rounded whitespace-nowrap"
+                    >
+                        <LucideLockKeyhole className="inline-block mr-2" />
+                        Password Reset
+                    </button>
+                    <button
+                        onClick={handleLogout}
+                        className="bg-red-500 text-white hover:bg-red-600 font-semibold py-2 px-4 rounded whitespace-nowrap">
+                        <LogOut className="inline-block mr-2" />
+                        Logout
+                    </button>
+                    {/* <button className="bg-green-500 text-white hover:bg-green-600 font-semibold py-2 px-4 rounded whitespace-nowrap">
+                        <Verified className="inline-block mr-2" />
+                        Verify Account
+                    </button> */}
+                </div>
             </div>
 
             {/* Password Reset Form */}

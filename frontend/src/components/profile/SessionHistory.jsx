@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Calendar, User, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Clock, Calendar, User, BookOpen, ChevronLeft, ChevronRight} from 'lucide-react';
 import { sessionService } from '../../api/services/sessionService';
 import { useNotification } from '../../contexts/NotificationContext';
 import { userService } from '../../api/services/userService';
@@ -23,6 +23,7 @@ const SessionHistory = () => {
         try {
             const response = await sessionService.getHistory(page, SESSIONS_PER_PAGE);
             const data = response.data;
+            console.log('Fetched session history:', data);
             
             // If we get an empty array, disable next 
             // If we get less than the page size, there are no more pages
@@ -75,7 +76,8 @@ const SessionHistory = () => {
         return date.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'short', 
-            day: 'numeric' 
+            day: 'numeric',
+            timeZone: 'Asia/Singapore'
         });
     };
 
@@ -83,7 +85,8 @@ const SessionHistory = () => {
         const date = new Date(dateString);
         return date.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
-            minute: '2-digit' 
+            minute: '2-digit',
+            timeZone: 'Asia/Singapore'
         });
     };
 
@@ -142,7 +145,9 @@ const SessionHistory = () => {
 
     return (
         <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">Past Sessions</h2>
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold">Past Sessions</h2>
+            </div>
             
             {sessions.length === 0 ? (
                 <div className="bg-background-secondary border border-gray-700 rounded-lg p-8 text-center">
@@ -152,107 +157,145 @@ const SessionHistory = () => {
                 </div>
             ) : (
                 <>
-                    <div className="space-y-4">
-                        {sessions.map((session) => (
-                            <div 
-                                key={session.id}
-                                className="bg-background-secondary border border-gray-700 rounded-lg p-6 hover:border-gray-600 transition-colors"
-                            >
-                                {/* Header with Question Title and Difficulty */}
-                                <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                        <h3 className="text-xl font-semibold text-gray-200 mb-2">
-                                            {session.question_title}
-                                        </h3>
-                                        <div className="flex flex-wrap gap-2 items-center">
-                                            <span className={`px-2 py-1 text-xs font-medium rounded border ${getDifficultyColor(session.difficulty)}`}>
-                                                {session.difficulty}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                Language: <span className="text-gray-300 font-medium">{session.language}</span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* Table */}
+                    <div className="bg-background-secondary border border-gray-700 rounded-lg overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-800/50 border-b border-gray-700">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Date
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Question
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Topics
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Difficulty
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Language
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Partner
+                                        </th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                                            Duration
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-700">
+                                    {sessions.map((session) => (
+                                        <tr 
+                                            key={session.id}
+                                            className="hover:bg-gray-800/30 transition-colors"
+                                        >
+                                            {/* Date & Time */}
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm text-gray-300">
+                                                    {formatDate(session.started_at)}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {formatTime(session.started_at)}
+                                                </div>
+                                            </td>
 
-                                {/* Topics */}
-                                {session.topics && session.topics.length > 0 && (
-                                    <div className="mb-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            {session.topics.map((topic, index) => (
-                                                <span 
-                                                    key={index}
-                                                    className="px-2 py-1 text-xs bg-blue-900/20 text-blue-400 rounded border border-blue-800"
-                                                >
-                                                    {topic}
+                                            {/* Question Title */}
+                                            <td className="px-6 py-4">
+                                                <div className="text-sm font-medium text-gray-200">
+                                                    {session.question_title}
+                                                </div>
+                                            </td>
+
+                                            {/* Topics */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                                    {session.topics && session.topics.length > 0 ? (
+                                                        session.topics.slice(0, 2).map((topic, index) => (
+                                                            <span 
+                                                                key={index}
+                                                                className="px-2 py-0.5 text-xs text-gray-200 rounded border border-gray-600"
+                                                            >
+                                                                {topic}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500">-</span>
+                                                    )}
+                                                    {session.topics && session.topics.length > 2 && (
+                                                        <span className="text-xs text-gray-500">
+                                                            +{session.topics.length - 2}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+
+                                            {/* Difficulty */}
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded border ${getDifficultyColor(session.difficulty)}`}>
+                                                    {session.difficulty}
                                                 </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                            </td>
 
-                                {/* Company Tags */}
-                                {session.company_tags && session.company_tags.length > 0 && (
-                                    <div className="mb-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            {session.company_tags.map((company, index) => (
-                                                <span 
-                                                    key={index}
-                                                    className="px-2 py-1 text-xs bg-purple-900/20 text-purple-400 rounded border border-purple-800"
-                                                >
-                                                    {company}
+                                            {/* Language */}
+                                            <td className="px-6 py-4">
+                                                <span className="text-sm text-gray-300 font-medium">
+                                                    {session.language}
                                                 </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                            </td>
 
-                                {/* Session Details */}
-                                <div className="flex flex-wrap gap-4 text-sm text-gray-400 pt-3 border-t border-gray-700">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>{formatDate(session.started_at)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        <span>{formatTime(session.started_at)} - {session.ended_at ? formatTime(session.ended_at) : 'Ongoing'}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        <span>Duration: {calculateDuration(session.started_at, session.ended_at)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <User className="w-4 h-4" />
-                                        <span>Partner: {partnerNames[session.matched_user_id] || 'Loading...'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                                            {/* Partner */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2 text-sm text-gray-300">
+                                                    <User className="w-4 h-4 text-gray-400" />
+                                                    {partnerNames[session.matched_user_id] || 'Loading...'}
+                                                </div>
+                                            </td>
+
+                                            {/* Duration */}
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-1 text-sm text-gray-300">
+                                                    <Clock className="w-4 h-4 text-gray-400" />
+                                                    {calculateDuration(session.started_at, session.ended_at)}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     {/* Pagination Controls */}
                     <div className="flex items-center justify-between mt-6">
-                        <button
-                            onClick={handlePreviousPage}
-                            disabled={currentPage === 1 || isLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-background-secondary border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                            Previous
-                        </button>
+                        <div>
+                        </div>
+                        
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={handlePreviousPage}
+                                disabled={currentPage === 1 || isLoading}
+                                className="flex items-center gap-2 px-4 py-2 bg-background-secondary border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
 
-                        <span className="text-gray-400">
-                            Page {currentPage}
-                        </span>
+                            <span className="text-gray-400">
+                                Page {currentPage}
+                            </span>
 
-                        <button
-                            onClick={handleNextPage}
-                            disabled={!hasMore || isLoading}
-                            className="flex items-center gap-2 px-4 py-2 bg-background-secondary border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Next
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                            <button
+                                onClick={handleNextPage}
+                                disabled={!hasMore || isLoading}
+                                className="flex items-center gap-2 px-4 py-2 bg-background-secondary border border-gray-700 rounded-lg text-gray-300 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </>
             )}

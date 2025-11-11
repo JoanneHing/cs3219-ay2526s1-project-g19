@@ -16,21 +16,17 @@ const QuestionPage = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     
-    // Filters
     const [selectedDifficulties, setSelectedDifficulties] = useState([]);
     const [selectedTopics, setSelectedTopics] = useState([]);
     const [showFilters, setShowFilters] = useState(false);
     const [showSortMenu, setShowSortMenu] = useState(false);
     
-    // Sort (field and order)
     const [sortField, setSortField] = useState('created_at');
     const [sortOrder, setSortOrder] = useState('desc');
     
-    // Available options
     const [availableTopics, setAvailableTopics] = useState([]);
     const [availableDifficulties, setAvailableDifficulties] = useState([]);
 
-    // Fetch available topics and difficulties
     useEffect(() => {
         const fetchOptions = async () => {
             try {
@@ -60,13 +56,12 @@ const QuestionPage = () => {
                 order: sortOrder
             };
             
-            // Add difficulty filter if selected
             if (selectedDifficulties.length > 0) {
-                params.difficulty = selectedDifficulties[0]; // Backend expects single value
+                params.difficulty = selectedDifficulties[0]; 
             }
             
             if (selectedTopics.length > 0) {
-                params.topic = selectedTopics; // Backend supports multiple via array
+                params.topic = selectedTopics;
             }
             
             console.log('Fetching questions with params:', params);
@@ -91,8 +86,8 @@ const QuestionPage = () => {
     const handleDifficultyToggle = (difficulty) => {
         setSelectedDifficulties(prev => 
             prev.includes(difficulty)
-                ? [] // Deselect if clicking the same one
-                : [difficulty] // Select new one, clear others
+                ? [] 
+                : [difficulty] 
         );
         setCurrentPage(1);
     };
@@ -309,8 +304,7 @@ const QuestionPage = () => {
                                     <tbody className="divide-y divide-gray-700">
                                         {questions.map((question, index) => {
                                             const globalIndex = (currentPage - 1) * QUESTIONS_PER_PAGE + index + 1;
-                                            // Try multiple possible ID field names
-                                            const questionId = question.question_id || question.id || question.slug;
+                                            const questionId = question.question_id 
                                             
                                             return (
                                                 <tr
