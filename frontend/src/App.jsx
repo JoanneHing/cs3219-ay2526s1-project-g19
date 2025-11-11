@@ -58,10 +58,10 @@ const App = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/edit" element={<ProfileUpdatePage />} />
             <Route path="/questions" element={<QuestionListPage />} />
-            <Route path="/questions/:id" element={<QuestionDetailPage />} />
             <Route path="/matching" element={<MatchingPage />} />
             <Route path="/matching/finding" element={<MatchingProgressPage />} />
           </Route>
+          <Route path="/questions/:id" element={<QuestionDetailPage />} />
           <Route path="/collaboration/:sessionId" element={<CollaborationPage />} />
         </Route>
 
