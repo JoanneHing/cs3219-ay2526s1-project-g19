@@ -46,7 +46,7 @@ const ProfilePage = () => {
     }
     
     return (
-        <div className="container mx-auto p-10">
+        <div className="container mx-auto p-10 page-transition">
             <div className="flex items-center justify-between mb-8">
                 <div>
                     <h1 className="text-4xl font-bold mb-2">{user.display_name}</h1>

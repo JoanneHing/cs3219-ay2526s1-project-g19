@@ -14,7 +14,8 @@ const QuestionPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     
     const [selectedDifficulties, setSelectedDifficulties] = useState([]);
     const [selectedTopics, setSelectedTopics] = useState([]);
@@ -80,6 +81,7 @@ const QuestionPage = () => {
             setQuestions([]);
         } finally {
             setIsLoading(false);
+            setIsInitialLoad(false);
         }
     };
 
@@ -157,7 +159,7 @@ const QuestionPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background p-8">
+        <div className="min-h-screen bg-background p-8 page-transition">
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
                     <h1 className="text-4xl font-bold text-white mb-2">Question List</h1>
@@ -269,7 +271,7 @@ const QuestionPage = () => {
                 </div>
 
                 {/* Questions Table */}
-                {isLoading ? (
+                {isInitialLoad && isLoading ? (
                     <div className="flex items-center justify-center py-20">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
                         <span className="ml-3 text-gray-400 text-lg">Loading questions...</span>
