@@ -24,7 +24,7 @@ CREATE TABLE questions (
 );
 ```
 
-### Question Popularity / Progress
+### Question Statistics
 
 ```sql
 CREATE TABLE question_stats (
