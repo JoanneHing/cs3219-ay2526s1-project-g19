@@ -135,14 +135,10 @@ class RedisController:
             criteria=MatchingCriteriaEnum.PRIMARY_LANG,
             user_id=matched_user_id
         )
-        
-        language = None
-        
-        if user_primary_lang and matched_user_primary_lang:
-            if user_primary_lang[0] == matched_user_primary_lang[0]:
+        if user_primary_lang and matched_user_primary_lang and \
+            user_primary_lang[0] == matched_user_primary_lang[0]:
                 language = user_primary_lang[0]
         
-        if language is None:
             user_lang = set(user_primary_lang + await self.get_criteria_list(
                 criteria=MatchingCriteriaEnum.SECONDARY_LANG,
                 user_id=user_id
@@ -152,8 +148,7 @@ class RedisController:
                 user_id=matched_user_id
             ))
             language_set = user_lang & matched_user_lang
-            if language_set:
-                language = language_set.pop()
+            language = language_set.pop()
         
         return MatchedCriteriaSchema(
             topic=topic_set.pop(),

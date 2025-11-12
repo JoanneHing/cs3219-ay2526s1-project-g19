@@ -78,6 +78,7 @@ const MatchingForm = () => {
     const [languageOptions, setLanguageOptions] = useState(DEFAULT_LANGUAGES);
     const [optionsLoading, setOptionsLoading] = useState(false);
     const [optionsError, setOptionsError] = useState(null);
+    const [hasLoadedOptions, setHasLoadedOptions] = useState(false);
 
     const [selections, setSelections] = useState({
         topics: [],
@@ -139,11 +140,15 @@ const MatchingForm = () => {
                 setLanguageOptions(DEFAULT_LANGUAGES);
             } finally {
                 setOptionsLoading(false);
+                setHasLoadedOptions(true);
             }
         };
 
-        void loadOptions();
-    }, []);
+        // Only load if haven't loaded yet
+        if (!hasLoadedOptions) {
+            void loadOptions();
+        }
+    }, [hasLoadedOptions]);
 
     const sortedTopicOptions = useMemo(() => [...topicOptions].sort((a, b) => a.localeCompare(b)), [topicOptions]);
     const difficultyOptionDetails = useMemo(() => difficultyOptions.map((value) => ({
