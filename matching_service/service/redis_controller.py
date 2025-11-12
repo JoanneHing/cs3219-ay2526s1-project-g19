@@ -149,6 +149,7 @@ class RedisController:
             ))
             language_set = user_lang & matched_user_lang
             language = language_set.pop()
+        
         return MatchedCriteriaSchema(
             topic=topic_set.pop(),
             difficulty=difficulty_set.pop(),
