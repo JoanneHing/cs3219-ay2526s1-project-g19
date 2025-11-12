@@ -8,7 +8,13 @@ import ChatBox from "../components/collaboration/ChatBox"
 import QuestionPanel from "../components/collaboration/QuestionPanel"
 import LeaveRoomConfirmation from "../components/collaboration/LeaveRoomConfirmation"
 import PartnerLeftModal from "../components/collaboration/PartnerLeftModal"
+import SessionTimerWarning from "../components/collaboration/SessionTimerWarning"
 import { Code2, GripVertical, LogOut, Clock } from "lucide-react"
+
+// DEMO: Session time limits (in seconds)
+const DEMO_START_TIME = 54 * 60; // Start at 54 minutes for demo
+const WARNING_TIME = 55 * 60; // Show warning at 55 minutes
+const MAX_SESSION_TIME = 60 * 60; // 1 hour max
 
 const CollaborationPage = () => {
   const location = useLocation();
@@ -23,6 +29,9 @@ const CollaborationPage = () => {
   const [showPartnerLeftModal, setShowPartnerLeftModal] = useState(false)
   const [hasPartnerLeft, setHasPartnerLeft] = useState(false)
   const [sessionTime, setSessionTime] = useState(0) // Session time in seconds
+  const [showTimeWarning, setShowTimeWarning] = useState(false) // Show 5-min warning
+  const [isMaxTimeReached, setIsMaxTimeReached] = useState(false) // Max time reached
+  const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false) // Track if user dismissed warning
   const leftPanelRef = useRef(null)
   const chatSocketRef = useRef(null)
   const timerRef = useRef(null)
@@ -99,9 +108,10 @@ const CollaborationPage = () => {
       return;
     }
     
-    // Calculate initial elapsed time
+    // DEMO: Calculate initial elapsed time starting from 54 minutes
     const calculateElapsedTime = () => {
-      return Math.floor((Date.now() - startTime.getTime()) / 1000);
+      const actualElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+      return DEMO_START_TIME + actualElapsed; // Start at 54 minutes for demo
     };
 
     // Set initial time
@@ -109,7 +119,19 @@ const CollaborationPage = () => {
 
     // Update timer every second
     timerRef.current = setInterval(() => {
-      setSessionTime(calculateElapsedTime());
+      const newTime = calculateElapsedTime();
+      setSessionTime(newTime);
+
+      // Check for 5-minute warning (55 minutes) - only show if user hasn't dismissed it
+      if (newTime >= WARNING_TIME && newTime < MAX_SESSION_TIME && !showTimeWarning && !hasAcknowledgedWarning) {
+        setShowTimeWarning(true);
+      }
+
+      // Check for max time reached (60 minutes)
+      if (newTime >= MAX_SESSION_TIME && !isMaxTimeReached) {
+        setIsMaxTimeReached(true);
+        setShowTimeWarning(true); // Show the modal with max time message
+      }
     }, 1000);
 
     // Cleanup on unmount or sessionData change
@@ -118,7 +140,7 @@ const CollaborationPage = () => {
         clearInterval(timerRef.current);
       }
     };
-  }, [sessionData?.started_at]);
+  }, [sessionData?.started_at, showTimeWarning, isMaxTimeReached]);
 
   // Format session time as HH:MM:SS or MM:SS
   const formatSessionTime = (seconds) => {
@@ -203,6 +225,36 @@ const CollaborationPage = () => {
     }
   }, [showPartnerLeftModal, hasPartnerLeft]);
 
+  // Handle time warning - user clicks "Continue"
+  const handleContinueSession = () => {
+    setShowTimeWarning(false);
+    setHasAcknowledgedWarning(true); // Mark warning as acknowledged so it won't reappear
+  };
+
+  // Handle max time reached - terminate session
+  const handleEndSessionMaxTime = async () => {
+    try {
+      // End the session via API
+      await sessionService.endSession(sessionId);
+      
+      // Emit leave event via chat socket to notify partner
+      if (chatSocketRef.current) {
+        chatSocketRef.current.emit("leave", { 
+          room, 
+          username
+        });
+        chatSocketRef.current.disconnect();
+      }
+      
+      // Navigate back to home page
+      navigate('/home');
+    } catch (error) {
+      console.error('Failed to end session:', error);
+      // Still navigate even if there's an error
+      navigate('/home');
+    }
+  };
+
   // If no session data, show loading
   if (!sessionData || !sessionId) {
     return (
@@ -270,9 +322,27 @@ const CollaborationPage = () => {
             {/* Session Timer and Leave Button */}
             <div className="flex items-center gap-3">
               {/* Session Timer */}
-              <div className="flex items-center gap-2 bg-gradient-to-r from-slate-800 to-slate-700 px-4 py-2 rounded-lg border border-slate-600 shadow-md h-10">
-                <Clock className="w-4 h-4 text-blue-400" />
-                <div className="text-sm font-mono font-bold text-blue-400 tracking-wider">
+              <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border shadow-md h-10 transition-colors ${
+                sessionTime >= MAX_SESSION_TIME 
+                  ? 'bg-gradient-to-r from-red-900 to-red-800 border-red-600'
+                  : sessionTime >= WARNING_TIME
+                  ? 'bg-gradient-to-r from-yellow-900 to-yellow-800 border-yellow-600'
+                  : 'bg-gradient-to-r from-slate-800 to-slate-700 border-slate-600'
+              }`}>
+                <Clock className={`w-4 h-4 ${
+                  sessionTime >= MAX_SESSION_TIME 
+                    ? 'text-red-400'
+                    : sessionTime >= WARNING_TIME
+                    ? 'text-yellow-400'
+                    : 'text-blue-400'
+                }`} />
+                <div className={`text-sm font-mono font-bold tracking-wider ${
+                  sessionTime >= MAX_SESSION_TIME 
+                    ? 'text-red-400'
+                    : sessionTime >= WARNING_TIME
+                    ? 'text-yellow-400'
+                    : 'text-blue-400'
+                }`}>
                   {sessionData?.started_at ? formatSessionTime(sessionTime) : "--:--"}
                 </div>
                 <div className="text-xs text-gray-400 font-medium">
@@ -365,6 +435,15 @@ const CollaborationPage = () => {
           partnerName={partnerName}
           onStay={handleStayAfterPartnerLeft}
           onLeave={handleLeaveAfterPartnerLeft}
+        />
+      )}
+
+      {/* Session Timer Warning Modal */}
+      {showTimeWarning && (
+        <SessionTimerWarning
+          timeRemaining={MAX_SESSION_TIME - sessionTime}
+          onContinue={isMaxTimeReached ? handleEndSessionMaxTime : handleContinueSession}
+          isMaxTimeReached={isMaxTimeReached}
         />
       )}
     </div>
