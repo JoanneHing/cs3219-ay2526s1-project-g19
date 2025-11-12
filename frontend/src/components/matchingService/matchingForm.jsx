@@ -158,7 +158,8 @@ const MatchingForm = () => {
         isMatching, 
         matchFound,
         sessionData,
-        error, 
+        error,
+        isRelaxed,
         startMatching, 
         cancelMatching,
         resetMatch
@@ -341,8 +342,9 @@ const MatchingForm = () => {
                         topic: selections.topics.join(', ') || 'Any',
                         difficulty: selections.difficulties.join(', ') || 'Any',
                         preferredLanguage: selections.preferredLanguage || 'Any',
-                        backupLanguages: selections.backupLanguages || 'None'
+                        backupLanguages: selections.backupLanguages || []
                     }}
+                    isRelaxed={isRelaxed}
                     onCancel={handleCancelClick}
                 />
                 {/* Confirmation Dialog */}
