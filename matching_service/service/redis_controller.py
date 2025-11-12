@@ -138,7 +138,7 @@ class RedisController:
         if user_primary_lang and matched_user_primary_lang and \
             user_primary_lang[0] == matched_user_primary_lang[0]:
                 language = user_primary_lang[0]
-        
+        else:
             user_lang = set(user_primary_lang + await self.get_criteria_list(
                 criteria=MatchingCriteriaEnum.SECONDARY_LANG,
                 user_id=user_id
